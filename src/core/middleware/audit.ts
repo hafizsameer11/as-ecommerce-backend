@@ -1,6 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "@/core/db/prisma";
+import { jsonReplacer } from "@/core/http/response";
 import { logger } from "@/core/utils/logger";
+
+/** snapshot for a Json column (BigInt → number, Date → ISO) */
+const plain = (v: unknown) => (v == null ? undefined : JSON.parse(JSON.stringify(v, jsonReplacer)));
 
 export type AuditSpec = {
   category: string;
@@ -34,8 +38,8 @@ export function audit(spec: AuditSpec) {
             summary: (d.summary ?? `${spec.action} ${spec.entity}`).slice(0, 500),
             ip: req.ip,
             device: req.headers["user-agent"]?.slice(0, 500),
-            before: (d.before ?? undefined) as any,
-            after: (d.after ?? undefined) as any,
+            before: plain(d.before),
+            after: plain(d.after),
           },
         })
         .catch((err) => logger.error({ err }, "audit write failed"))

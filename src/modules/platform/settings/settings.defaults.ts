@@ -81,6 +81,16 @@ export const settingsSchemas = {
     deletionGraceDays: z.number().int().min(0),
     passwordMinLength: z.number().int().min(6),
   }),
+  tax: z.object({
+    displayPricesIncTax: z.boolean(),
+    chargeTaxOnShipping: z.boolean(),
+    chargeTaxOnConcierge: z.boolean(),
+    registeredTIN: z.string(),
+    companyLegalName: z.string(),
+    invoicePrefix: z.string(),
+    fiscalYearStartMonth: z.number().int().min(1).max(12),
+    autoRounding: z.enum(["line", "subtotal"]),
+  }),
   legal: z.object({
     vatNumber: z.string(), rcNumber: z.string(),
   }),
@@ -158,6 +168,16 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
   wallet: { minTopup: N(500), maxTopup: N(5_000_000), minWithdrawal: N(1_000), autoApproveWithdrawalBelow: N(0) },
   orders: { highValueThreshold: N(2_000_000), cancelBeforeStatus: "shipped" },
   account: { deletionGraceDays: 30, passwordMinLength: 8 },
+  tax: {
+    displayPricesIncTax: true,
+    chargeTaxOnShipping: true,
+    chargeTaxOnConcierge: false,
+    registeredTIN: "",
+    companyLegalName: "ASL Originals Ltd",
+    invoicePrefix: "INV-",
+    fiscalYearStartMonth: 1,
+    autoRounding: "subtotal",
+  },
   legal: { vatNumber: "", rcNumber: "" },
   maintenance: { enabled: false, message: "We're making improvements and will be back shortly." },
   app: {
@@ -176,5 +196,5 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
 
 /** Groups readable by anyone (no secrets in here). */
 export const PUBLIC_GROUPS: SettingsGroup[] = [
-  "profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "account", "maintenance", "app",
+  "profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "account", "tax", "maintenance", "app",
 ];

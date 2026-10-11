@@ -33,6 +33,8 @@ model Product {
   availability  Availability  @default(in_stock)
   status        ProductStatus @default(draft)
   isConcierge   Boolean       @default(false)
+  /// shipping weight; null = 1 kg assumed for per-kg international rates
+  weightGrams   Int?
   /// "Price on request" – shown instead of a price, add-to-bag becomes a concierge enquiry
   priceOnRequest Boolean      @default(false)
   /// e.g. "Model is 6'1\" and wears size M"

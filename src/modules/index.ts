@@ -18,6 +18,18 @@ import { searchStoreRoutes } from "./catalog/search/search.routes";
 import { homeStoreRoutes } from "./catalog/search/home.routes";
 import { dropsStoreRoutes, stockAlertsStoreRoutes } from "./catalog/drops/drops.routes";
 import { inventoryAdminRoutes, warehousesAdminRoutes } from "./inventory/inventory.routes";
+import { addressesAdminRoutes, addressesStoreRoutes } from "./platform/addresses/addresses.routes";
+import { cartsStoreRoutes } from "./commerce/carts/carts.routes";
+import { wishlistStoreRoutes } from "./commerce/wishlist/wishlist.routes";
+import { couponsAdminRoutes, myCouponsStoreRoutes } from "./commerce/coupons/coupons.routes";
+import { checkoutStoreRoutes } from "./commerce/checkout/checkout.routes";
+import { myOrdersStoreRoutes, ordersAdminRoutes, ordersStoreRoutes } from "./commerce/orders/orders.routes";
+import { shippingStoreRoutes, shippingZonesAdminRoutes } from "./fulfilment/shipping-zones/shipping-zones.routes";
+import { pickupLocationsAdminRoutes, pickupLocationsStoreRoutes } from "./fulfilment/pickups/pickups.routes";
+import { taxAdminRoutes } from "./fulfilment/tax/tax.routes";
+import { paymentsAdminRoutes, paymentsStoreRoutes, paymentWebhookRoutes } from "./payments/payments/payments.routes";
+import { bankAccountsStoreRoutes, banksStoreRoutes, walletsAdminRoutes, walletStoreRoutes } from "./payments/wallets/wallets.routes";
+import { paymentMethodsStoreRoutes } from "./payments/payment-methods/payment-methods.routes";
 
 export const moduleRouters: ModuleRouter[] = [
   // identity
@@ -51,6 +63,32 @@ export const moduleRouters: ModuleRouter[] = [
   // inventory
   inventoryAdminRoutes,
   warehousesAdminRoutes,
+  // commerce
+  addressesStoreRoutes,
+  addressesAdminRoutes,
+  cartsStoreRoutes,
+  wishlistStoreRoutes,
+  myCouponsStoreRoutes,
+  couponsAdminRoutes,
+  checkoutStoreRoutes,
+  myOrdersStoreRoutes,
+  ordersStoreRoutes,
+  ordersAdminRoutes,
+  // fulfilment
+  shippingStoreRoutes,
+  shippingZonesAdminRoutes,
+  pickupLocationsStoreRoutes,
+  pickupLocationsAdminRoutes,
+  taxAdminRoutes,
+  // payments
+  paymentsStoreRoutes,
+  paymentWebhookRoutes,
+  paymentsAdminRoutes,
+  walletStoreRoutes,
+  bankAccountsStoreRoutes,
+  banksStoreRoutes,
+  walletsAdminRoutes,
+  paymentMethodsStoreRoutes,
 ];
 
 /** side-effect imports: event listeners + job processors */

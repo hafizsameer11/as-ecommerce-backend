@@ -11,6 +11,7 @@ import { corsOrigins, env, isProd } from "@/config/env";
 import { logger } from "@/core/utils/logger";
 import { errorHandler, notFoundHandler } from "@/core/middleware/error-handler";
 import { ApiError } from "@/core/http/errors";
+import { jsonReplacer } from "@/core/http/response";
 import { buildOpenApiDocument } from "@/core/http/openapi";
 import { prisma } from "@/core/db/prisma";
 import { settingsService } from "@/modules/platform/settings/settings.service";
@@ -20,6 +21,7 @@ export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
   app.disable("x-powered-by");
+  app.set("json replacer", jsonReplacer);
 
   app.use((req, res, next) => {
     req.id = (req.header("X-Request-Id") ?? crypto.randomUUID()).slice(0, 64);

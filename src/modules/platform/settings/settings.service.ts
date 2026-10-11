@@ -1,4 +1,5 @@
 import { prisma } from "@/core/db/prisma";
+import { ApiError } from "@/core/http/errors";
 import { settingsDefaults, settingsSchemas, type SettingsGroup, type SettingsOf, PUBLIC_GROUPS } from "./settings.defaults";
 import { STATUS_LABELS } from "./status-labels";
 
@@ -36,7 +37,7 @@ async function publicSettings() {
     prisma.clubTier.findMany({ where: { active: true }, orderBy: { position: "asc" } }),
     prisma.shippingZone.findMany({
       where: { active: true },
-      orderBy: { priority: "desc" },
+      orderBy: { priority: "asc" },
       include: { rates: { where: { active: true }, orderBy: { position: "asc" } } },
     }),
   ]);
@@ -57,4 +58,71 @@ async function publicSettings() {
   };
 }
 
-export const settingsService = { get, update, publicSettings, clearCache: () => cache.clear() };
+/* ── admin ─────────────────────────────────────────────────────────────── */
+
+async function adminAll() {
+  const groups = Object.keys(settingsDefaults) as SettingsGroup[];
+  const values = Object.fromEntries(await Promise.all(groups.map(async (g) => [g, await get(g)])));
+  const [locales, currencies, paymentMethods] = await Promise.all([
+    prisma.locale.findMany({ orderBy: { code: "asc" } }),
+    prisma.currency.findMany({ orderBy: { code: "asc" } }),
+    prisma.paymentMethodSetting.findMany({ orderBy: { position: "asc" } }),
+  ]);
+  return {
+    ...values,
+    locales,
+    currencies: currencies.map((c) => ({ ...c, rate: c.rateX10000 / 10000 })),
+    paymentMethods,
+  };
+}
+
+async function togglePaymentMethod(id: string, key: "enabled" | "testMode") {
+  const pm = await prisma.paymentMethodSetting.findUniqueOrThrow({ where: { id } });
+  const updated = await prisma.paymentMethodSetting.update({ where: { id: pm.id }, data: { [key]: !pm[key] } });
+  cache.clear();
+  return { before: pm, after: updated };
+}
+
+async function toggleLocale(code: string) {
+  const l = await prisma.locale.findUniqueOrThrow({ where: { code } });
+  if (l.isDefault && l.enabled) throw ApiError.badRequest("INVALID_STATE", "The default language can't be disabled.");
+  return prisma.locale.update({ where: { code: l.code }, data: { enabled: !l.enabled } });
+}
+
+async function setDefaultLocale(code: string) {
+  await prisma.$transaction([
+    prisma.locale.updateMany({ data: { isDefault: false } }),
+    prisma.locale.update({ where: { code }, data: { isDefault: true, enabled: true } }),
+  ]);
+  return prisma.locale.findMany({ orderBy: { code: "asc" } });
+}
+
+async function toggleCurrency(code: string) {
+  const c = await prisma.currency.findUniqueOrThrow({ where: { code } });
+  if (c.isDefault && c.enabled) throw ApiError.badRequest("INVALID_STATE", "The default currency can't be disabled.");
+  return prisma.currency.update({ where: { code: c.code }, data: { enabled: !c.enabled } });
+}
+
+async function setDefaultCurrency(code: string) {
+  await prisma.$transaction([
+    prisma.currency.updateMany({ data: { isDefault: false } }),
+    prisma.currency.update({ where: { code }, data: { isDefault: true, enabled: true } }),
+  ]);
+  return prisma.currency.findMany({ orderBy: { code: "asc" } });
+}
+
+async function setRate(code: string, rate: number) {
+  cache.clear();
+  return prisma.currency.update({ where: { code }, data: { rateX10000: Math.round(rate * 10000) } });
+}
+
+/** FX refresh – static provider today; swap for a live FX API later */
+async function refreshFx() {
+  cache.clear();
+  return { refreshedAt: new Date().toISOString(), currencies: await prisma.currency.findMany() };
+}
+
+export const settingsService = {
+  get, update, publicSettings, clearCache: () => cache.clear(),
+  adminAll, togglePaymentMethod, toggleLocale, setDefaultLocale, toggleCurrency, setDefaultCurrency, setRate, refreshFx,
+};

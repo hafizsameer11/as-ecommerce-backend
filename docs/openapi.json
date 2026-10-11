@@ -1910,6 +1910,7 @@
                 "wallet",
                 "orders",
                 "account",
+                "tax",
                 "legal",
                 "maintenance",
                 "app"
@@ -6808,6 +6809,6548 @@
           },
           "403": {
             "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/addresses": {
+      "get": {
+        "summary": "My saved addresses (default first)",
+        "tags": [
+          "Store · Addresses"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add an address",
+        "tags": [
+          "Store · Addresses"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "default": "Home"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "shipping",
+                      "billing",
+                      "pickup"
+                    ],
+                    "default": "shipping"
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "line1": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 190
+                  },
+                  "line2": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 190
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 56,
+                    "default": "NG"
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 20
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "recipient",
+                  "phone",
+                  "line1",
+                  "city",
+                  "state"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/addresses/{id}": {
+      "get": {
+        "summary": "One address",
+        "tags": [
+          "Store · Addresses"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit an address",
+        "tags": [
+          "Store · Addresses"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "default": "Home"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "shipping",
+                      "billing",
+                      "pickup"
+                    ],
+                    "default": "shipping"
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "line1": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 190
+                  },
+                  "line2": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 190
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 56,
+                    "default": "NG"
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 20
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete an address",
+        "tags": [
+          "Store · Addresses"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/addresses/{id}/default": {
+      "post": {
+        "summary": "Make default",
+        "tags": [
+          "Store · Addresses"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/addresses": {
+      "get": {
+        "summary": "Address book (tabs: shipping / billing / pickup / flagged / unverified)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "shipping",
+                "billing",
+                "pickup",
+                "flagged",
+                "unverified"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/addresses/export": {
+      "get": {
+        "summary": "Export addresses (CSV)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "shipping",
+                "billing",
+                "pickup",
+                "flagged",
+                "unverified"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/addresses/{id}": {
+      "patch": {
+        "summary": "Edit address",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "default": "Home"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "shipping",
+                      "billing",
+                      "pickup"
+                    ],
+                    "default": "shipping"
+                  },
+                  "recipient": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "line1": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 190
+                  },
+                  "line2": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 190
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 56,
+                    "default": "NG"
+                  },
+                  "postalCode": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 20
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete address",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/addresses/{id}/verify": {
+      "post": {
+        "summary": "Mark verified",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/addresses/{id}/flag": {
+      "post": {
+        "summary": "Flag / unflag",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "flagged": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "flagged"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/addresses/{id}/default": {
+      "post": {
+        "summary": "Make default for the customer",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Addresses"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/cart": {
+      "get": {
+        "summary": "Get the bag (live prices, stock issues, free-shipping progress)",
+        "description": "Guests: send the `X-Cart-Token` header returned as `guestToken` by the first add. Signed-in customers need no token.",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Empty the bag",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/cart/summary": {
+      "get": {
+        "summary": "Header bag badge count",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/cart/items": {
+      "post": {
+        "summary": "Add to bag",
+        "description": "Guests: send the `X-Cart-Token` header returned as `guestToken` by the first add. Signed-in customers need no token.",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "size": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 40
+                  },
+                  "color": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 60
+                  },
+                  "qty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "default": 1
+                  }
+                },
+                "required": [
+                  "productId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/cart/items/{id}": {
+      "patch": {
+        "summary": "Change quantity / size of a line",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "qty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10
+                  },
+                  "size": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 40
+                  },
+                  "color": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 60
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove a line",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/cart/remove-unavailable": {
+      "post": {
+        "summary": "Remove sold-out / unavailable lines",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/cart/merge": {
+      "post": {
+        "summary": "After sign-in: merge the guest bag into the account bag",
+        "tags": [
+          "Store · Cart"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "guestToken": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "guestToken"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/wishlist": {
+      "get": {
+        "summary": "Saved items (product cards + on-sale count)",
+        "tags": [
+          "Store · Wishlist"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "post": {
+        "summary": "Toggle a product in the wishlist",
+        "tags": [
+          "Store · Wishlist"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "size": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 40
+                  },
+                  "color": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 60
+                  }
+                },
+                "required": [
+                  "productId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/wishlist/ids": {
+      "get": {
+        "summary": "Saved product ids (to paint hearts)",
+        "tags": [
+          "Store · Wishlist"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/wishlist/merge": {
+      "post": {
+        "summary": "Save a guest's device wishlist to the account",
+        "tags": [
+          "Store · Wishlist"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "size": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "color": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 60
+                        }
+                      },
+                      "required": [
+                        "productId"
+                      ]
+                    },
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "items"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/wishlist/{productId}": {
+      "delete": {
+        "summary": "Remove from wishlist",
+        "tags": [
+          "Store · Wishlist"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "productId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/coupons": {
+      "get": {
+        "summary": "My unused personal coupon codes",
+        "tags": [
+          "Store · Coupons"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/coupons": {
+      "get": {
+        "summary": "Coupons (tabs, KPIs, search)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "scheduled",
+                "expired",
+                "paused",
+                "draft"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "percent",
+                "fixed",
+                "free_shipping",
+                "bogo"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create coupon",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 40,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "percent",
+                      "fixed",
+                      "free_shipping",
+                      "bogo"
+                    ]
+                  },
+                  "value": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "scheduled",
+                      "expired",
+                      "paused",
+                      "draft"
+                    ],
+                    "default": "draft"
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "minSubtotal": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "maxDiscount": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "usageLimit": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 1
+                  },
+                  "perCustomerLimit": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 1
+                  },
+                  "appliesTo": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "categories",
+                      "brands",
+                      "products",
+                      "collections"
+                    ],
+                    "default": "all"
+                  },
+                  "appliesToRefs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 500,
+                    "default": []
+                  },
+                  "eligibility": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "new",
+                      "vip",
+                      "segment"
+                    ],
+                    "default": "all"
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "stackable": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "autoApply": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "oncePerCustomer": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "channels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "web",
+                        "mobile",
+                        "concierge"
+                      ]
+                    },
+                    "minItems": 1,
+                    "default": [
+                      "web",
+                      "mobile"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "code",
+                  "title",
+                  "type",
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/coupons/{id}": {
+      "get": {
+        "summary": "Coupon",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update coupon",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 40,
+                    "pattern": "^[A-Za-z0-9_-]+$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "percent",
+                      "fixed",
+                      "free_shipping",
+                      "bogo"
+                    ]
+                  },
+                  "value": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "scheduled",
+                      "expired",
+                      "paused",
+                      "draft"
+                    ],
+                    "default": "draft"
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "endsAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "minSubtotal": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "maxDiscount": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "usageLimit": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 1
+                  },
+                  "perCustomerLimit": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 1
+                  },
+                  "appliesTo": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "categories",
+                      "brands",
+                      "products",
+                      "collections"
+                    ],
+                    "default": "all"
+                  },
+                  "appliesToRefs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 500,
+                    "default": []
+                  },
+                  "eligibility": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "new",
+                      "vip",
+                      "segment"
+                    ],
+                    "default": "all"
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "stackable": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "autoApply": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "oncePerCustomer": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "channels": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "web",
+                        "mobile",
+                        "concierge"
+                      ]
+                    },
+                    "minItems": 1,
+                    "default": [
+                      "web",
+                      "mobile"
+                    ]
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete coupon (past redemptions keep the code)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/coupons/{id}/redemptions": {
+      "get": {
+        "summary": "Who used it",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/coupons/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate (as draft)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/coupons/{id}/status": {
+      "patch": {
+        "summary": "Activate / pause / expire",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "scheduled",
+                      "expired",
+                      "paused",
+                      "draft"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/coupons/{id}/pin": {
+      "post": {
+        "summary": "Pin / unpin",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Coupons"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/checkout": {
+      "get": {
+        "summary": "Resume checkout: bag, saved choices, delivery options, pick-up stores, totals",
+        "tags": [
+          "Store · Checkout"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Save any step (contact, delivery method, address, pick-up store, shipping rate, payment method, wallet, gift message) → new totals",
+        "tags": [
+          "Store · Checkout"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contact": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "maxLength": 190,
+                        "format": "email"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "maxLength": 30,
+                        "default": ""
+                      },
+                      "subscribe": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    },
+                    "required": [
+                      "email"
+                    ]
+                  },
+                  "delivery": {
+                    "type": "string",
+                    "enum": [
+                      "ship",
+                      "pickup"
+                    ]
+                  },
+                  "address": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "fullName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 120
+                      },
+                      "address": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 190
+                      },
+                      "apartment": {
+                        "type": "string",
+                        "maxLength": 190,
+                        "default": ""
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 80
+                      },
+                      "state": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 80
+                      },
+                      "postal": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "default": ""
+                      },
+                      "country": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 56,
+                        "default": "Nigeria"
+                      },
+                      "phone": {
+                        "type": "string",
+                        "maxLength": 30
+                      }
+                    },
+                    "required": [
+                      "fullName",
+                      "address",
+                      "city",
+                      "state"
+                    ]
+                  },
+                  "savedAddressId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "pickupLocationId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "shippingRateId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "paymentMethod": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "paystack",
+                      "bank",
+                      "bank_transfer",
+                      "wallet"
+                    ]
+                  },
+                  "useWallet": {
+                    "type": "boolean"
+                  },
+                  "giftMessage": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/checkout/coupon": {
+      "post": {
+        "summary": "Apply a coupon code (errors explain why it can't be used)",
+        "tags": [
+          "Store · Checkout"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove the coupon",
+        "tags": [
+          "Store · Checkout"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/checkout/place-order": {
+      "post": {
+        "summary": "Place order → `{ order, payment }`. Open `payment.authorizationUrl` to pay; `payment` is null when the wallet covered it.",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Checkout"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "saveCard": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "expectedTotal": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/me/orders": {
+      "get": {
+        "summary": "My orders (tabs: Processing / Shipped / Delivered / Cancelled / Returned) + stats",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Processing",
+                "Shipped",
+                "Delivered",
+                "Cancelled",
+                "Returned"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/orders/{id}": {
+      "get": {
+        "summary": "Order detail + timeline (id or order number)",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/orders/{id}/cancel": {
+      "post": {
+        "summary": "Cancel (only before it is prepared)",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/orders/{id}/pay": {
+      "post": {
+        "summary": "Pay the balance again after a failed payment",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/orders/{id}/reorder": {
+      "post": {
+        "summary": "Add this order's items back to the bag",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/orders/lookup": {
+      "post": {
+        "summary": "Track an order with number + email",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderNumber": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 40
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                },
+                "required": [
+                  "orderNumber",
+                  "email"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/orders/by-token/{token}": {
+      "get": {
+        "summary": "Order by its private access token (guest confirmation page)",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/orders/by-token/{token}/pay": {
+      "post": {
+        "summary": "Guest: pay again",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/orders": {
+      "get": {
+        "summary": "Orders table (tabs, search, KPIs)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "unfulfilled",
+                "awaiting_payment",
+                "processing",
+                "shipped",
+                "delivered",
+                "cancelled",
+                "returns"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "web",
+                "mobile",
+                "pwa",
+                "concierge",
+                "draft"
+              ]
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unpaid",
+                "partially_paid",
+                "paid",
+                "refunded",
+                "partially_refunded",
+                "failed"
+              ]
+            },
+            "required": false,
+            "name": "paymentStatus",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/export": {
+      "get": {
+        "summary": "Export orders (CSV)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "unfulfilled",
+                "awaiting_payment",
+                "processing",
+                "shipped",
+                "delivered",
+                "cancelled",
+                "returns"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "web",
+                "mobile",
+                "pwa",
+                "concierge",
+                "draft"
+              ]
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unpaid",
+                "partially_paid",
+                "paid",
+                "refunded",
+                "partially_refunded",
+                "failed"
+              ]
+            },
+            "required": false,
+            "name": "paymentStatus",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}": {
+      "get": {
+        "summary": "Order detail (id or number)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/status": {
+      "patch": {
+        "summary": "Move to the next status",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending_payment",
+                      "paid",
+                      "processing",
+                      "shipped",
+                      "out_for_delivery",
+                      "delivered",
+                      "cancelled",
+                      "returned",
+                      "refunded",
+                      "partially_refunded"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/bulk": {
+      "post": {
+        "summary": "Bulk status change",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending_payment",
+                      "paid",
+                      "processing",
+                      "shipped",
+                      "out_for_delivery",
+                      "delivered",
+                      "cancelled",
+                      "returned",
+                      "refunded",
+                      "partially_refunded"
+                    ]
+                  }
+                },
+                "required": [
+                  "ids",
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/cancel": {
+      "post": {
+        "summary": "Cancel + refund",
+        "description": "**Permission:** `orders.refund`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "refundTo": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/mark-paid": {
+      "post": {
+        "summary": "Confirm a bank transfer / offline payment",
+        "description": "**Permission:** `orders.refund`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reference": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 120
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "bank_transfer",
+                      "cash",
+                      "pos",
+                      "other"
+                    ],
+                    "default": "bank_transfer"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reference"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/notes": {
+      "post": {
+        "summary": "Add internal note",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/notes/{noteId}": {
+      "delete": {
+        "summary": "Delete note",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "noteId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/refund": {
+      "post": {
+        "summary": "Refund (to card/bank or wallet, optional restock)",
+        "description": "**Permission:** `orders.refund`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  },
+                  "restock": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/shipping/quote": {
+      "get": {
+        "summary": "Delivery options + fees for a destination",
+        "tags": [
+          "Store · Shipping"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 56,
+              "default": "NG"
+            },
+            "required": false,
+            "name": "country",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "state",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "city",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            },
+            "required": false,
+            "name": "postcode",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "nullable": true,
+              "minimum": 0,
+              "default": 0
+            },
+            "required": false,
+            "name": "subtotal",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "number",
+              "nullable": true,
+              "minimum": 0
+            },
+            "required": false,
+            "name": "weightKg",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/shipping/rates": {
+      "get": {
+        "summary": "Delivery-fee table for the shipping-policy page",
+        "tags": [
+          "Store · Shipping"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/shipping-zones": {
+      "get": {
+        "summary": "Zones with rates and 30-day stats",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create zone",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "country",
+                      "state",
+                      "city",
+                      "postcode"
+                    ],
+                    "default": "country"
+                  },
+                  "countries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 3
+                    },
+                    "minItems": 1,
+                    "default": [
+                      "NG"
+                    ]
+                  },
+                  "regions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "default": []
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000,
+                    "default": 10
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "rates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "carrier": {
+                          "type": "string",
+                          "enum": [
+                            "DHL",
+                            "FedEx",
+                            "UPS",
+                            "GIG",
+                            "Aramex",
+                            "Local",
+                            "InHouse",
+                            "In-house"
+                          ]
+                        },
+                        "service": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "default": ""
+                        },
+                        "baseFee": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "perKgFee": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "minKg": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "maxKg": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 1000
+                        },
+                        "etaDays": {
+                          "type": "string",
+                          "maxLength": 60
+                        },
+                        "freeAbove": {
+                          "type": "integer",
+                          "nullable": true,
+                          "minimum": 0
+                        },
+                        "active": {
+                          "type": "boolean",
+                          "default": true
+                        },
+                        "position": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "carrier",
+                        "baseFee",
+                        "etaDays"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipping-zones/{id}": {
+      "get": {
+        "summary": "Zone",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update zone (sending `rates` replaces all rates)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "country",
+                      "state",
+                      "city",
+                      "postcode"
+                    ],
+                    "default": "country"
+                  },
+                  "countries": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 3
+                    },
+                    "minItems": 1,
+                    "default": [
+                      "NG"
+                    ]
+                  },
+                  "regions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "default": []
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000,
+                    "default": 10
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "rates": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "carrier": {
+                          "type": "string",
+                          "enum": [
+                            "DHL",
+                            "FedEx",
+                            "UPS",
+                            "GIG",
+                            "Aramex",
+                            "Local",
+                            "InHouse",
+                            "In-house"
+                          ]
+                        },
+                        "service": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "default": ""
+                        },
+                        "baseFee": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "perKgFee": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "minKg": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 0
+                        },
+                        "maxKg": {
+                          "type": "number",
+                          "minimum": 0,
+                          "default": 1000
+                        },
+                        "etaDays": {
+                          "type": "string",
+                          "maxLength": 60
+                        },
+                        "freeAbove": {
+                          "type": "integer",
+                          "nullable": true,
+                          "minimum": 0
+                        },
+                        "active": {
+                          "type": "boolean",
+                          "default": true
+                        },
+                        "position": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "carrier",
+                        "baseFee",
+                        "etaDays"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete zone",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipping-zones/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate zone (created inactive)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipping-zones/{id}/toggle": {
+      "post": {
+        "summary": "Activate / deactivate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipping-zones/{id}/rates": {
+      "post": {
+        "summary": "Add rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "carrier": {
+                    "type": "string",
+                    "enum": [
+                      "DHL",
+                      "FedEx",
+                      "UPS",
+                      "GIG",
+                      "Aramex",
+                      "Local",
+                      "InHouse",
+                      "In-house"
+                    ]
+                  },
+                  "service": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "default": ""
+                  },
+                  "baseFee": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "perKgFee": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "minKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "maxKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 1000
+                  },
+                  "etaDays": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "freeAbove": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "position": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "name",
+                  "carrier",
+                  "baseFee",
+                  "etaDays"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipping-zones/{id}/rates/{rateId}": {
+      "put": {
+        "summary": "Update rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "rateId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "carrier": {
+                    "type": "string",
+                    "enum": [
+                      "DHL",
+                      "FedEx",
+                      "UPS",
+                      "GIG",
+                      "Aramex",
+                      "Local",
+                      "InHouse",
+                      "In-house"
+                    ]
+                  },
+                  "service": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "default": ""
+                  },
+                  "baseFee": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "perKgFee": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "minKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "maxKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 1000
+                  },
+                  "etaDays": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "freeAbove": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "position": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "name",
+                  "carrier",
+                  "baseFee",
+                  "etaDays"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Shipping zones"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "rateId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/pickup-locations": {
+      "get": {
+        "summary": "Stores offering pick-up (checkout, store locator)",
+        "tags": [
+          "Store · Shipping"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/pickup-locations": {
+      "get": {
+        "summary": "Pick-up locations",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add location",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "address": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 190
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2,
+                    "default": "NG"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "hours": {
+                    "type": "string",
+                    "maxLength": 190
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "concierge": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "capacityPerDay": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000,
+                    "default": 40
+                  }
+                },
+                "required": [
+                  "name",
+                  "address",
+                  "city",
+                  "state",
+                  "phone",
+                  "hours"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/pickup-locations/{id}": {
+      "patch": {
+        "summary": "Update location",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "address": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 190
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "state": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 2,
+                    "default": "NG"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 7,
+                    "maxLength": 30
+                  },
+                  "hours": {
+                    "type": "string",
+                    "maxLength": 190
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "concierge": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "capacityPerDay": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10000,
+                    "default": 40
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete location (deactivates if orders used it)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax": {
+      "get": {
+        "summary": "Rates, exemptions, categories and tax settings",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/rates": {
+      "post": {
+        "summary": "Add tax rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "country",
+                      "state",
+                      "postcode"
+                    ]
+                  },
+                  "region": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "inclusive",
+                      "exclusive"
+                    ],
+                    "default": "inclusive"
+                  },
+                  "appliesTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "products",
+                        "shipping",
+                        "concierge_fee"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "name",
+                  "scope",
+                  "region",
+                  "rate",
+                  "appliesTo",
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/rates/{id}": {
+      "patch": {
+        "summary": "Update tax rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "country",
+                      "state",
+                      "postcode"
+                    ]
+                  },
+                  "region": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "rate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "inclusive",
+                      "exclusive"
+                    ],
+                    "default": "inclusive"
+                  },
+                  "appliesTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "products",
+                        "shipping",
+                        "concierge_fee"
+                      ]
+                    },
+                    "minItems": 1
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/rates/{id}/toggle": {
+      "post": {
+        "summary": "Enable / disable rate",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/exemptions": {
+      "post": {
+        "summary": "Add exemption",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entity": {
+                    "type": "string",
+                    "enum": [
+                      "customer",
+                      "order"
+                    ]
+                  },
+                  "reference": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 190
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 190
+                  },
+                  "certificateRef": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "validUntil": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "entity",
+                  "reference",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/exemptions/{id}": {
+      "delete": {
+        "summary": "Remove exemption",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/categories": {
+      "post": {
+        "summary": "Add tax category",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500
+                  },
+                  "overrides": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "region": {
+                          "type": "string",
+                          "maxLength": 20
+                        },
+                        "rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "region",
+                        "rate"
+                      ]
+                    },
+                    "default": []
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tax/categories/{id}": {
+      "patch": {
+        "summary": "Update tax category",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Tax"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500
+                  },
+                  "overrides": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "region": {
+                          "type": "string",
+                          "maxLength": 20
+                        },
+                        "rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "region",
+                        "rate"
+                      ]
+                    },
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/payments/{reference}": {
+      "get": {
+        "summary": "Payment status (poll while the webhook is on its way)",
+        "tags": [
+          "Store · Payments"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 190
+            },
+            "required": true,
+            "name": "reference",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/payments/{reference}/verify": {
+      "post": {
+        "summary": "Confirm with the gateway now (call on return from the payment page)",
+        "tags": [
+          "Store · Payments"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 190
+            },
+            "required": true,
+            "name": "reference",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/webhooks/payments/{provider}": {
+      "post": {
+        "summary": "Payment gateway webhook",
+        "tags": [
+          "Other · Webhooks"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 30
+            },
+            "required": true,
+            "name": "provider",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "nullable": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/webhooks/payments/mock/checkout/{reference}": {
+      "get": {
+        "summary": "Mock payment page (dev only)",
+        "tags": [
+          "Other · Webhooks"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 190
+            },
+            "required": true,
+            "name": "reference",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/webhooks/payments/mock/checkout/{reference}/complete": {
+      "post": {
+        "summary": "Mock payment result (dev only)",
+        "tags": [
+          "Other · Webhooks"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 190
+            },
+            "required": true,
+            "name": "reference",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outcome": {
+                    "type": "string",
+                    "enum": [
+                      "success",
+                      "failed"
+                    ]
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/transactions": {
+      "get": {
+        "summary": "Payments and refunds",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Transactions"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "succeeded",
+                "failed",
+                "abandoned",
+                "refunded",
+                "partially_refunded"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "order",
+                "order_balance",
+                "reservation_deposit",
+                "wallet_topup",
+                "concierge",
+                "draft_order",
+                "card_authorization"
+              ]
+            },
+            "required": false,
+            "name": "purpose",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/wallet": {
+      "get": {
+        "summary": "Balance, total spent, limits, recent activity",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/wallet/transactions": {
+      "get": {
+        "summary": "Wallet history",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "credit",
+                "debit"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/wallet/topup": {
+      "post": {
+        "summary": "Top up → returns payment `authorizationUrl`",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/wallet/withdraw": {
+      "post": {
+        "summary": "Withdraw to a saved bank account",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "bankAccountId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bankAccountId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/bank-accounts": {
+      "get": {
+        "summary": "My bank accounts",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add bank account (account name is verified)",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bankCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 10
+                  },
+                  "accountNumber": {
+                    "type": "string",
+                    "pattern": "^\\d{10}$"
+                  }
+                },
+                "required": [
+                  "bankCode",
+                  "accountNumber"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/bank-accounts/{id}": {
+      "delete": {
+        "summary": "Remove bank account",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/banks": {
+      "get": {
+        "summary": "Nigerian banks (withdraw form)",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/banks/resolve": {
+      "post": {
+        "summary": "Look up the account name",
+        "tags": [
+          "Store · Wallet"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bankCode": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 10
+                  },
+                  "accountNumber": {
+                    "type": "string",
+                    "pattern": "^\\d{10}$"
+                  }
+                },
+                "required": [
+                  "bankCode",
+                  "accountNumber"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/wallets/transactions": {
+      "get": {
+        "summary": "All wallet transactions (tabs by kind / status) + total liabilities",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "topup",
+                "refund",
+                "credit",
+                "adjustment",
+                "spend",
+                "withdrawal",
+                "expiry"
+              ]
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "completed",
+                "failed",
+                "reversed"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/wallets/adjust": {
+      "post": {
+        "summary": "Credit or debit a customer wallet",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "credit",
+                      "adjustment"
+                    ],
+                    "default": "adjustment"
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "customerId",
+                  "amount",
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/wallets/transactions/{id}/approve": {
+      "post": {
+        "summary": "Pay out a pending withdrawal",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/wallets/transactions/{id}/mark-failed": {
+      "post": {
+        "summary": "Fail a pending withdrawal (money returns to balance)",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/wallets/transactions/{id}/reverse": {
+      "post": {
+        "summary": "Reverse a completed transaction",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/wallets/{customerId}/freeze": {
+      "post": {
+        "summary": "Freeze wallet",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "customerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/wallets/{customerId}/unfreeze": {
+      "post": {
+        "summary": "Unfreeze wallet",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Wallets"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "customerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/payment-methods": {
+      "get": {
+        "summary": "Saved cards",
+        "tags": [
+          "Store · Payment methods"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add a card → open `authorizationUrl` (₦50 check, refunded)",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Payment methods"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/payment-methods/{id}": {
+      "patch": {
+        "summary": "Rename / set default",
+        "tags": [
+          "Store · Payment methods"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nickname": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 40
+                  },
+                  "isDefault": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove card",
+        "tags": [
+          "Store · Payment methods"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
           }
         }
       }

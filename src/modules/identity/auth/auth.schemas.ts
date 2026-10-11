@@ -25,3 +25,12 @@ export const otpVerifySchema = otpRequestSchema.extend({ code: z.string().trim()
 export const forgotSchema = z.object({ email });
 export const resetSchema = z.object({ token: z.string().min(20), password });
 export const refreshSchema = z.object({ refreshToken: z.string().min(20).optional() });
+
+export type RegisterBody = z.infer<typeof registerSchema>;
+export type LoginBody = z.infer<typeof loginSchema>;
+export type TwoFactorLoginBody = z.infer<typeof twoFactorLoginSchema>;
+export type OtpRequestBody = z.infer<typeof otpRequestSchema>;
+export type OtpVerifyBody = z.infer<typeof otpVerifySchema>;
+export type ForgotBody = z.infer<typeof forgotSchema>;
+export type ResetBody = z.infer<typeof resetSchema>;
+export type RefreshBody = z.infer<typeof refreshSchema>;

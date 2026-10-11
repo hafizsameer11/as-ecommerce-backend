@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { prisma } from "@/core/db/prisma";
 import { ApiError } from "@/core/http/errors";
+import { jsonReplacer } from "@/core/http/response";
 
 /**
  * Requires an `Idempotency-Key` header. A repeated key replays the first response,
@@ -27,16 +28,17 @@ export function idempotent(scope: string) {
     }
 
     const json = res.json.bind(res);
-    res.json = (body: unknown) => {
+    res.json = ((body: unknown) => {
       const status = res.statusCode;
-      // only successful responses are replayed; failures free the key so the client can retry
+      // only successful responses are replayed; failures free the key so the client can retry.
+      // The key is stored BEFORE the response goes out, so an immediate retry sees the result.
       const p =
         status < 400
-          ? prisma.idempotencyKey.update({ where: { key }, data: { statusCode: status, response: body as object } })
+          ? prisma.idempotencyKey.update({ where: { key }, data: { statusCode: status, response: JSON.parse(JSON.stringify(body, jsonReplacer)) } })
           : prisma.idempotencyKey.delete({ where: { key } });
-      p.catch(() => undefined);
-      return json(body);
-    };
+      p.catch(() => undefined).finally(() => json(body));
+      return res;
+    }) as typeof res.json;
     next();
   };
 }

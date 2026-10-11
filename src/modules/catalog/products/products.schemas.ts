@@ -75,3 +75,15 @@ export const bulkSchema = z.object({
   categoryId: z.string().optional(),
   subcategoryId: z.string().nullable().optional(),
 });
+
+export const alsoLikeQuery = z.object({ exclude: z.string().optional(), limit: z.coerce.number().int().min(1).max(24).default(8) });
+export const relatedQuery = z.object({ limit: z.coerce.number().int().min(1).max(12).default(4) });
+export const productStatusBody = z.object({ status: z.enum(["active", "draft", "archived"]) });
+
+export type AlsoLikeQuery = z.infer<typeof alsoLikeQuery>;
+export type RelatedQuery = z.infer<typeof relatedQuery>;
+export type ProductInput = z.infer<typeof productInput>;
+export type ProductPatch = z.infer<typeof productPatch>;
+export type AdminListQuery = z.infer<typeof adminListQuery>;
+export type BulkBody = z.infer<typeof bulkSchema>;
+export type ProductStatusBody = z.infer<typeof productStatusBody>;

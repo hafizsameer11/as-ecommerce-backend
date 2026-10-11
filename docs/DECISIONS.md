@@ -15,6 +15,10 @@ must read it from `GET /api/v1/store/settings/public` instead of hard-coding it.
 | — | Order status wording | Customer: Processing/Shipped/Delivered/Cancelled/Returned. Admin: Awaiting payment/Unfulfilled/… | One status list in the DB; wording from `labels.order.{customer,admin}` | `status-labels.ts` |
 | — | Wallet limits | UI: top-up min ₦500, withdraw min ₦1,000 | Same, now settings | `wallet.minTopup`, `wallet.minWithdrawal` |
 
+| — | Coupon codes | Checkout hard-coded ASL20OFF 20 %, WELCOME10 10 %, VIP30 30 %, APP10 10 % with no conditions. Admin list had different codes (VIP25, FREESHIP, SNEAKER15 …) and WELCOME10 = new members, min ₦50k, max ₦25k off | **One coupons table.** Admin codes as defined in admin; ASL20OFF (20 %, max ₦200k), APP10 (app only, once per customer) added; **VIP30 created paused** (VIP25 is the live VIP offer); WELCOME10 follows the admin rules | Admin → Coupons |
+| — | Shipping-zone priority | Admin screen: lower number wins | Lower number wins (Lagos 1, Abuja 2, Other states 5, International 9) | Admin → Shipping zones |
+| — | Tax | Admin: Nigeria VAT 7.5 %, inclusive | VAT 7.5 % included in prices — shown on the order, not added | Admin → Tax |
+
 Delivery **times** were also inconsistent (checkout said "2 – 5 working days" everywhere). The backend
 uses the per-zone times from the shipping-policy page. Change them in Shipping zones.
 
@@ -32,6 +36,18 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Product ratings | Cards showed fixed numbers (e.g. 4.4 from 100 reviews) | Now calculated from real published reviews |
 | Inventory | Some SKUs listed twice in the same warehouse | Merged |
 
+## Behaviour decided in code (tell me if any is wrong)
+
+| Situation | What the backend does |
+|---|---|
+| Customer adds a multi-colour product without choosing a colour | Uses the first colour (same as the product page). Size is always required when the product has sizes |
+| Unpaid order | Stock and coupon use are held for `checkout.unpaidOrderMinutes` (30), then the order is cancelled automatically (needs the worker + Redis running) |
+| Payment arrives after that cancellation, or a customer pays twice | Refunded automatically to the original payment — the money is never kept silently |
+| Customer cancels | Only while "Awaiting payment" or "Processing / unfulfilled". Full refund: wallet part back to wallet, card part back to the card. Stock goes back to the same warehouse |
+| Card refunds and wallet withdrawals with the mock provider | Always succeed instantly. With a real provider some are asynchronous — webhook handling for refunds/transfers is still to do when the provider is chosen |
+| Prices and stock at checkout | Recomputed on the server at "Place order". If the app sends `expectedTotal` and the total changed, the order is refused with the new totals |
+| Cancelled / refunded order and loyalty points | Points don't exist yet (phase 4) |
+
 ## Open business decisions (defaults in place until decided)
 
 | # | Question | Current default |
@@ -40,3 +56,5 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | D5 | Guest checkout | Off (setting exists: `checkout.guestCheckout`) |
 | D6 | Charge in foreign currencies? | No — display conversion only, settle in NGN |
 | D2 | Payment provider | Mock provider (Paystack-shaped) until a provider is chosen |
+| D7 | FREESHIP (auto, all channels, ₦150k+) also makes **international** DHL delivery free | Kept as the admin mock defined it. Inside Nigeria delivery is already free above ₦150k, so today FREESHIP only changes international orders. Restrict it if that's not intended |
+| D8 | Product weights | Not in the prototype data. International per-kg pricing assumes 1 kg per item until weights are entered (`weightGrams` on products) |

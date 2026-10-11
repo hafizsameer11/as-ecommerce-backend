@@ -71,7 +71,16 @@ anything that moves money or stock runs in one transaction.
 | `/api/v1/webhooks/*` | payment providers | signature check |
 
 Errors always look like `{ "error": { "code", "message", "details", "requestId" } }`.
-Lists return `{ "data": [...], "meta": { "page", "pageSize", "total", "totalPages" } }`.
+Lists return `{ "data": [...], "meta": { "page", "pageSize", "total", "pageCount" } }`.
+Money is always integer **kobo** (₦1 = 100). Actions that create money movements (place order, pay, top up, withdraw) need an `Idempotency-Key` header.
+
+### Buying flow (web and app)
+
+1. `POST /store/cart/items` — guests get a `guestToken`; send it back as `X-Cart-Token`. After sign-in: `POST /store/cart/merge`.
+2. `GET /store/checkout` → `PATCH /store/checkout` for each step (contact, address or pick-up store, payment method, wallet) → `POST /store/checkout/coupon`.
+3. `POST /store/checkout/place-order` (with `Idempotency-Key`, optional `returnUrl`) → `{ order, payment }`.
+4. Open `payment.authorizationUrl` (browser / in-app web view). In dev it is a test page with **Pay** / **Fail** buttons.
+5. On return call `POST /store/payments/:reference/verify`, then show `GET /store/me/orders/:id`.
 
 ## Build status
 
@@ -80,5 +89,6 @@ Lists return `{ "data": [...], "meta": { "page", "pageSize", "total", "totalPage
 | 0 | Foundation: config, errors, router, auth middleware, audit, idempotency, queue, providers, Docker, tests | Done |
 | 1 | Identity: customer auth (password, OTP, 2FA, sessions), account, admin auth, team + roles/permissions, settings | Done |
 | 2 | Catalogue + inventory: products, categories, brands, collections, size guides, reviews, drops, search, home, stock | Done |
-| 3 | Cart, wishlist, addresses, coupons, shipping, checkout, orders, payments, wallet | Next |
-| 4+ | Fulfilment, returns, ledger, club/referrals, concierge, support, marketing, content, analytics | Planned |
+| 3 | Cart, wishlist, addresses, coupons, shipping zones, pick-up stores, tax, checkout, orders, payments (mock gateway + webhooks), saved cards, wallet | Done |
+| 4 | Shipments + pick-up bookings, returns, invoices/packing slips (PDF), draft orders, abandoned carts, ledger, payouts, admin customers | Next |
+| 5+ | Club/points/referrals, concierge, support + notifications, marketing, content (CMS/FAQ/blog/SEO), analytics, reports | Planned |

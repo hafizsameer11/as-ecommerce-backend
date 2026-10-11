@@ -86,6 +86,16 @@ export const inventoryService = {
     for (const id of new Set(res.map((r) => r.variantId))) void checkLow(id);
   },
 
+  /** A paid order was cancelled before shipping: the sold units go back to the warehouses they left. */
+  async reverseSale(tx: Tx, ref: { type: string; id: string }, actor?: string) {
+    const sales = await tx.stockMovement.findMany({ where: { refType: ref.type, refId: ref.id, type: "sale" } });
+    if (await tx.stockMovement.count({ where: { refType: ref.type, refId: ref.id, type: "return", note: "Order cancelled" } })) return;
+    for (const m of sales) {
+      await tx.stockLevel.update({ where: { variantId_warehouseId: { variantId: m.variantId, warehouseId: m.warehouseId } }, data: { onHand: { increment: -m.qty } } });
+      await move(tx, { variantId: m.variantId, warehouseId: m.warehouseId, type: "return", qty: -m.qty, note: "Order cancelled", refType: ref.type, refId: ref.id, actor });
+    }
+  },
+
   /** Approved return received back into stock */
   async restock(tx: Tx, variantId: string, qty: number, ref: { type: string; id: string }, actor?: string) {
     const wh = await tx.warehouse.findFirstOrThrow({ where: { isDefault: true } });
@@ -200,3 +210,19 @@ async function notifyBackInStock(productId: string, size: string | null) {
     await prisma.backInStockAlert.update({ where: { id: a.id }, data: { notifiedAt: new Date() } });
   }
 }
+
+/** asl-admin /warehouses */
+export const warehousesService = {
+  list() {
+    return prisma.warehouse.findMany({ orderBy: [{ isDefault: "desc" }, { name: "asc" }] });
+  },
+
+  create(data: { name: string; code: string; city: string }) {
+    return prisma.warehouse.create({ data });
+  },
+
+  async update(id: string, data: { name?: string; city?: string; active?: boolean; isDefault?: boolean }) {
+    if (data.isDefault) await prisma.warehouse.updateMany({ data: { isDefault: false } });
+    return prisma.warehouse.update({ where: { id }, data });
+  },
+};

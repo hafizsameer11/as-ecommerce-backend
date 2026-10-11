@@ -29,3 +29,7 @@ export const defaultPreferences = {
   currency: "NGN",
   privacy: { analytics: true, personalization: true, marketingCookies: false },
 };
+
+/** prisma select for "who is this customer" in other modules' lists */
+export const customerBrief = { id: true, firstName: true, lastName: true, email: true } as const;
+export const fullName = (c: { firstName: string; lastName: string }) => `${c.firstName} ${c.lastName}`.trim();

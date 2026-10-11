@@ -94,7 +94,11 @@ model CheckoutSession {
   paymentMethod    CheckoutPaymentMethod  @default(card)
   couponCode       String?
   useWallet        Boolean                @default(false)
+  shippingRateId   String?
+  giftMessage      String?                @db.VarChar(500)
   updatedAt        DateTime               @updatedAt
+
+  @@index([customerId])
 }
 
 enum OrderStatus {
@@ -145,6 +149,8 @@ model Order {
   shippingAddress  Json?
   pickupLocationId String?
   pickupLocation   PickupLocation? @relation(fields: [pickupLocationId], references: [id])
+  shippingRateName String?
+  giftMessage      String?        @db.VarChar(500)
   expectedDeliveryAt DateTime?
   cancelReason     String?
   placedAt         DateTime       @default(now())
@@ -162,7 +168,7 @@ model Order {
   returns          ReturnRequest[]
   reservation      Reservation?
   pickupBooking    PickupBooking?
-  couponRedemption CouponRedemption?
+  couponRedemptions CouponRedemption[]
 
   @@index([customerId, placedAt])
   @@index([status, placedAt])
@@ -371,11 +377,14 @@ model CouponRedemption {
   code       String
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
-  orderId    String    @unique
+  orderId    String
   order      Order     @relation(fields: [orderId], references: [id])
+  /// set when the code is a personal CustomerCoupon
+  customerCouponId String?
   discount   Int
   createdAt  DateTime  @default(now())
 
+  @@unique([orderId, code])
   @@index([couponId])
   @@index([customerId])
 }

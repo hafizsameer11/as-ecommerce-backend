@@ -25,3 +25,14 @@ export const preferencesSchema = z.object({
 export const totpCodeSchema = z.object({ code: z.string().trim().min(6).max(12) });
 export const deleteAccountSchema = z.object({ confirm: z.literal("DELETE"), password: z.string().optional() });
 export const pushTokenSchema = z.object({ token: z.string().min(10).max(1000), platform: z.enum(["expo", "webpush"]) });
+export const avatarBody = z.object({ file: z.any().optional() });
+export const sessionIdParam = z.object({ id: z.string() });
+export const removePushTokenSchema = z.object({ token: z.string() });
+
+export type UpdateProfileBody = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
+export type PreferencesBody = z.infer<typeof preferencesSchema>;
+export type TotpCodeBody = z.infer<typeof totpCodeSchema>;
+export type DeleteAccountBody = z.infer<typeof deleteAccountSchema>;
+export type PushTokenBody = z.infer<typeof pushTokenSchema>;
+export type RemovePushTokenBody = z.infer<typeof removePushTokenSchema>;
