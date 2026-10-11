@@ -1,0 +1,117 @@
+model ClubTier {
+  id               CustomerTier @id
+  name             String
+  color            String
+  /// rolling 12-month spend (kobo) needed for this tier
+  minSpend         BigInt
+  /// 1.0, 1.25 … stored ×100
+  multiplierX100   Int          @default(100)
+  perks            Json
+  active           Boolean      @default(true)
+  position         Int          @default(0)
+}
+
+enum RewardCategory {
+  shipping
+  credit
+  experience
+  product
+  concierge
+  coupon
+}
+
+model ClubReward {
+  id            String         @id @default(cuid())
+  title         String
+  description   String
+  cost          Int
+  category      RewardCategory
+  /// credit: kobo to wallet, coupon: percent, shipping: 100
+  value         Int?
+  icon          String?
+  eligibleTiers Json
+  stock         Int?
+  redeemedCount Int            @default(0)
+  active        Boolean        @default(true)
+  position      Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  redemptions   RewardRedemption[]
+}
+
+model PointsEntry {
+  id         String    @id @default(cuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  delta      Int
+  reason     String
+  refType    String?
+  refId      String?
+  expiresAt  DateTime?
+  /// set when an earn entry has been fully consumed or expired
+  remaining  Int       @default(0)
+  actor      String?
+  createdAt  DateTime  @default(now())
+
+  @@index([customerId, createdAt])
+  @@index([expiresAt])
+}
+
+model RewardRedemption {
+  id         String     @id @default(cuid())
+  rewardId   String
+  reward     ClubReward @relation(fields: [rewardId], references: [id])
+  customerId String
+  customer   Customer   @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  points     Int
+  /// {couponCode} | {walletTxRef} | {note}
+  result     Json
+  status     String     @default("fulfilled")
+  createdAt  DateTime   @default(now())
+}
+
+enum AdvocateStatus {
+  active
+  paused
+  banned
+}
+
+model Advocate {
+  id          String         @id @default(cuid())
+  customerId  String         @unique
+  customer    Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code        String         @unique
+  status      AdvocateStatus @default(active)
+  clicks      Int            @default(0)
+  createdAt   DateTime       @default(now())
+  referrals   Referral[]
+}
+
+enum ReferralStatus {
+  pending
+  qualified
+  rewarded
+  expired
+  flagged
+  rejected
+}
+
+model Referral {
+  id           String         @id @default(cuid())
+  advocateId   String
+  advocate     Advocate       @relation(fields: [advocateId], references: [id], onDelete: Cascade)
+  friendCustomerId String?    @unique
+  friendName   String
+  friendEmail  String
+  channel      String         @default("link")
+  status       ReferralStatus @default(pending)
+  orderId      String?
+  spend        Int            @default(0)
+  reward       Int            @default(0)
+  fraudScore   Int            @default(0)
+  note         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status])
+}

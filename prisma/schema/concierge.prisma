@@ -1,0 +1,207 @@
+enum ConciergeStatus {
+  new
+  sourcing
+  quoted
+  approved
+  payment_pending
+  ordered
+  in_transit
+  delivered
+  cancelled
+  unavailable
+}
+
+enum ConciergePriority {
+  standard
+  priority
+  vip
+}
+
+enum ConciergeSource {
+  form
+  catalog
+}
+
+model ConciergeRequest {
+  id          String            @id @default(cuid())
+  number      String            @unique
+  customerId  String?
+  customer    Customer?         @relation(fields: [customerId], references: [id])
+  contactName String
+  contactEmail String
+  contactPhone String?
+  source      ConciergeSource   @default(form)
+  productId   String?
+  category    String
+  brand       String?
+  itemName    String
+  reference   String?           @db.VarChar(1024)
+  description String?           @db.Text
+  size        String?
+  color       String?
+  condition   String?
+  budget      Int?
+  preferredSource String?
+  notes       String?           @db.Text
+  qty         Int               @default(1)
+  /// latest known price for catalog items
+  price       Int?
+  status      ConciergeStatus   @default(new)
+  priority    ConciergePriority @default(standard)
+  assigneeId  String?
+  supplierId  String?
+  supplier    Supplier?         @relation(fields: [supplierId], references: [id])
+  slaDueAt    DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  images      ConciergeImage[]
+  timeline    ConciergeTimelineEntry[]
+  quotes      ConciergeQuote[]
+  thread      ChatThread?
+
+  @@index([status, createdAt])
+  @@index([customerId])
+  @@index([assigneeId])
+}
+
+model ConciergeImage {
+  id        String           @id @default(cuid())
+  requestId String
+  request   ConciergeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  url       String           @db.VarChar(1024)
+  createdAt DateTime         @default(now())
+}
+
+model ConciergeTimelineEntry {
+  id        String           @id @default(cuid())
+  requestId String
+  request   ConciergeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  /// note | status | message | quote
+  kind      String
+  text      String           @db.Text
+  by        String
+  internal  Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum QuoteStatus {
+  sent
+  accepted
+  declined
+  expired
+  paid
+}
+
+model ConciergeQuote {
+  id          String           @id @default(cuid())
+  number      String           @unique
+  requestId   String
+  request     ConciergeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  itemsTotal  Int
+  serviceFee  Int
+  shippingEstimate Int
+  tax         Int              @default(0)
+  total       Int
+  depositPct  Int              @default(100)
+  deposit     Int
+  status      QuoteStatus      @default(sent)
+  expiresAt   DateTime
+  note        String?          @db.Text
+  createdBy   String
+  acceptedAt  DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  lines       ConciergeQuoteLine[]
+
+  @@index([status])
+}
+
+model ConciergeQuoteLine {
+  id       String         @id @default(cuid())
+  quoteId  String
+  quote    ConciergeQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  name     String
+  source   String?
+  qty      Int            @default(1)
+  price    Int
+}
+
+model ChatThread {
+  id            String           @id @default(cuid())
+  requestId     String           @unique
+  request       ConciergeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  pinned        Boolean          @default(false)
+  unreadAgent   Int              @default(0)
+  unreadCustomer Int             @default(0)
+  lastAt        DateTime         @default(now())
+  messages      ChatMessage[]
+
+  @@index([lastAt])
+}
+
+enum ChatSender {
+  customer
+  agent
+  system
+}
+
+model ChatMessage {
+  id          String     @id @default(cuid())
+  threadId    String
+  thread      ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      ChatSender
+  authorName  String
+  channel     String     @default("app")
+  text        String     @db.Text
+  /// [{name, kind, url}]
+  attachments Json?
+  quoteId     String?
+  readAt      DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([threadId, createdAt])
+}
+
+enum SupplierTier {
+  diamond
+  platinum
+  gold
+  silver
+}
+
+enum SupplierStatus {
+  active
+  paused
+  blocked
+  pending
+}
+
+model Supplier {
+  id           String         @id @default(cuid())
+  name         String
+  contact      String
+  email        String
+  phone        String
+  country      String
+  city         String
+  categories   Json
+  brands       Json
+  tier         SupplierTier   @default(silver)
+  status       SupplierStatus @default(pending)
+  leadTimeDays Int            @default(7)
+  rating       Float          @default(0)
+  paymentTerms String         @default("Prepaid")
+  currency     String         @default("USD") @db.VarChar(3)
+  vip          Boolean        @default(false)
+  notes        String?        @db.Text
+  onTimeRate   Float          @default(0)
+  fulfillmentRate Float       @default(0)
+  totalOrders  Int            @default(0)
+  totalSpend   BigInt         @default(0)
+  lastOrderAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  requests     ConciergeRequest[]
+}

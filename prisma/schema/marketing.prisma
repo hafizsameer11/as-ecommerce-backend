@@ -1,0 +1,242 @@
+model Segment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#0f0f0f")
+  /// all | any
+  match       String   @default("all")
+  rules       Json
+  pinned      Boolean  @default(false)
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum CampaignChannel {
+  email
+  push
+  sms
+  whatsapp
+  inapp
+}
+
+enum CampaignStatus {
+  draft
+  scheduled
+  sending
+  sent
+  paused
+  archived
+}
+
+enum CampaignGoal {
+  awareness
+  conversion
+  retention
+  winback
+  launch
+}
+
+model Campaign {
+  id           String          @id @default(cuid())
+  name         String
+  subject      String
+  preheader    String?
+  channel      CampaignChannel
+  status       CampaignStatus  @default(draft)
+  goal         CampaignGoal    @default(conversion)
+  segmentId    String?
+  body         String          @db.Text
+  ctaLabel     String?
+  ctaUrl       String?
+  utm          Json?
+  tags         Json?
+  pinned       Boolean         @default(false)
+  scheduledAt  DateTime?
+  sentAt       DateTime?
+  createdBy    String
+  audienceSize Int             @default(0)
+  sent         Int             @default(0)
+  delivered    Int             @default(0)
+  opened       Int             @default(0)
+  clicked      Int             @default(0)
+  converted    Int             @default(0)
+  revenue      BigInt          @default(0)
+  unsubscribed Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  recipients   CampaignRecipient[]
+}
+
+model CampaignRecipient {
+  id          String    @id @default(cuid())
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId  String
+  token       String    @unique
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  failedAt    DateTime?
+
+  @@unique([campaignId, customerId])
+}
+
+enum TemplateChannel {
+  email
+  push
+  sms
+  whatsapp
+}
+
+enum TemplateCategory {
+  transactional
+  lifecycle
+  concierge
+  system
+}
+
+enum TemplateStatus {
+  active
+  draft
+  paused
+}
+
+model MessageTemplate {
+  id         String           @id @default(cuid())
+  code       String
+  name       String
+  channel    TemplateChannel
+  category   TemplateCategory
+  status     TemplateStatus   @default(active)
+  trigger    String
+  subject    String?
+  preheader  String?
+  body       String           @db.Text
+  ctaLabel   String?
+  linkTo     String?
+  variables  Json
+  sentCount  Int              @default(0)
+  notes      String?          @db.Text
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([code, channel])
+}
+
+model PushBlast {
+  id           String    @id @default(cuid())
+  title        String
+  body         String    @db.Text
+  audience     String
+  segmentId    String?
+  status       String    @default("draft")
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  recipients   Int       @default(0)
+  opens        Int       @default(0)
+  createdAt    DateTime  @default(now())
+}
+
+enum PlacementStatus {
+  live
+  scheduled
+  paused
+  draft
+  expired
+}
+
+enum DeviceTarget {
+  all
+  mobile
+  desktop
+}
+
+model Banner {
+  id          String          @id @default(cuid())
+  name        String
+  /// top_bar | checkout | cart_nudge | category_ribbon | product_ribbon | concierge_strip
+  placement   String
+  priority    Int             @default(0)
+  status      PlacementStatus @default(draft)
+  device      DeviceTarget    @default(all)
+  /// all | guest | member | vip
+  audience    String          @default("all")
+  message     String          @db.VarChar(500)
+  cta         String?
+  linkTo      String?
+  bg          String
+  fg          String
+  accent      String
+  style       String          @default("solid")
+  icon        String?
+  dismissible Boolean         @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  impressions Int             @default(0)
+  clicks      Int             @default(0)
+  dismissals  Int             @default(0)
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([placement, status])
+}
+
+model Announcement {
+  id          String          @id @default(cuid())
+  title       String
+  message     String          @db.VarChar(500)
+  emoji       String?
+  ctaLabel    String?
+  ctaHref     String?
+  style       String          @default("solid")
+  bg          String
+  fg          String
+  /// site_top | checkout_top | admin_top
+  placement   String          @default("site_top")
+  /// everyone | guests | members | club_gold | club_signature
+  audience    String          @default("everyone")
+  device      DeviceTarget    @default(all)
+  dismissible Boolean         @default(true)
+  priority    Int             @default(0)
+  status      PlacementStatus @default(draft)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  impressions Int             @default(0)
+  clicks      Int             @default(0)
+  dismisses   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Slot {
+  id          String          @id @default(cuid())
+  name        String
+  /// home | shop | sales | concierge | brands
+  page        String
+  position    Int             @default(0)
+  /// hero | banner | grid | carousel | editorial | countdown
+  type        String
+  status      PlacementStatus @default(draft)
+  device      DeviceTarget    @default(all)
+  audience    String          @default("all")
+  headline    String
+  subhead     String?
+  cta         String?
+  linkTo      String?
+  imageUrl    String?         @db.VarChar(1024)
+  imageColor  String?
+  accent      String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  impressions Int             @default(0)
+  clicks      Int             @default(0)
+  revenue     BigInt          @default(0)
+  pinned      Boolean         @default(false)
+  notes       String?         @db.Text
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([page, status, position])
+}

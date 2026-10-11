@@ -1,0 +1,265 @@
+enum PaymentPurpose {
+  order
+  order_balance
+  reservation_deposit
+  wallet_topup
+  concierge
+  draft_order
+  card_authorization
+}
+
+enum PaymentState {
+  pending
+  succeeded
+  failed
+  abandoned
+  refunded
+  partially_refunded
+}
+
+model Payment {
+  id           String         @id @default(cuid())
+  reference    String         @unique
+  provider     String
+  purpose      PaymentPurpose
+  method       String
+  status       PaymentState   @default(pending)
+  amount       Int
+  fee          Int            @default(0)
+  currency     String         @default("NGN") @db.VarChar(3)
+  customerId   String?
+  email        String
+  orderId      String?
+  order        Order?         @relation(fields: [orderId], references: [id])
+  /// the record this payment settles (reservation id, quote id, wallet tx id …)
+  targetType   String?
+  targetId     String?
+  amountRefunded Int          @default(0)
+  providerData Json?
+  paidAt       DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  refunds      Refund[]
+
+  @@index([status, createdAt])
+  @@index([targetType, targetId])
+  @@index([customerId])
+}
+
+model Refund {
+  id         String   @id @default(cuid())
+  paymentId  String
+  payment    Payment  @relation(fields: [paymentId], references: [id])
+  amount     Int
+  reason     String
+  status     String   @default("pending")
+  providerRef String?
+  actor      String?
+  createdAt  DateTime @default(now())
+}
+
+model WebhookLog {
+  id         String   @id @default(cuid())
+  provider   String
+  eventId    String
+  type       String
+  payload    Json
+  processedAt DateTime?
+  error      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, eventId])
+}
+
+enum SavedMethodType {
+  card
+  bank
+}
+
+model SavedPaymentMethod {
+  id            String          @id @default(cuid())
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type          SavedMethodType
+  brand         String
+  last4         String          @db.VarChar(4)
+  expMonth      Int?
+  expYear       Int?
+  holderName    String?
+  bankName      String?
+  nickname      String?
+  /// provider authorization code – never the card number
+  providerToken String          @db.VarChar(512)
+  provider      String
+  isDefault     Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  bankCode      String
+  bankName      String
+  accountNumber String   @db.VarChar(20)
+  accountName   String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+model Wallet {
+  id          String              @id @default(cuid())
+  customerId  String              @unique
+  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  balance     Int                 @default(0)
+  /// money held for pending withdrawals
+  held        Int                 @default(0)
+  totalSpent  BigInt              @default(0)
+  frozen      Boolean             @default(false)
+  updatedAt   DateTime            @updatedAt
+  transactions WalletTransaction[]
+}
+
+enum WalletTxKind {
+  topup
+  refund
+  credit
+  adjustment
+  spend
+  withdrawal
+  expiry
+}
+
+enum WalletTxStatus {
+  pending
+  completed
+  failed
+  reversed
+}
+
+model WalletTransaction {
+  id           String         @id @default(cuid())
+  reference    String         @unique
+  walletId     String
+  wallet       Wallet         @relation(fields: [walletId], references: [id])
+  kind         WalletTxKind
+  status       WalletTxStatus @default(completed)
+  /// signed: credits > 0, debits < 0
+  amount       Int
+  balanceAfter Int
+  title        String
+  subtitle     String?
+  channel      String
+  note         String?
+  /// e.g. withdrawal bank account, order id
+  meta         Json?
+  createdAt    DateTime       @default(now())
+
+  @@index([walletId, createdAt])
+  @@index([kind, status])
+}
+
+enum PayoutStatus {
+  scheduled
+  in_transit
+  paid
+  failed
+  on_hold
+}
+
+model Payout {
+  id            String       @id @default(cuid())
+  number        String       @unique
+  provider      String
+  reference     String
+  status        PayoutStatus @default(scheduled)
+  gross         Int
+  fees          Int
+  refunds       Int          @default(0)
+  adjustments   Int          @default(0)
+  net           Int
+  bankName      String
+  bankAccountMasked String
+  bankAccountName String
+  scheduledAt   DateTime
+  paidAt        DateTime?
+  notes         String?      @db.Text
+  failureReason String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  lines         PayoutLine[]
+}
+
+model PayoutLine {
+  id        String  @id @default(cuid())
+  payoutId  String
+  payout    Payout  @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  paymentRef String
+  orderNumber String?
+  gross     Int
+  fee       Int
+  net       Int
+  capturedAt DateTime
+}
+
+enum AccountType {
+  asset
+  liability
+  equity
+  revenue
+  expense
+}
+
+enum JournalStatus {
+  draft
+  posted
+  void
+}
+
+enum JournalSource {
+  order
+  refund
+  payout
+  fee
+  adjustment
+  tax
+  wallet
+  manual
+}
+
+model LedgerAccount {
+  code     String      @id
+  name     String
+  type     AccountType
+  currency String      @default("NGN") @db.VarChar(3)
+  archived Boolean     @default(false)
+  lines    JournalLine[]
+}
+
+model JournalEntry {
+  id          String        @id @default(cuid())
+  number      String        @unique
+  date        DateTime
+  reference   String?
+  description String
+  source      JournalSource
+  status      JournalStatus @default(posted)
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  lines       JournalLine[]
+
+  @@index([date])
+  @@index([source])
+}
+
+model JournalLine {
+  id          String        @id @default(cuid())
+  entryId     String
+  entry       JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  accountCode String
+  account     LedgerAccount @relation(fields: [accountCode], references: [code])
+  debit       BigInt        @default(0)
+  credit      BigInt        @default(0)
+  memo        String?
+}

@@ -1,0 +1,183 @@
+enum ContentStatus {
+  published
+  draft
+  scheduled
+  archived
+}
+
+model Page {
+  id             String        @id @default(cuid())
+  title          String
+  slug           String        @unique
+  /// standard | legal | landing | story | help
+  template       String        @default("standard")
+  status         ContentStatus @default(draft)
+  /// public | unlisted | members
+  visibility     String        @default("public")
+  subtitle       String?       @db.VarChar(500)
+  author         String
+  seoTitle       String?
+  seoDescription String?       @db.VarChar(500)
+  ogImage        String?       @db.VarChar(1024)
+  heroImage      String?       @db.VarChar(1024)
+  showInHeader   Boolean       @default(false)
+  showInFooter   Boolean       @default(false)
+  tags           Json?
+  /// [{id, type, title, body, imageUrl, ctaLabel, ctaHref, items}]
+  blocks         Json
+  views30d       Int           @default(0)
+  publishedAt    DateTime?
+  scheduledFor   DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model FaqCategory {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  icon        String    @default("HelpCircle")
+  position    Int       @default(0)
+  items       FaqItem[]
+}
+
+model FaqItem {
+  id          String        @id @default(cuid())
+  categoryId  String
+  category    FaqCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  question    String        @db.VarChar(500)
+  answer      String        @db.Text
+  status      ContentStatus @default(published)
+  position    Int           @default(0)
+  featured    Boolean       @default(false)
+  tags        Json?
+  views30d    Int           @default(0)
+  helpful     Int           @default(0)
+  notHelpful  Int           @default(0)
+  author      String
+  updatedAt   DateTime      @updatedAt
+}
+
+model BlogAuthor {
+  id        String     @id @default(cuid())
+  name      String
+  role      String
+  avatarUrl String?
+  posts     BlogPost[]
+}
+
+model BlogCategory {
+  id     String     @id @default(cuid())
+  name   String
+  slug   String     @unique
+  colour String     @default("#0f0f0f")
+  posts  BlogPost[]
+}
+
+model BlogPost {
+  id             String        @id @default(cuid())
+  title          String
+  slug           String        @unique
+  excerpt        String        @db.Text
+  content        String        @db.LongText
+  coverUrl       String?       @db.VarChar(1024)
+  categoryId     String
+  category       BlogCategory  @relation(fields: [categoryId], references: [id])
+  authorId       String
+  author         BlogAuthor    @relation(fields: [authorId], references: [id])
+  tags           Json?
+  status         ContentStatus @default(draft)
+  featured       Boolean       @default(false)
+  readingMinutes Int           @default(3)
+  seoTitle       String?
+  seoDescription String?       @db.VarChar(500)
+  ogImage        String?
+  views30d       Int           @default(0)
+  likes          Int           @default(0)
+  publishedAt    DateTime?
+  scheduledFor   DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model SeoPage {
+  id             String   @id @default(cuid())
+  path           String   @unique
+  /// home | shop | category | product | collection | concierge | policy | custom
+  type           String
+  title          String
+  description    String   @db.VarChar(500)
+  ogTitle        String?
+  ogDescription  String?  @db.VarChar(500)
+  ogImageUrl     String?
+  canonical      String?
+  /// index_follow | noindex_follow | noindex_nofollow
+  indexPolicy    String   @default("index_follow")
+  keywords       Json?
+  schemaType     String?
+  impressions30d Int      @default(0)
+  clicks30d      Int      @default(0)
+  avgPosition    Float    @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model Redirect {
+  id        String    @id @default(cuid())
+  from      String    @unique
+  to        String
+  status    Int       @default(301)
+  enabled   Boolean   @default(true)
+  hits      Int       @default(0)
+  lastHitAt DateTime?
+  note      String?
+  createdAt DateTime  @default(now())
+}
+
+model SitemapEntry {
+  id         String  @id @default(cuid())
+  loc        String  @unique
+  changefreq String  @default("weekly")
+  priority   Float   @default(0.5)
+  included   Boolean @default(true)
+}
+
+enum MediaType {
+  image
+  video
+  document
+}
+
+model MediaAsset {
+  id         String    @id @default(cuid())
+  name       String
+  /// storage key, e.g. 2026/10/abc.webp
+  key        String    @unique
+  url        String    @db.VarChar(1024)
+  /// {sm, md, lg} resized variants
+  variants   Json?
+  mimeType   String
+  type       MediaType
+  /// products | hero | campaigns | concierge | brand | reviews | avatars | uncategorized
+  folder     String    @default("uncategorized")
+  sizeBytes  Int
+  width      Int?
+  height     Int?
+  altText    String    @default("")
+  tags       Json?
+  starred    Boolean   @default(false)
+  uploadedBy String
+  createdAt  DateTime  @default(now())
+  usages     MediaUsage[]
+
+  @@index([folder, createdAt])
+}
+
+model MediaUsage {
+  mediaId    String
+  media      MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+
+  @@id([mediaId, entityType, entityId])
+}

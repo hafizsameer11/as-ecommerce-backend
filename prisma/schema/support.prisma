@@ -1,0 +1,136 @@
+enum TicketStatus {
+  open
+  pending
+  on_hold
+  resolved
+  closed
+}
+
+enum TicketPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum TicketChannel {
+  email
+  chat
+  whatsapp
+  instagram
+  phone
+  web
+  app
+}
+
+enum TicketCategory {
+  order
+  delivery
+  returns
+  payment
+  product
+  concierge
+  account
+  other
+}
+
+model Ticket {
+  id              String         @id @default(cuid())
+  number          String         @unique
+  subject         String
+  status          TicketStatus   @default(open)
+  priority        TicketPriority @default(normal)
+  channel         TicketChannel  @default(web)
+  category        TicketCategory @default(other)
+  customerId      String?
+  customer        Customer?      @relation(fields: [customerId], references: [id])
+  customerName    String
+  customerEmail   String
+  orderRef        String?
+  assigneeId      String?
+  tags            Json?
+  customerCreated Boolean        @default(true)
+  slaDueAt        DateTime?
+  firstResponseAt DateTime?
+  resolvedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  messages        TicketMessage[]
+
+  @@index([status, updatedAt])
+  @@index([customerId])
+}
+
+enum MessageAuthor {
+  customer
+  agent
+  system
+}
+
+model TicketMessage {
+  id         String        @id @default(cuid())
+  ticketId   String
+  ticket     Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author     MessageAuthor
+  authorName String
+  body       String        @db.Text
+  internal   Boolean       @default(false)
+  attachments Json?
+  createdAt  DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+enum FeedbackType {
+  idea
+  bug
+  praise
+}
+
+model Feedback {
+  id         String       @id @default(cuid())
+  customerId String?
+  customer   Customer?    @relation(fields: [customerId], references: [id])
+  type       FeedbackType
+  area       String
+  message    String       @db.Text
+  replyEmail String?
+  status     String       @default("new")
+  createdAt  DateTime     @default(now())
+}
+
+enum NotificationCategory {
+  Orders
+  Offers
+  Account
+  Wishlist
+  ASLClub
+  Updates
+}
+
+model Notification {
+  id         String               @id @default(cuid())
+  customerId String
+  customer   Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  category   NotificationCategory
+  tag        String?
+  title      String
+  message    String               @db.Text
+  ctaLabel   String?
+  ctaHref    String?
+  icon       String?
+  readAt     DateTime?
+  createdAt  DateTime             @default(now())
+
+  @@index([customerId, createdAt])
+}
+
+model NotificationPreference {
+  customerId String   @id
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// {push, email, sms}
+  channels   Json
+  /// {orders, concierge, shipping, promos, wishlist}
+  topics     Json
+  updatedAt  DateTime @updatedAt
+}

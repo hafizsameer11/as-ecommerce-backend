@@ -1,0 +1,245 @@
+/// Typed JSON settings per group: profile, brand, checkout, legal, maintenance, rules, seo, tax, referrals, club, app …
+model Setting {
+  group     String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model Locale {
+  code      String  @id
+  label     String
+  enabled   Boolean @default(true)
+  isDefault Boolean @default(false)
+}
+
+model Currency {
+  code      String  @id
+  label     String
+  /// NGN per 1 unit of this currency ×10000
+  rateX10000 Int
+  enabled   Boolean @default(true)
+  isDefault Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model PaymentMethodSetting {
+  id       String  @id
+  label    String
+  provider String
+  enabled  Boolean @default(true)
+  testMode Boolean @default(true)
+  feeLabel String
+  position Int     @default(0)
+}
+
+model NotificationRule {
+  id          String  @id
+  /// orders | concierge | catalog | customers | finance | system
+  category    String
+  label       String
+  description String
+  /// {email, push, in_app, slack, sms}
+  channels    Json
+  /// role ids or emails
+  recipients  Json
+  /// low | normal | high | critical
+  priority    String
+  enabled     Boolean @default(true)
+}
+
+model AdminNotification {
+  id        String    @id @default(cuid())
+  adminId   String?
+  role      String?
+  ruleId    String?
+  title     String
+  body      String    @db.Text
+  link      String?
+  priority  String    @default("normal")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([adminId, createdAt])
+}
+
+enum AuditSeverity {
+  info
+  notice
+  warning
+  critical
+}
+
+model AuditEvent {
+  id         String        @id @default(cuid())
+  actorId    String?
+  actorName  String
+  actorEmail String
+  actorRole  String
+  action     String
+  /// auth | orders | catalog | inventory | customers | finance | marketing | content | concierge | team | settings | system
+  category   String
+  severity   AuditSeverity @default(info)
+  entity     String
+  entityId   String?
+  summary    String        @db.VarChar(500)
+  ip         String?
+  location   String?
+  device     String?       @db.VarChar(512)
+  before     Json?
+  after      Json?
+  createdAt  DateTime      @default(now())
+
+  @@index([category, createdAt])
+  @@index([actorId])
+  @@index([entity, entityId])
+}
+
+model ActivityEntry {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  meta      String?
+  amount    Int?
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model SavedReport {
+  id          String      @id @default(cuid())
+  name        String
+  description String      @db.Text
+  /// sales | finance | customers | catalog | concierge | operations | tax
+  category    String
+  /// generator key implemented in code
+  generator   String
+  params      Json?
+  owner       String
+  favorite    Boolean     @default(false)
+  /// off | daily | weekly | monthly
+  schedule    String      @default("off")
+  formats     Json
+  recipients  Json
+  nextRunAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  runs        ReportRun[]
+}
+
+model ReportRun {
+  id          String      @id @default(cuid())
+  reportId    String
+  report      SavedReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  /// queued | running | ready | failed
+  status      String      @default("queued")
+  format      String
+  rows        Int?
+  sizeBytes   Int?
+  fileKey     String?
+  error       String?     @db.Text
+  requestedBy String
+  startedAt   DateTime    @default(now())
+  finishedAt  DateTime?
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  anonId     String
+  customerId String?
+  sessionId  String
+  /// page_view | product_view | add_to_cart | checkout_start | purchase | search
+  name       String
+  path       String?  @db.VarChar(512)
+  productId  String?
+  value      Int?
+  device     String?
+  /// web | mobile | pwa
+  channel    String?
+  source     String?
+  medium     String?
+  campaign   String?
+  referrer   String?  @db.VarChar(512)
+  country    String?  @db.VarChar(2)
+  createdAt  DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([createdAt])
+}
+
+model DailySales {
+  date      DateTime @db.Date
+  channel   String
+  country   String   @db.VarChar(2)
+  revenue   BigInt
+  orders    Int
+  refunds   BigInt
+  discounts BigInt
+  units     Int
+
+  @@id([date, channel, country])
+}
+
+model DailyProductStats {
+  date      DateTime @db.Date
+  productId String
+  views     Int      @default(0)
+  addToCart Int      @default(0)
+  units     Int      @default(0)
+  revenue   BigInt   @default(0)
+  cost      BigInt   @default(0)
+  refunds   BigInt   @default(0)
+
+  @@id([date, productId])
+}
+
+model DailyTraffic {
+  date     DateTime @db.Date
+  source   String
+  device   String
+  visitors Int
+  sessions Int
+  pageViews Int
+  orders   Int      @default(0)
+
+  @@id([date, source, device])
+}
+
+model ConsentRecord {
+  id          String   @id @default(cuid())
+  anonId      String
+  customerId  String?
+  performance Boolean
+  functional  Boolean
+  advertising Boolean
+  createdAt   DateTime @default(now())
+}
+
+model Address {
+  id            String    @id @default(cuid())
+  customerId    String
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// Home | Work | Other or free text
+  label         String
+  /// shipping | billing | pickup
+  type          String    @default("shipping")
+  recipient     String
+  phone         String
+  line1         String
+  line2         String?
+  city          String
+  state         String
+  country       String    @default("NG")
+  postalCode    String?
+  isDefault     Boolean   @default(false)
+  verified      Boolean   @default(false)
+  flagged       Boolean   @default(false)
+  notes         String?
+  ordersShipped Int       @default(0)
+  lastUsedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([customerId])
+}

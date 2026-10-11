@@ -1,0 +1,56 @@
+model Warehouse {
+  id        String          @id @default(cuid())
+  name      String
+  code      String          @unique
+  city      String
+  active    Boolean         @default(true)
+  isDefault Boolean         @default(false)
+  createdAt DateTime        @default(now())
+  stock     StockLevel[]
+  movements StockMovement[]
+}
+
+model StockLevel {
+  variantId    String
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouseId  String
+  warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
+  onHand       Int            @default(0)
+  reserved     Int            @default(0)
+  reorderPoint Int            @default(2)
+  /// kobo
+  cost         Int?
+  updatedAt    DateTime       @updatedAt
+
+  @@id([variantId, warehouseId])
+}
+
+enum MovementType {
+  receive
+  adjust
+  transfer_in
+  transfer_out
+  reserve
+  release
+  sale
+  return
+}
+
+model StockMovement {
+  id          String       @id @default(cuid())
+  sku         String
+  variantId   String
+  warehouseId String
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
+  type        MovementType
+  /// signed quantity applied to onHand (reserve/release change `reserved`)
+  qty         Int
+  note        String?
+  refType     String?
+  refId       String?
+  actor       String?
+  createdAt   DateTime     @default(now())
+
+  @@index([variantId, createdAt])
+  @@index([refType, refId])
+}

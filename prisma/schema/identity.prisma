@@ -1,0 +1,284 @@
+// ───────────────────────── Customers ─────────────────────────
+
+enum CustomerTier {
+  Standard
+  Silver
+  Gold
+  Signature
+}
+
+enum CustomerStatus {
+  active
+  vip
+  flagged
+  blocked
+}
+
+enum Gender {
+  male
+  female
+  prefer_not_to_say
+}
+
+model Customer {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  emailVerifiedAt DateTime?
+  phone           String?
+  phoneCountry    String?        @db.VarChar(2)
+  phoneVerifiedAt DateTime?
+  passwordHash    String?
+  firstName       String
+  lastName        String         @default("")
+  dateOfBirth     DateTime?      @db.Date
+  gender          Gender?
+  avatarUrl       String?
+  city            String?
+  country         String?        @db.VarChar(2)
+  tier            CustomerTier   @default(Standard)
+  status          CustomerStatus @default(active)
+  marketingOptIn  Boolean        @default(false)
+  hasOnboarded    Boolean        @default(false)
+  /// language, currency, privacy toggles
+  preferences     Json?
+  referralCode    String?        @unique
+  referredById    String?
+  referredBy      Customer?      @relation("Referrals", fields: [referredById], references: [id])
+  referred        Customer[]     @relation("Referrals")
+  lastLoginAt     DateTime?
+  deletedAt       DateTime?
+  /// when a deleted account gets anonymised
+  purgeAfter      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  sessions        CustomerSession[]
+  twoFactor       CustomerTwoFactor?
+  resetTokens     PasswordResetToken[]
+  otpCodes        OtpCode[]
+  pushTokens      PushToken[]
+  notes           CustomerNote[]
+  tags            CustomerTag[]
+  stats           CustomerStats?
+  addresses       Address[]
+  carts           Cart[]
+  wishlist        WishlistItem[]
+  orders          Order[]
+  reviews         Review[]
+  reviewVotes     ReviewVote[]
+  reservations    Reservation[]
+  stockAlerts     BackInStockAlert[]
+  returns         ReturnRequest[]
+  wallet          Wallet?
+  savedMethods    SavedPaymentMethod[]
+  bankAccounts    BankAccount[]
+  points          PointsEntry[]
+  redemptions     RewardRedemption[]
+  customerCoupons CustomerCoupon[]
+  couponRedemptions CouponRedemption[]
+  advocate        Advocate?
+  conciergeRequests ConciergeRequest[]
+  tickets         Ticket[]
+  feedback        Feedback[]
+  notifications   Notification[]
+  notificationPref NotificationPreference?
+  checkoutSessions CheckoutSession[]
+  draftOrders     DraftOrder[]
+
+  @@index([status])
+  @@index([tier])
+  @@index([createdAt])
+  @@fulltext([firstName, lastName, email])
+}
+
+model CustomerSession {
+  id               String    @id @default(cuid())
+  customerId       String
+  customer         Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// sha256 of the current refresh token
+  refreshTokenHash String    @unique
+  /// all rotations of one login share a family → reuse detection revokes the family
+  family           String
+  userAgent        String?   @db.VarChar(512)
+  device           String?
+  ip               String?
+  location         String?
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([customerId])
+  @@index([family])
+}
+
+model CustomerTwoFactor {
+  customerId    String    @id
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  secret        String
+  enabledAt     DateTime?
+  /// sha256 hashes of unused recovery codes
+  recoveryCodes Json
+  createdAt     DateTime  @default(now())
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+enum OtpPurpose {
+  login
+  verify_phone
+  verify_email
+}
+
+model OtpCode {
+  id         String     @id @default(cuid())
+  customerId String?
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// email or phone the code was sent to
+  target     String
+  purpose    OtpPurpose
+  codeHash   String
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([target, purpose])
+}
+
+enum PushPlatform {
+  expo
+  webpush
+}
+
+model PushToken {
+  id         String       @id @default(cuid())
+  customerId String
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  platform   PushPlatform
+  token      String       @db.VarChar(1024)
+  tokenHash  String       @unique
+  createdAt  DateTime     @default(now())
+}
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  author     String
+  body       String   @db.Text
+  createdAt  DateTime @default(now())
+}
+
+model CustomerTag {
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  tag        String
+
+  @@id([customerId, tag])
+  @@index([tag])
+}
+
+/// Maintained by events (order.paid, refunds, concierge) so lists/segments never aggregate on the fly.
+model CustomerStats {
+  customerId     String    @id
+  customer       Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  ordersCount    Int       @default(0)
+  conciergeCount Int       @default(0)
+  totalSpend     BigInt    @default(0)
+  aov            Int       @default(0)
+  /// rolling 12-month spend used for tier calculation
+  spend12m       BigInt    @default(0)
+  lastOrderAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+}
+
+// ───────────────────────── Admin staff ─────────────────────────
+
+enum AdminRole {
+  super_admin
+  ops_manager
+  catalog_manager
+  concierge_agent
+  support
+  marketing
+  finance
+  content_editor
+  analyst
+}
+
+enum AdminStatus {
+  active
+  invited
+  suspended
+}
+
+enum Density {
+  comfortable
+  cozy
+  compact
+}
+
+model AdminUser {
+  id               String      @id @default(cuid())
+  email            String      @unique
+  name             String
+  passwordHash     String?
+  role             AdminRole
+  status           AdminStatus @default(invited)
+  avatarColor      String      @default("#0f0f0f")
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean     @default(false)
+  density          Density     @default(comfortable)
+  sidebarCollapsed Boolean     @default(false)
+  lastActiveAt     DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  sessions AdminSession[]
+  invites  AdminInvite[]
+
+  @@index([role])
+}
+
+model AdminSession {
+  id               String    @id @default(cuid())
+  adminId          String
+  admin            AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @unique
+  family           String
+  userAgent        String?   @db.VarChar(512)
+  ip               String?
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([adminId])
+  @@index([family])
+}
+
+model AdminInvite {
+  id         String    @id @default(cuid())
+  adminId    String
+  admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+/// Replaces a role's default permission set when present.
+model RolePermissionOverride {
+  role        AdminRole @id
+  permissions Json
+  updatedAt   DateTime  @updatedAt
+}

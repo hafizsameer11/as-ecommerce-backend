@@ -1,0 +1,415 @@
+enum SalesChannel {
+  web
+  mobile
+  pwa
+  concierge
+  draft
+}
+
+enum CartStatus {
+  active
+  converted
+  abandoned
+  recovered
+  lost
+}
+
+model Cart {
+  id             String     @id @default(cuid())
+  customerId     String?
+  customer       Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// guest carts are identified by a signed token kept by the client
+  guestToken     String?    @unique
+  channel        SalesChannel @default(web)
+  status         CartStatus @default(active)
+  email          String?
+  /// 0 none, 1 reminder 1 sent, 2 reminder 2 sent
+  reminderStage  Int        @default(0)
+  lastActivityAt DateTime   @default(now())
+  abandonedAt    DateTime?
+  recoveredAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  items          CartItem[]
+  checkout       CheckoutSession?
+
+  @@index([customerId, status])
+  @@index([status, lastActivityAt])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  size      String?
+  color     String?
+  qty       Int
+  /// kobo price when added (shown as "price changed" if different at checkout)
+  unitPrice Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, productId, size, color])
+}
+
+model WishlistItem {
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size       String?
+  color      String?
+  createdAt  DateTime @default(now())
+
+  @@id([customerId, productId])
+}
+
+enum DeliveryMethod {
+  ship
+  pickup
+}
+
+enum CheckoutPaymentMethod {
+  card
+  bank_transfer
+  paystack
+  wallet
+}
+
+model CheckoutSession {
+  id               String                 @id @default(cuid())
+  cartId           String                 @unique
+  cart             Cart                   @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  customerId       String?
+  customer         Customer?              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// {email, phone, subscribe}
+  contact          Json?
+  delivery         DeliveryMethod         @default(ship)
+  /// {fullName, address, apartment, city, state, postal, country}
+  address          Json?
+  pickupLocationId String?
+  paymentMethod    CheckoutPaymentMethod  @default(card)
+  couponCode       String?
+  useWallet        Boolean                @default(false)
+  updatedAt        DateTime               @updatedAt
+}
+
+enum OrderStatus {
+  pending_payment
+  paid
+  processing
+  shipped
+  out_for_delivery
+  delivered
+  cancelled
+  returned
+  refunded
+  partially_refunded
+}
+
+enum PaymentStatus {
+  unpaid
+  partially_paid
+  paid
+  refunded
+  partially_refunded
+  failed
+}
+
+model Order {
+  id               String         @id @default(cuid())
+  number           String         @unique
+  customerId       String?
+  customer         Customer?      @relation(fields: [customerId], references: [id])
+  guestEmail       String?
+  /// signed token for guest order lookup / confirmation page
+  accessToken      String         @unique
+  channel          SalesChannel   @default(web)
+  status           OrderStatus    @default(pending_payment)
+  paymentStatus    PaymentStatus  @default(unpaid)
+  deliveryMethod   DeliveryMethod @default(ship)
+  paymentMethod    CheckoutPaymentMethod @default(card)
+  subtotal         Int
+  discount         Int            @default(0)
+  shipping         Int            @default(0)
+  tax              Int            @default(0)
+  walletApplied    Int            @default(0)
+  total            Int
+  amountPaid       Int            @default(0)
+  amountRefunded   Int            @default(0)
+  couponCode       String?
+  contact          Json
+  shippingAddress  Json?
+  pickupLocationId String?
+  pickupLocation   PickupLocation? @relation(fields: [pickupLocationId], references: [id])
+  expectedDeliveryAt DateTime?
+  cancelReason     String?
+  placedAt         DateTime       @default(now())
+  paidAt           DateTime?
+  deliveredAt      DateTime?
+  cancelledAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  items            OrderItem[]
+  events           OrderEvent[]
+  notes            OrderNote[]
+  payments         Payment[]
+  shipments        Shipment[]
+  returns          ReturnRequest[]
+  reservation      Reservation?
+  pickupBooking    PickupBooking?
+  couponRedemption CouponRedemption?
+
+  @@index([customerId, placedAt])
+  @@index([status, placedAt])
+  @@index([paymentStatus])
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variantId   String?
+  sku         String?
+  name        String
+  brand       String
+  imageUrl    String? @db.VarChar(1024)
+  size        String?
+  color       String?
+  qty         Int
+  unitPrice   Int
+  lineTotal   Int
+  qtyReturned Int     @default(0)
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// placed | payment_confirmed | processing | shipped | out_for_delivery | delivered | cancelled | refunded | note
+  type      String
+  title     String
+  detail    String?  @db.VarChar(500)
+  actor     String?
+  /// hidden from the customer timeline
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author    String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+enum DraftOrderStatus {
+  draft
+  sent
+  converted
+}
+
+model DraftOrder {
+  id          String           @id @default(cuid())
+  number      String           @unique
+  customerId  String?
+  customer    Customer?        @relation(fields: [customerId], references: [id])
+  customerName String
+  email       String?
+  /// [{productId?, name, brand, size, color, qty, unitPrice, imageUrl}]
+  items       Json
+  subtotal    Int
+  discount    Int              @default(0)
+  shipping    Int              @default(0)
+  total       Int
+  status      DraftOrderStatus @default(draft)
+  note        String?          @db.Text
+  payToken    String?          @unique
+  orderId     String?
+  sentAt      DateTime?
+  createdBy   String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+enum ReturnStatus {
+  requested
+  approved
+  in_transit_back
+  received
+  under_investigation
+  refunded
+  rejected
+}
+
+enum RefundDestination {
+  original
+  wallet
+}
+
+model ReturnRequest {
+  id            String            @id @default(cuid())
+  number        String            @unique
+  orderId       String
+  order         Order             @relation(fields: [orderId], references: [id])
+  customerId    String?
+  customer      Customer?         @relation(fields: [customerId], references: [id])
+  reason        String
+  details       String?           @db.Text
+  photos        Json?
+  status        ReturnStatus      @default(requested)
+  refundAmount  Int               @default(0)
+  refundTo      RefundDestination @default(original)
+  inspectorNote String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  items         ReturnItem[]
+  events        ReturnEvent[]
+
+  @@index([status, createdAt])
+  @@index([customerId])
+}
+
+model ReturnItem {
+  id          String        @id @default(cuid())
+  returnId    String
+  returnReq   ReturnRequest @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItemId String
+  qty         Int
+}
+
+model ReturnEvent {
+  id        String        @id @default(cuid())
+  returnId  String
+  returnReq ReturnRequest @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  status    ReturnStatus
+  note      String?       @db.VarChar(500)
+  actor     String?
+  createdAt DateTime      @default(now())
+}
+
+enum CouponType {
+  percent
+  fixed
+  free_shipping
+  bogo
+}
+
+enum CouponStatus {
+  active
+  scheduled
+  expired
+  paused
+  draft
+}
+
+enum CouponAppliesTo {
+  all
+  categories
+  brands
+  products
+  collections
+}
+
+enum CouponEligibility {
+  all
+  new
+  vip
+  segment
+}
+
+model Coupon {
+  id               String            @id @default(cuid())
+  code             String            @unique
+  title            String
+  description      String?           @db.Text
+  type             CouponType
+  /// percent: 1-100, fixed: kobo
+  value            Int
+  status           CouponStatus      @default(draft)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  minSubtotal      Int?
+  maxDiscount      Int?
+  usageLimit       Int?
+  perCustomerLimit Int?
+  appliesTo        CouponAppliesTo   @default(all)
+  /// ids of categories / brands / products / collections
+  appliesToRefs    Json?
+  eligibility      CouponEligibility @default(all)
+  segmentId        String?
+  stackable        Boolean           @default(false)
+  autoApply        Boolean           @default(false)
+  oncePerCustomer  Boolean           @default(false)
+  /// ["web","mobile","concierge"]
+  channels         Json
+  pinned           Boolean           @default(false)
+  notes            String?           @db.Text
+  usedCount        Int               @default(0)
+  revenue          BigInt            @default(0)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  redemptions      CouponRedemption[]
+
+  @@index([status])
+}
+
+model CouponRedemption {
+  id         String    @id @default(cuid())
+  couponId   String?
+  coupon     Coupon?   @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  code       String
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  orderId    String    @unique
+  order      Order     @relation(fields: [orderId], references: [id])
+  discount   Int
+  createdAt  DateTime  @default(now())
+
+  @@index([couponId])
+  @@index([customerId])
+}
+
+enum CustomerCouponSource {
+  rewards
+  promo
+  referral
+}
+
+/// Personal single-use codes minted for one customer (rewards, referrals).
+model CustomerCoupon {
+  id         String               @id @default(cuid())
+  customerId String
+  customer   Customer             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code       String               @unique
+  label      String
+  type       CouponType
+  value      Int
+  source     CustomerCouponSource
+  expiresAt  DateTime?
+  usedAt     DateTime?
+  orderId    String?
+  createdAt  DateTime             @default(now())
+
+  @@index([customerId])
+}
+
+model RecoveryRule {
+  id          String   @id @default(cuid())
+  stage       Int      @unique
+  delayMinutes Int
+  channel     String
+  templateCode String
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}

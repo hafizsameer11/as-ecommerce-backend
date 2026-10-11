@@ -1,0 +1,65 @@
+# Local development stack:  docker compose up -d   then   npm run dev
+services:
+  mysql:
+    image: mysql:8.0
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: asl
+      MYSQL_USER: asl
+      MYSQL_PASSWORD: asl
+    ports: ["3306:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes: [redis-data:/data]
+
+  mailpit:
+    image: axllent/mailpit
+    ports: ["8025:8025", "1025:1025"]
+
+  adminer:
+    image: adminer
+    ports: ["8080:8080"]
+    depends_on: [mysql]
+
+  # Full containerised API + worker (optional for local dev; used for staging/production)
+  api:
+    build: .
+    profiles: ["full"]
+    env_file: .env
+    environment:
+      DATABASE_URL: mysql://asl:asl@mysql:3306/asl
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailpit
+    ports: ["4000:4000"]
+    volumes: [uploads:/app/uploads]
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_started }
+    command: sh -c "npx prisma migrate deploy && node dist/server.js"
+
+  worker:
+    build: .
+    profiles: ["full"]
+    env_file: .env
+    environment:
+      DATABASE_URL: mysql://asl:asl@mysql:3306/asl
+      REDIS_URL: redis://redis:6379
+      SMTP_HOST: mailpit
+    volumes: [uploads:/app/uploads]
+    depends_on: [api]
+    command: node dist/worker.js
+
+volumes:
+  mysql-data:
+  redis-data:
+  uploads:

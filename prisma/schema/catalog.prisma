@@ -1,0 +1,413 @@
+enum ProductStatus {
+  active
+  draft
+  archived
+}
+
+enum Availability {
+  in_stock
+  pre_order
+  limited
+  restocked
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  /// stable public slug/id used by the apps (e.g. "c1", "nike-af1-panda")
+  handle        String        @unique
+  name          String
+  brandId       String
+  brand         Brand         @relation(fields: [brandId], references: [id])
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  subcategoryId String?
+  subcategory   Subcategory?  @relation(fields: [subcategoryId], references: [id])
+  /// kobo
+  price         Int
+  /// kobo – set when on sale
+  compareAtPrice Int?
+  /// kobo – unit cost for margin analytics
+  cost          Int?
+  description   String?       @db.Text
+  styleCode     String?
+  availability  Availability  @default(in_stock)
+  status        ProductStatus @default(draft)
+  isConcierge   Boolean       @default(false)
+  /// "Price on request" – shown instead of a price, add-to-bag becomes a concierge enquiry
+  priceOnRequest Boolean      @default(false)
+  /// e.g. "Model is 6'1\" and wears size M"
+  modelFit      String?       @db.VarChar(500)
+  useDesignerSizes Boolean    @default(false)
+  featured      Boolean       @default(false)
+  trendingScore Int           @default(0)
+  bestSellerScore Int         @default(0)
+  ratingAvg     Float         @default(0)
+  ratingCount   Int           @default(0)
+  seoTitle      String?
+  seoDescription String?      @db.VarChar(500)
+  publishedAt   DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  images        ProductImage[]
+  colors        ProductColor[]
+  variants      ProductVariant[]
+  sizeLabels    ProductSizeLabel[]
+  features      ProductFeature[]
+  collections   CollectionProduct[]
+  reviews       Review[]
+  drop          Drop?
+  stockAlerts   BackInStockAlert[]
+  wishlist      WishlistItem[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@index([status, categoryId])
+  @@index([brandId])
+  @@index([createdAt])
+  @@fulltext([name, description])
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String  @db.VarChar(1024)
+  alt       String?
+  position  Int     @default(0)
+  /// optional: image belongs to a colour
+  color     String?
+  mediaId   String?
+
+  @@index([productId, position])
+}
+
+model ProductColor {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  hex       String  @db.VarChar(16)
+  position  Int     @default(0)
+
+  @@unique([productId, name])
+}
+
+/// One sellable unit: size × colour.
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku       String   @unique
+  size      String?
+  color     String?
+  /// kobo – overrides product price when set
+  price     Int?
+  position  Int      @default(0)
+  active    Boolean  @default(true)
+  stock     StockLevel[]
+
+  @@index([productId])
+}
+
+/// Designer size labels: "S" → "S (46)".
+model ProductSizeLabel {
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String
+  label     String
+
+  @@id([productId, size])
+}
+
+model ProductFeature {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  text      String  @db.VarChar(500)
+  position  Int     @default(0)
+}
+
+enum CategoryStatus {
+  active
+  hidden
+  draft
+}
+
+model Category {
+  id             String         @id @default(cuid())
+  name           String
+  handle         String         @unique
+  description    String?        @db.Text
+  status         CategoryStatus @default(active)
+  featured       Boolean        @default(false)
+  position       Int            @default(0)
+  imageUrl       String?        @db.VarChar(1024)
+  icon           String?
+  /// shown in concierge catalogue
+  concierge      Boolean        @default(false)
+  seoTitle       String?
+  seoDescription String?        @db.VarChar(500)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  subcategories  Subcategory[]
+  products       Product[]
+}
+
+model Subcategory {
+  id         String         @id @default(cuid())
+  categoryId String
+  category   Category       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name       String
+  handle     String
+  status     CategoryStatus @default(active)
+  imageUrl   String?        @db.VarChar(1024)
+  position   Int            @default(0)
+  updatedAt  DateTime       @updatedAt
+  products   Product[]
+
+  @@unique([categoryId, handle])
+}
+
+enum BrandStatus {
+  active
+  draft
+  archived
+}
+
+enum BrandTier {
+  signature
+  core
+  emerging
+}
+
+model Brand {
+  id             String      @id @default(cuid())
+  name           String      @unique
+  handle         String      @unique
+  tagline        String?
+  description    String?     @db.Text
+  country        String?
+  tier           BrandTier   @default(core)
+  status         BrandStatus @default(active)
+  featured       Boolean     @default(false)
+  conciergeOnly  Boolean     @default(false)
+  logoUrl        String?     @db.VarChar(1024)
+  logoInitial    String?     @db.VarChar(4)
+  accent         String?     @db.VarChar(16)
+  website        String?
+  seoTitle       String?
+  seoDescription String?     @db.VarChar(500)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  products       Product[]
+}
+
+enum CollectionStatus {
+  active
+  scheduled
+  draft
+  archived
+}
+
+enum CollectionType {
+  manual
+  smart
+}
+
+enum CollectionSlot {
+  hero
+  home_row_1
+  home_row_2
+  shop_hub
+  none
+}
+
+enum CollectionSort {
+  manual
+  newest
+  price_asc
+  price_desc
+  bestseller
+}
+
+model Collection {
+  id           String           @id @default(cuid())
+  title        String
+  handle       String           @unique
+  description  String?          @db.Text
+  status       CollectionStatus @default(draft)
+  type         CollectionType   @default(manual)
+  slot         CollectionSlot   @default(none)
+  /// smart rules [{field, op, value}]
+  rules        Json?
+  coverUrl     String?          @db.VarChar(1024)
+  featured     Boolean          @default(false)
+  sortOrder    CollectionSort   @default(manual)
+  tags         Json?
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  products     CollectionProduct[]
+}
+
+model CollectionProduct {
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  position     Int        @default(0)
+
+  @@id([collectionId, productId])
+}
+
+enum SizeGuideScope {
+  brand
+  category
+}
+
+model SizeGuide {
+  id        String         @id @default(cuid())
+  scope     SizeGuideScope
+  /// brand handle or category handle
+  target    String
+  note      String         @db.Text
+  chartUrl  String?        @db.VarChar(1024)
+  updatedAt DateTime       @updatedAt
+
+  @@unique([scope, target])
+}
+
+enum ReviewStatus {
+  pending
+  published
+  rejected
+  flagged
+}
+
+enum ReviewFit {
+  runs_small
+  true_to_size
+  runs_large
+}
+
+model Review {
+  id            String       @id @default(cuid())
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId    String?
+  customer      Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorName    String
+  rating        Int
+  title         String
+  body          String       @db.Text
+  size          String?
+  fit           ReviewFit?
+  verified      Boolean      @default(false)
+  status        ReviewStatus @default(pending)
+  flaggedReason String?
+  helpfulCount  Int          @default(0)
+  reportedCount Int          @default(0)
+  photos        Json?
+  replyBody     String?      @db.Text
+  replyAuthor   String?
+  repliedAt     DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  votes         ReviewVote[]
+
+  @@index([productId, status, createdAt])
+  @@index([status])
+}
+
+model ReviewVote {
+  reviewId   String
+  review     Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  /// helpful | report
+  kind       String   @db.VarChar(16)
+  createdAt  DateTime @default(now())
+
+  @@id([reviewId, customerId, kind])
+}
+
+enum DropStatus {
+  upcoming
+  live
+  sold_out
+  ended
+}
+
+model Drop {
+  id            String        @id @default(cuid())
+  productId     String        @unique
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  releaseAt     DateTime
+  allocation    Int
+  reservedCount Int           @default(0)
+  depositPct    Int           @default(20)
+  teaser        String?       @db.Text
+  status        DropStatus    @default(upcoming)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  reservations  Reservation[]
+}
+
+enum ReservationStatus {
+  pending_deposit
+  reserved
+  balance_paid
+  cancelled
+  expired
+}
+
+model Reservation {
+  id          String            @id @default(cuid())
+  number      String            @unique
+  dropId      String
+  drop        Drop              @relation(fields: [dropId], references: [id])
+  customerId  String
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  size        String?
+  price       Int
+  deposit     Int
+  balance     Int
+  status      ReservationStatus @default(pending_deposit)
+  orderId     String?           @unique
+  order       Order?            @relation(fields: [orderId], references: [id])
+  balancePaidAt DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([customerId])
+  @@index([dropId, status])
+}
+
+model BackInStockAlert {
+  id         String    @id @default(cuid())
+  productId  String
+  product    Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  size       String    @default("")
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([productId, customerId, size])
+}
+
+model SearchLog {
+  id         String   @id @default(cuid())
+  query      String   @db.VarChar(200)
+  results    Int
+  customerId String?
+  anonId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([query])
+  @@index([createdAt])
+}

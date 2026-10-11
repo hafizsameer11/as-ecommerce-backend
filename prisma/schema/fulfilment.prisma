@@ -1,0 +1,187 @@
+enum ZoneScope {
+  country
+  state
+  city
+  postcode
+}
+
+enum Carrier {
+  DHL
+  FedEx
+  UPS
+  GIG
+  Aramex
+  Local
+  InHouse
+}
+
+model ShippingZone {
+  id        String     @id @default(cuid())
+  name      String
+  scope     ZoneScope
+  /// ISO country codes
+  countries Json
+  /// states / cities / postcodes depending on scope
+  regions   Json
+  priority  Int        @default(0)
+  active    Boolean    @default(true)
+  notes     String?    @db.Text
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  rates     ZoneRate[]
+}
+
+model ZoneRate {
+  id         String       @id @default(cuid())
+  zoneId     String
+  zone       ShippingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  name       String
+  carrier    Carrier
+  service    String
+  baseFee    Int
+  perKgFee   Int          @default(0)
+  minKg      Float        @default(0)
+  maxKg      Float        @default(1000)
+  etaDays    String
+  freeAbove  Int?
+  active     Boolean      @default(true)
+  position   Int          @default(0)
+}
+
+enum ShipmentStatus {
+  label_created
+  picked_up
+  in_transit
+  out_for_delivery
+  delivered
+  exception
+  returned
+}
+
+model Shipment {
+  id                String          @id @default(cuid())
+  number            String          @unique
+  orderId           String
+  order             Order           @relation(fields: [orderId], references: [id])
+  carrier           Carrier
+  service           String
+  trackingNumber    String?
+  status            ShipmentStatus  @default(label_created)
+  originWarehouseId String?
+  destination       String
+  weightKg          Float           @default(0)
+  itemsCount        Int
+  declaredValue     Int
+  cost              Int             @default(0)
+  insured           Boolean         @default(false)
+  signatureRequired Boolean         @default(false)
+  notes             String?         @db.Text
+  etaAt             DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  events            ShipmentEvent[]
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model ShipmentEvent {
+  id         String         @id @default(cuid())
+  shipmentId String
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  status     ShipmentStatus
+  location   String
+  note       String?
+  createdAt  DateTime       @default(now())
+}
+
+model PickupLocation {
+  id             String          @id @default(cuid())
+  name           String
+  address        String
+  city           String
+  state          String
+  country        String          @default("NG")
+  phone          String
+  hours          String
+  active         Boolean         @default(true)
+  concierge      Boolean         @default(false)
+  capacityPerDay Int             @default(40)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  bookings       PickupBooking[]
+  orders         Order[]
+}
+
+enum PickupStatus {
+  scheduled
+  ready
+  collected
+  no_show
+  cancelled
+}
+
+model PickupBooking {
+  id          String         @id @default(cuid())
+  number      String         @unique
+  orderId     String         @unique
+  order       Order          @relation(fields: [orderId], references: [id])
+  locationId  String
+  location    PickupLocation @relation(fields: [locationId], references: [id])
+  scheduledAt DateTime
+  status      PickupStatus   @default(scheduled)
+  notes       String?        @db.Text
+  collectedAt DateTime?
+  collectedBy String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([locationId, scheduledAt])
+}
+
+enum TaxScope {
+  country
+  state
+  postcode
+}
+
+enum TaxBasis {
+  inclusive
+  exclusive
+}
+
+model TaxRate {
+  id        String   @id @default(cuid())
+  name      String
+  scope     TaxScope
+  region    String
+  /// percent with 2 decimals stored as basis points (7.5% = 750)
+  rateBps   Int
+  basis     TaxBasis @default(inclusive)
+  /// ["products","shipping","concierge_fee"]
+  appliesTo Json
+  code      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model TaxCategory {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  /// [{region, rateBps}]
+  overrides   Json
+}
+
+model TaxExemption {
+  id             String    @id @default(cuid())
+  /// customer | order
+  entity         String
+  reference      String
+  reason         String
+  certificateRef String?
+  validUntil     DateTime?
+  createdAt      DateTime  @default(now())
+}

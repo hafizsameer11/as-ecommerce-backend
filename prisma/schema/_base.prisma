@@ -1,0 +1,28 @@
+// Prisma multi-file schema. One file per domain; this file holds generator + datasource.
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+/// Gap-free human-readable numbers (ASL-ORD-10248, RET-2210 …) generated inside transactions.
+model Sequence {
+  key   String @id
+  value Int
+}
+
+/// Stored for 24h: replays the original response for a repeated Idempotency-Key.
+model IdempotencyKey {
+  key        String   @id
+  scope      String
+  statusCode Int
+  response   Json
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
