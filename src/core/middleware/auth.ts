@@ -38,9 +38,10 @@ export async function requireCustomer(req: Request, _res: Response, next: NextFu
     where: { id: p.sid },
     select: { revokedAt: true, customer: { select: { status: true, deletedAt: true } } },
   });
-  if (!session || session.revokedAt) throw new ApiError(401, "TOKEN_INVALID", "Your session has ended. Please sign in again.");
-  if (session.customer.status === "blocked" || session.customer.deletedAt)
+  // blocked / deleted first: their sessions are revoked too, but the app should say why
+  if (session && (session.customer.status === "blocked" || session.customer.deletedAt))
     throw new ApiError(403, "ACCOUNT_BLOCKED", "This account is not available. Please contact support.");
+  if (!session || session.revokedAt) throw new ApiError(401, "TOKEN_INVALID", "Your session has ended. Please sign in again.");
   req.customer = { id: p.sub, sessionId: p.sid };
   next();
 }

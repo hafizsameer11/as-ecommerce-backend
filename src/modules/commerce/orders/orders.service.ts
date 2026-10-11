@@ -146,6 +146,22 @@ export const ordersService = {
     if (orderId) events.emit("order.paid", { orderId });
   },
 
+  /**
+   * inside a transaction: shipments / pick-up bookings move the order forward.
+   * Never moves backwards, never touches unpaid / cancelled / refunded / returned orders.
+   * Returns the change (caller emits events after commit) or null when nothing changed.
+   */
+  async syncFromFulfilment(tx: Tx, orderId: string, to: "processing" | "shipped" | "out_for_delivery" | "delivered", actor: string) {
+    const FLOW: OrderStatus[] = ["paid", "processing", "shipped", "out_for_delivery", "delivered"];
+    await tx.$queryRaw`SELECT id FROM \`Order\` WHERE id = ${orderId} FOR UPDATE`;
+    const o = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+    const from = FLOW.indexOf(o.status);
+    if (from < 0 || FLOW.indexOf(to) <= from) return null;
+    await tx.order.update({ where: { id: orderId }, data: { status: to, ...(to === "delivered" ? { deliveredAt: new Date() } : {}) } });
+    await addEvent(tx, orderId, to, EVENT_TITLE[to] ?? STATUS_LABELS.order.customer[to], { actor });
+    return { from: o.status, to };
+  },
+
   // ── customer ──
   async myOrders(customerId: string, q: { page: number; pageSize: number; status?: string }) {
     const map: Record<string, OrderStatus[]> = {
@@ -294,6 +310,9 @@ export const ordersService = {
       await addEvent(tx, id, to, EVENT_TITLE[to] ?? STATUS_LABELS.order.customer[to], { detail: note, actor });
     });
     events.emit("order.status_changed", { orderId: id, from: o.status, to });
+    // manual status changes notify the customer the same way shipment updates do
+    if (to === "shipped") events.emit("order.shipped", { orderId: id, shipmentId: "" });
+    if (to === "delivered") events.emit("order.delivered", { orderId: id });
     return this.adminGet(id);
   },
 
@@ -351,14 +370,18 @@ export const ordersService = {
   },
 
   /** "Refund order": money back to the card/bank or to the wallet, optional restock */
-  async refund(id: string, b: RefundBody, actor: string) {
-    const o = await prisma.order.findUnique({ where: { id }, include: { items: true } });
-    if (!o) throw ApiError.notFound("Order");
-    const refundable = o.amountPaid - o.amountRefunded;
-    if (refundable <= 0) throw ApiError.conflict("INVALID_STATE", "Nothing left to refund on this order.");
-    const amount = b.amount ?? refundable;
-    if (amount > refundable) throw ApiError.badRequest("VALIDATION_FAILED", `You can refund up to ${formatNaira(refundable)}.`);
+  /** `opts.inTx` runs inside the same transaction (returns use it to mark the RMA refunded atomically) */
+  async refund(id: string, b: RefundBody, actor: string, opts: { inTx?: (tx: Tx) => Promise<void> } = {}) {
+    let amount = 0;
     await prisma.$transaction(async (tx) => {
+      // lock the order so two refunds can't both pass the "still refundable" check
+      await tx.$queryRaw`SELECT id FROM \`Order\` WHERE id = ${id} FOR UPDATE`;
+      const o = await tx.order.findUnique({ where: { id }, include: { items: true } });
+      if (!o) throw ApiError.notFound("Order");
+      const refundable = o.amountPaid - o.amountRefunded;
+      if (refundable <= 0) throw ApiError.conflict("INVALID_STATE", "Nothing left to refund on this order.");
+      amount = b.amount ?? refundable;
+      if (amount > refundable) throw ApiError.badRequest("VALIDATION_FAILED", `You can refund up to ${formatNaira(refundable)}.`);
       if (b.to === "wallet") {
         if (!o.customerId) throw ApiError.badRequest("VALIDATION_FAILED", "Guest orders can only be refunded to the original payment.");
         await walletsService.refund(tx, o.customerId, amount, `Refund for order ${o.number}`, { orderNumber: o.number });
@@ -379,6 +402,7 @@ export const ordersService = {
       });
       if (o.customerId) await tx.customerStats.updateMany({ where: { customerId: o.customerId }, data: { totalSpend: { decrement: BigInt(amount) } } });
       await addEvent(tx, id, "refunded", "Refund issued", { detail: `${formatNaira(amount)} to ${b.to === "wallet" ? "ASL Wallet" : "original payment"} — ${b.reason}`, actor });
+      if (opts.inTx) await opts.inTx(tx);
     });
     events.emit("order.refunded", { orderId: id, amount });
     return this.adminGet(id);

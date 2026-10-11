@@ -46,7 +46,16 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Customer cancels | Only while "Awaiting payment" or "Processing / unfulfilled". Full refund: wallet part back to wallet, card part back to the card. Stock goes back to the same warehouse |
 | Card refunds and wallet withdrawals with the mock provider | Always succeed instantly. With a real provider some are asynchronous — webhook handling for refunds/transfers is still to do when the provider is chosen |
 | Prices and stock at checkout | Recomputed on the server at "Place order". If the app sends `expectedTotal` and the total changed, the order is refused with the new totals |
-| Cancelled / refunded order and loyalty points | Points don't exist yet (phase 4) |
+| Cancelled / refunded order and loyalty points | Points don't exist yet (phase 5) |
+| Return windows | 7 days from delivery for normal returns. "Damaged or defective" must be reported within 48 h with at least one photo. Fragrances, underwear, swimwear, personal care can't be returned for any reason (setting `returns.nonReturnableCategories`) — *confirm whether damaged fragrances should be accepted* |
+| Customer cancels a return request | Stored as "Rejected" with a "you cancelled" note (there is no separate cancelled status) |
+| Return refunds | Item price minus its share of the order discount; shipping is never refunded |
+| Order delivered | Only when every shipment is delivered (or the pick-up is collected) |
+| Pick-up orders | A pick-up slot is booked automatically for the next day at 12:00 when the order is paid; the store's daily capacity is respected |
+| Deleting a customer (admin) | Personal data is wiped; orders, wallet history and invoices are kept. Refused while the wallet still holds money |
+| Self-deleted accounts | Personal data removed automatically after `account.deletionGraceDays` (30) |
+| Draft-order pay links | Valid 7 days; sending again makes the old link stop working. Orders from drafts have no delivery address yet (drafts have no address field) |
+| Ledger | Sales, VAT, shipping, wallet, fees, refunds and payouts post automatically. Concierge, drop deposits and points are not journaled yet |
 
 ## Open business decisions (defaults in place until decided)
 
@@ -57,4 +66,5 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | D6 | Charge in foreign currencies? | No — display conversion only, settle in NGN |
 | D2 | Payment provider | Mock provider (Paystack-shaped) until a provider is chosen |
 | D7 | FREESHIP (auto, all channels, ₦150k+) also makes **international** DHL delivery free | Kept as the admin mock defined it. Inside Nigeria delivery is already free above ₦150k, so today FREESHIP only changes international orders. Restrict it if that's not intended |
+| D9 | Messages templates | Seeding never overwrites templates staff may have edited. Databases seeded before phase 4 keep older email texts until reset or edited in Admin → Messaging |
 | D8 | Product weights | Not in the prototype data. International per-kg pricing assumes 1 kg per item until weights are entered (`weightGrams` on products) |

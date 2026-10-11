@@ -48,9 +48,10 @@ export const STATUS_LABELS = {
     },
   },
   return: {
+    /** asl-web /account/returns uses four chips */
     customer: {
-      requested: "Requested", approved: "Approved", in_transit_back: "In transit", received: "Received",
-      under_investigation: "Under review", refunded: "Refunded", rejected: "Rejected",
+      requested: "In Progress", approved: "Approved", in_transit_back: "Approved", received: "Approved",
+      under_investigation: "In Progress", refunded: "Completed", rejected: "Rejected",
     },
     admin: {
       requested: "Awaiting review", approved: "Approved", in_transit_back: "In transit back", received: "Received",

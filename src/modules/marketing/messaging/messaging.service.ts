@@ -1,5 +1,5 @@
 import { prisma } from "@/core/db/prisma";
-import { mail } from "@/providers/mail/mail";
+import { mail, type MailAttachment } from "@/providers/mail/mail";
 import { sms } from "@/providers/sms/sms";
 import { push } from "@/providers/push/push";
 import { settingsService } from "@/modules/platform/settings/settings.service";
@@ -47,11 +47,11 @@ async function emailHtml(subject: string, body: string, ctaLabel?: string, link?
 /** Fire-and-forget delivery used by every module. Missing / paused templates are skipped. */
 export const messaging = {
   render,
-  async email(to: string, code: string, vars: Vars) {
+  async email(to: string, code: string, vars: Vars, attachments?: MailAttachment[]) {
     const r = await render(code, "email", vars);
     if (!r) return;
     try {
-      await mail.send({ to, subject: r.subject, text: r.body, html: await emailHtml(r.subject, r.body, r.ctaLabel, r.link) });
+      await mail.send({ to, subject: r.subject, text: r.body, html: await emailHtml(r.subject, r.body, r.ctaLabel, r.link), attachments });
       await prisma.messageTemplate.updateMany({ where: { code, channel: "email" }, data: { sentCount: { increment: 1 } } });
     } catch (err) {
       logger.error({ err, code }, "email failed");

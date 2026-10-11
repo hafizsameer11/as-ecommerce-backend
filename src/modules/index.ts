@@ -20,16 +20,29 @@ import { dropsStoreRoutes, stockAlertsStoreRoutes } from "./catalog/drops/drops.
 import { inventoryAdminRoutes, warehousesAdminRoutes } from "./inventory/inventory.routes";
 import { addressesAdminRoutes, addressesStoreRoutes } from "./platform/addresses/addresses.routes";
 import { cartsStoreRoutes } from "./commerce/carts/carts.routes";
+import { abandonedCartsAdminRoutes } from "./commerce/carts/abandoned-carts.routes";
+import { customersAdminRoutes } from "./identity/customers/customers.routes";
 import { wishlistStoreRoutes } from "./commerce/wishlist/wishlist.routes";
 import { couponsAdminRoutes, myCouponsStoreRoutes } from "./commerce/coupons/coupons.routes";
 import { checkoutStoreRoutes } from "./commerce/checkout/checkout.routes";
 import { myOrdersStoreRoutes, ordersAdminRoutes, ordersStoreRoutes } from "./commerce/orders/orders.routes";
+import { myOrderDocumentsStoreRoutes, orderDocumentsAdminRoutes, orderDocumentsStoreRoutes } from "./commerce/documents/documents.routes";
+import { draftOrdersAdminRoutes, draftPayStoreRoutes } from "./commerce/draft-orders/draft-orders.routes";
+import { myReturnsStoreRoutes, returnableStoreRoutes, returnsAdminRoutes } from "./commerce/returns/returns.routes";
+import { registerReturnListeners } from "./commerce/returns/returns.listeners";
 import { shippingStoreRoutes, shippingZonesAdminRoutes } from "./fulfilment/shipping-zones/shipping-zones.routes";
-import { pickupLocationsAdminRoutes, pickupLocationsStoreRoutes } from "./fulfilment/pickups/pickups.routes";
+import { pickupBookingsAdminRoutes, pickupLocationsAdminRoutes, pickupLocationsStoreRoutes } from "./fulfilment/pickups/pickups.routes";
+import { myTrackingStoreRoutes, orderFulfilAdminRoutes, shipmentsAdminRoutes, tokenTrackingStoreRoutes } from "./fulfilment/shipments/shipments.routes";
+import { registerPickupListeners } from "./fulfilment/pickups/pickups.listeners";
+import { registerShipmentListeners } from "./fulfilment/shipments/shipments.listeners";
+import { registerOrderListeners } from "./commerce/orders/orders.listeners";
 import { taxAdminRoutes } from "./fulfilment/tax/tax.routes";
 import { paymentsAdminRoutes, paymentsStoreRoutes, paymentWebhookRoutes } from "./payments/payments/payments.routes";
 import { bankAccountsStoreRoutes, banksStoreRoutes, walletsAdminRoutes, walletStoreRoutes } from "./payments/wallets/wallets.routes";
 import { paymentMethodsStoreRoutes } from "./payments/payment-methods/payment-methods.routes";
+import { ledgerAdminRoutes } from "./payments/ledger/ledger.routes";
+import { registerLedgerListeners } from "./payments/ledger/ledger.listeners";
+import { payoutsAdminRoutes } from "./payments/payouts/payouts.routes";
 
 export const moduleRouters: ModuleRouter[] = [
   // identity
@@ -38,6 +51,7 @@ export const moduleRouters: ModuleRouter[] = [
   adminAuthRoutes,
   adminMeRoutes,
   teamAdminRoutes,
+  customersAdminRoutes,
   // platform
   settingsStoreRoutes,
   settingsAdminRoutes,
@@ -67,18 +81,32 @@ export const moduleRouters: ModuleRouter[] = [
   addressesStoreRoutes,
   addressesAdminRoutes,
   cartsStoreRoutes,
+  abandonedCartsAdminRoutes,
   wishlistStoreRoutes,
   myCouponsStoreRoutes,
   couponsAdminRoutes,
   checkoutStoreRoutes,
+  myOrderDocumentsStoreRoutes, // before the order routers: /orders/:id/invoice.pdf, /orders/print-slips
+  orderDocumentsStoreRoutes,
+  orderDocumentsAdminRoutes,
   myOrdersStoreRoutes,
   ordersStoreRoutes,
   ordersAdminRoutes,
+  draftOrdersAdminRoutes,
+  draftPayStoreRoutes,
+  returnableStoreRoutes,
+  myReturnsStoreRoutes,
+  returnsAdminRoutes,
   // fulfilment
   shippingStoreRoutes,
   shippingZonesAdminRoutes,
   pickupLocationsStoreRoutes,
   pickupLocationsAdminRoutes,
+  pickupBookingsAdminRoutes,
+  orderFulfilAdminRoutes,
+  shipmentsAdminRoutes,
+  myTrackingStoreRoutes,
+  tokenTrackingStoreRoutes,
   taxAdminRoutes,
   // payments
   paymentsStoreRoutes,
@@ -89,9 +117,14 @@ export const moduleRouters: ModuleRouter[] = [
   banksStoreRoutes,
   walletsAdminRoutes,
   paymentMethodsStoreRoutes,
+  ledgerAdminRoutes,
+  payoutsAdminRoutes,
 ];
 
 /** side-effect imports: event listeners + job processors */
 export async function registerListeners() {
   // filled as modules with listeners are added
+  registerReturnListeners();
+  registerOrderListeners(); registerPickupListeners(); registerShipmentListeners();
+  registerLedgerListeners();
 }

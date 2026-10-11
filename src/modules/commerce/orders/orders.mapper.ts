@@ -8,6 +8,7 @@ export const orderInclude = {
   payments: { orderBy: { createdAt: "desc" } },
   shipments: { orderBy: { createdAt: "desc" }, select: { number: true, carrier: true, trackingNumber: true, status: true, etaAt: true } },
   pickupLocation: true,
+  pickupBooking: { select: { number: true, status: true, scheduledAt: true, collectedAt: true } },
   couponRedemptions: { select: { code: true, discount: true } },
 } satisfies Prisma.OrderInclude;
 export type OrderRow = Prisma.OrderGetPayload<{ include: typeof orderInclude }>;
@@ -80,6 +81,7 @@ export function toCustomerOrder(o: OrderRow, opts: { returnWindowDays: number })
     contact: o.contact,
     address: o.shippingAddress,
     pickupLocation: o.pickupLocation ? { id: o.pickupLocation.id, name: o.pickupLocation.name, address: o.pickupLocation.address, hours: o.pickupLocation.hours, phone: o.pickupLocation.phone } : null,
+    pickupBooking: o.pickupBooking ? { number: o.pickupBooking.number, status: o.pickupBooking.status, scheduledAt: o.pickupBooking.scheduledAt, collectedAt: o.pickupBooking.collectedAt } : null,
     giftMessage: o.giftMessage,
     eta: o.shipments[0]?.etaAt ?? o.expectedDeliveryAt,
     tracking: tracking(o),

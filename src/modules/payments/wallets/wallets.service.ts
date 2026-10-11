@@ -150,6 +150,7 @@ export const walletsService = {
       if (r.status === "success") await tx.wallet.update({ where: { id: t.walletId }, data: { held: { decrement: -t.amount } } });
     });
     events.emit("wallet.changed", { customerId: t.wallet.customerId });
+    events.emit("wallet.posted", { txId });
     return prisma.walletTransaction.findUniqueOrThrow({ where: { id: txId } });
   },
 
@@ -223,6 +224,7 @@ export const walletsService = {
       }),
     );
     events.emit("wallet.changed", { customerId: input.customerId });
+    events.emit("wallet.posted", { txId: t.id });
     return t;
   },
 
@@ -236,6 +238,7 @@ export const walletsService = {
       return rev;
     });
     events.emit("wallet.changed", { customerId: t.wallet.customerId });
+    events.emit("wallet.posted", { txId: r.id });
     return r;
   },
 

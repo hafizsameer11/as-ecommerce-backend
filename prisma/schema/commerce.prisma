@@ -140,6 +140,8 @@ model Order {
   discount         Int            @default(0)
   shipping         Int            @default(0)
   tax              Int            @default(0)
+  /// VAT already inside the prices (reported on invoices, posted to the ledger)
+  taxIncluded      Int            @default(0)
   walletApplied    Int            @default(0)
   total            Int
   amountPaid       Int            @default(0)
@@ -241,6 +243,8 @@ model DraftOrder {
   status      DraftOrderStatus @default(draft)
   note        String?          @db.Text
   payToken    String?          @unique
+  /// pay link stops working after this
+  expiresAt   DateTime?
   orderId     String?
   sentAt      DateTime?
   createdBy   String
@@ -277,6 +281,8 @@ model ReturnRequest {
   refundAmount  Int               @default(0)
   refundTo      RefundDestination @default(original)
   inspectorNote String?           @db.Text
+  restocked     Boolean           @default(false)
+  refundedAt    DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   items         ReturnItem[]

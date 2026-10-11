@@ -12,6 +12,12 @@ export type DomainEvents = {
   "order.status_changed": { orderId: string; from: string; to: string };
   "order.cancelled": { orderId: string };
   "order.refunded": { orderId: string; amount: number };
+  "order.shipped": { orderId: string; shipmentId: string };
+  "order.delivered": { orderId: string };
+  "pickup.ready": { bookingId: string };
+  "return.updated": { returnId: string; status: string };
+  "wallet.posted": { txId: string };
+  "payout.paid": { payoutId: string };
   "payment.succeeded": { paymentId: string };
   "payment.failed": { paymentId: string };
   "review.published": { reviewId: string };

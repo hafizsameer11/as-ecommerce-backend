@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { pageQuery } from "@/core/http/pagination";
 
 export const locationBody = z.object({
   name: z.string().trim().min(1).max(120),
@@ -13,3 +14,27 @@ export const locationBody = z.object({
   capacityPerDay: z.number().int().min(1).max(10_000).default(40),
 });
 export type LocationBody = z.infer<typeof locationBody>;
+
+// ── bookings ──
+export const PICKUP_STATUSES = ["scheduled", "ready", "collected", "no_show", "cancelled"] as const;
+
+export const bookingListQuery = pageQuery.extend({
+  tab: z.enum(["all", "today", ...PICKUP_STATUSES]).default("all"),
+  locationId: z.string().max(64).optional(),
+  /** a day in Lagos time, YYYY-MM-DD */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+export const bookingAdvanceBody = z.object({
+  status: z.enum(PICKUP_STATUSES),
+  /** who collected it (name / ID shown) */
+  collectedBy: z.string().trim().max(120).optional(),
+});
+export const bookingNoteBody = z.object({ note: z.string().trim().max(2000) });
+export const bookingRescheduleBody = z.object({
+  scheduledAt: z.coerce.date(),
+  locationId: z.string().max(64).optional(),
+});
+
+export type BookingListQuery = z.infer<typeof bookingListQuery>;
+export type BookingAdvanceBody = z.infer<typeof bookingAdvanceBody>;
+export type BookingRescheduleBody = z.infer<typeof bookingRescheduleBody>;

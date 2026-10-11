@@ -249,7 +249,7 @@ export const checkoutService = {
           channel: cart.channel,
           deliveryMethod: s.delivery,
           paymentMethod: t.due === 0 ? "wallet" : s.paymentMethod === "wallet" ? "card" : s.paymentMethod,
-          subtotal: t.subtotal, discount: t.discount, shipping: t.shipping ?? 0, tax: t.tax.added, walletApplied: t.walletApplied, total: t.total,
+          subtotal: t.subtotal, discount: t.discount, shipping: t.shipping ?? 0, tax: t.tax.added, taxIncluded: t.tax.included, walletApplied: t.walletApplied, total: t.total,
           amountPaid: t.walletApplied,
           paymentStatus: t.walletApplied ? (t.due === 0 ? "paid" : "partially_paid") : "unpaid",
           couponCode: t.coupons.map((x) => x.code).join(",") || null,

@@ -251,6 +251,7 @@ model JournalEntry {
 
   @@index([date])
   @@index([source])
+  @@index([reference])
 }
 
 model JournalLine {

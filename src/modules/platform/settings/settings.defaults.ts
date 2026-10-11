@@ -91,6 +91,13 @@ export const settingsSchemas = {
     fiscalYearStartMonth: z.number().int().min(1).max(12),
     autoRounding: z.enum(["line", "subtotal"]),
   }),
+  finance: z.object({
+    payoutBankName: z.string(),
+    payoutAccountMasked: z.string(),
+    payoutAccountName: z.string(),
+    /** settlement delay after capture, in days (Paystack: T+1) */
+    payoutDelayDays: z.number().int().min(0).max(30),
+  }),
   legal: z.object({
     vatNumber: z.string(), rcNumber: z.string(),
   }),
@@ -178,6 +185,7 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
     fiscalYearStartMonth: 1,
     autoRounding: "subtotal",
   },
+  finance: { payoutBankName: "GTBank", payoutAccountMasked: "****4021", payoutAccountName: "ASL Originals Ltd", payoutDelayDays: 1 },
   legal: { vatNumber: "", rcNumber: "" },
   maintenance: { enabled: false, message: "We're making improvements and will be back shortly." },
   app: {

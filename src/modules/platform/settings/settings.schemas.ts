@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const settingsGroupParam = z.object({
-  group: z.enum(["profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "orders", "account", "tax", "legal", "maintenance", "app"]),
+  group: z.enum(["profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "orders", "account", "tax", "finance", "legal", "maintenance", "app"]),
 });
 export const settingsGroupPatch = z.record(z.string(), z.unknown());
 export const codeParam = z.object({ code: z.string().min(2).max(8) });

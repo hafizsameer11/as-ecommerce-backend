@@ -14,8 +14,10 @@ export const MAX_LINE_QTY = 10;
 
 export type CartOwner = { customerId?: string; guestToken?: string };
 
+/** an abandoned bag is still the customer's bag (reminder link / returning customer) */
+const OPEN = { in: ["active" as const, "abandoned" as const] };
 const ownerWhere = (o: CartOwner) =>
-  o.customerId ? { customerId: o.customerId, status: "active" as const } : { guestToken: o.guestToken!, status: "active" as const };
+  o.customerId ? { customerId: o.customerId, status: OPEN } : { guestToken: o.guestToken!, status: OPEN };
 
 async function find(o: CartOwner, db: Db = prisma): Promise<CartRow | null> {
   if (!o.customerId && !o.guestToken) return null;
@@ -74,7 +76,8 @@ async function view(cart: CartRow | null, o: CartOwner) {
 }
 
 async function touch(cartId: string) {
-  await prisma.cart.update({ where: { id: cartId }, data: { lastActivityAt: new Date(), reminderStage: 0 } });
+  // any change re-opens an abandoned bag (abandonedAt is kept so the order counts as recovered)
+  await prisma.cart.update({ where: { id: cartId }, data: { lastActivityAt: new Date(), reminderStage: 0, status: "active" } });
 }
 
 async function ownedItem(o: CartOwner, itemId: string) {
@@ -171,7 +174,7 @@ export const cartsService = {
         else await tx.cartItem.create({ data: { cartId: mine.id, productId: g.productId, variantId: g.variantId, size: g.size, color: g.color, qty: g.qty, unitPrice: g.unitPrice } });
       }
       await tx.cart.update({ where: { id: guest.id }, data: { status: "converted" } });
-      await tx.cart.update({ where: { id: mine.id }, data: { lastActivityAt: new Date(), email: mine.email ?? guest.email } });
+      await tx.cart.update({ where: { id: mine.id }, data: { lastActivityAt: new Date(), reminderStage: 0, status: "active", email: mine.email ?? guest.email } });
     });
     return this.get({ customerId });
   },
@@ -189,7 +192,9 @@ export const cartsService = {
     return { cart: await this.get(o), skipped };
   },
 
+  /** order placed from this bag; a bag that had been abandoned counts as recovered */
   async markConverted(db: Db, cartId: string) {
-    await db.cart.update({ where: { id: cartId }, data: { status: "converted" } });
+    const c = await db.cart.findUniqueOrThrow({ where: { id: cartId }, select: { abandonedAt: true } });
+    await db.cart.update({ where: { id: cartId }, data: c.abandonedAt ? { status: "recovered", recoveredAt: new Date() } : { status: "converted" } });
   },
 };

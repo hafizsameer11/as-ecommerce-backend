@@ -2,7 +2,8 @@ import nodemailer from "nodemailer";
 import { env, isTest } from "@/config/env";
 import { logger } from "@/core/utils/logger";
 
-export type MailMessage = { to: string; subject: string; html: string; text?: string };
+export type MailAttachment = { filename: string; content: Buffer; contentType?: string };
+export type MailMessage = { to: string; subject: string; html: string; text?: string; attachments?: MailAttachment[] };
 
 export interface MailProvider {
   send(msg: MailMessage): Promise<void>;

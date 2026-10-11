@@ -4,6 +4,8 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
   APP_URL: z.string().url().default("http://localhost:4000"),
+  /** customer website (links in emails: pay draft orders, recover carts, track orders) */
+  WEB_URL: z.string().url().default("http://localhost:3000"),
   CORS_ORIGINS: z.string().default(""),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default(""),

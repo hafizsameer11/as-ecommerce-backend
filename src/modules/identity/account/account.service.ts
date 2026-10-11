@@ -1,13 +1,24 @@
-import { prisma } from "@/core/db/prisma";
+import { Prisma } from "@/generated/prisma/client";
+import { prisma, type Tx } from "@/core/db/prisma";
 import { ApiError } from "@/core/http/errors";
 import { hashPassword, verifyPassword } from "@/core/auth/password";
 import { newTotpSecret, totpUri, verifyTotp } from "@/core/auth/totp";
 import { randomToken, sha256 } from "@/core/auth/tokens";
 import { settingsService } from "@/modules/platform/settings/settings.service";
+import { defineJob } from "@/core/queue/queue";
+import { logger } from "@/core/utils/logger";
 import { mediaService, type UploadInput } from "@/modules/content/media/media.service";
 import { defaultPreferences, toCustomerDto } from "../auth/customer.mapper";
 import type { z } from "zod";
 import type { preferencesSchema, updateProfileSchema } from "./account.schemas";
+
+/** shared by self-service delete and admin anonymise: mark deleted, sign out everywhere, stop messaging */
+async function closeAccount(tx: Tx, id: string, purgeAfter: Date) {
+  const c = await tx.customer.findUniqueOrThrow({ where: { id }, select: { deletedAt: true } });
+  await tx.customer.update({ where: { id }, data: { deletedAt: c.deletedAt ?? new Date(), purgeAfter, marketingOptIn: false } });
+  await tx.customerSession.updateMany({ where: { customerId: id, revokedAt: null }, data: { revokedAt: new Date() } });
+  await tx.pushToken.deleteMany({ where: { customerId: id } });
+}
 
 const load = (id: string) => prisma.customer.findUniqueOrThrow({ where: { id }, include: { twoFactor: { select: { enabledAt: true } } } });
 
@@ -129,12 +140,41 @@ export const accountService = {
     if (c.passwordHash && (!password || !(await verifyPassword(c.passwordHash, password))))
       throw ApiError.badRequest("INVALID_CREDENTIALS", "Please confirm with your password.");
     const days = (await settingsService.get("account")).deletionGraceDays;
-    await prisma.$transaction([
-      prisma.customer.update({ where: { id }, data: { deletedAt: new Date(), purgeAfter: new Date(Date.now() + days * 86_400_000), marketingOptIn: false } }),
-      prisma.customerSession.updateMany({ where: { customerId: id, revokedAt: null }, data: { revokedAt: new Date() } }),
-      prisma.pushToken.deleteMany({ where: { customerId: id } }),
-    ]);
+    await prisma.$transaction((tx) => closeAccount(tx, id, new Date(Date.now() + days * 86_400_000)));
     return { deleted: true, purgeAfterDays: days };
+  },
+
+  /**
+   * Remove personal data now (admin "Delete customer", or the purge after the grace period).
+   * Orders, wallet ledger, points, tickets and concierge history stay (finance / tax records),
+   * but they no longer point to a name, email or phone.
+   */
+  async anonymise(id: string) {
+    await prisma.$transaction(async (tx) => {
+      await closeAccount(tx, id, new Date());
+      await tx.customer.update({
+        where: { id },
+        data: {
+          email: `deleted-${id}@anonymised.invalid`, emailVerifiedAt: null, phone: null, phoneCountry: null, phoneVerifiedAt: null,
+          passwordHash: null, firstName: "Deleted", lastName: "customer", dateOfBirth: null, gender: null, avatarUrl: null,
+          city: null, country: null, preferences: Prisma.DbNull, referralCode: null,
+        },
+      });
+      const where = { customerId: id };
+      await tx.customerTwoFactor.deleteMany({ where });
+      await tx.passwordResetToken.deleteMany({ where });
+      await tx.otpCode.deleteMany({ where });
+      await tx.address.deleteMany({ where });
+      await tx.customerNote.deleteMany({ where });
+      await tx.customerTag.deleteMany({ where });
+      await tx.savedPaymentMethod.deleteMany({ where });
+      await tx.bankAccount.deleteMany({ where });
+      await tx.wishlistItem.deleteMany({ where });
+      await tx.backInStockAlert.deleteMany({ where });
+      await tx.notificationPreference.deleteMany({ where });
+      await tx.cart.deleteMany({ where }); // open bags, checkout sessions (cascade)
+    });
+    return { anonymised: true };
   },
 
   // ── push tokens (asl-mobile Expo token / PWA web push) ──
@@ -152,3 +192,22 @@ export const accountService = {
     await prisma.pushToken.deleteMany({ where: { customerId: id, tokenHash: sha256(token) } });
   },
 };
+
+/** U8: self-deleted accounts keep their data for `account.deletionGraceDays`, then personal data is removed. */
+export async function purgeDeletedAccounts() {
+  const due = await prisma.customer.findMany({ where: { deletedAt: { not: null }, purgeAfter: { lte: new Date() }, email: { not: { startsWith: "deleted-" } } }, select: { id: true }, take: 200 });
+  let purged = 0;
+  for (const c of due) {
+    try {
+      await accountService.anonymise(c.id);
+      purged++;
+    } catch (err) {
+      // e.g. money still in the wallet → stays until finance settles it
+      logger.warn({ err, customerId: c.id }, "account purge skipped");
+    }
+  }
+  return { purged };
+}
+export const purgeDeletedAccountsJob = defineJob("accounts.purge", async () => {
+  await purgeDeletedAccounts();
+});

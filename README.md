@@ -90,5 +90,8 @@ Money is always integer **kobo** (₦1 = 100). Actions that create money movemen
 | 1 | Identity: customer auth (password, OTP, 2FA, sessions), account, admin auth, team + roles/permissions, settings | Done |
 | 2 | Catalogue + inventory: products, categories, brands, collections, size guides, reviews, drops, search, home, stock | Done |
 | 3 | Cart, wishlist, addresses, coupons, shipping zones, pick-up stores, tax, checkout, orders, payments (mock gateway + webhooks), saved cards, wallet | Done |
-| 4 | Shipments + pick-up bookings, returns, invoices/packing slips (PDF), draft orders, abandoned carts, ledger, payouts, admin customers | Next |
-| 5+ | Club/points/referrals, concierge, support + notifications, marketing, content (CMS/FAQ/blog/SEO), analytics, reports | Planned |
+| 4 | Shipments + tracking, pick-up bookings, returns/RMA, invoices + packing slips (PDF), draft orders + pay links, abandoned carts + reminders, ledger (auto journals), payouts, admin customers, customer order emails/push | Done |
+| 5 | Club/points/referrals, drop reservations, concierge (requests, quotes, chat) | Next |
+| 6+ | Support tickets + notifications centre, marketing (segments, campaigns, banners), content (CMS/FAQ/blog/SEO), analytics, reports, global search | Planned |
+
+Background jobs (need `npm run dev:worker` + Redis): unpaid-order expiry (5 min), abandoned-cart scan (15 min), payouts sync (daily), deleted-account purge (daily).

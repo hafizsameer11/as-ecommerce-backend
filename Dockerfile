@@ -14,6 +14,8 @@ COPY package*.json ./
 RUN npm ci --omit=dev && npm i --no-save prisma@7.10.0
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/src/generated ./src/generated
+# fonts for PDF invoices / packing slips (DejaVu Sans has the ₦ glyph)
+COPY --from=build /app/src/assets ./src/assets
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 RUN mkdir -p uploads && chown -R node:node /app

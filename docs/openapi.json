@@ -1911,6 +1911,7 @@
                 "orders",
                 "account",
                 "tax",
+                "finance",
                 "legal",
                 "maintenance",
                 "app"
@@ -7904,6 +7905,1061 @@
         }
       }
     },
+    "/admin/carts/abandoned": {
+      "get": {
+        "summary": "Abandoned carts (stage tabs Just abandoned → Reminder 1/2 sent → Recovered → Lost, KPIs)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Abandoned carts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "just_abandoned",
+                "reminder_1",
+                "reminder_2",
+                "recovered",
+                "lost"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "stage",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/carts/remind-bulk": {
+      "post": {
+        "summary": "Email the next reminder to many abandoned carts (all with an email when `ids` is omitted)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Abandoned carts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/carts/recovery-rules": {
+      "get": {
+        "summary": "Reminder cadence (+ abandon minutes and lost-after days)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Abandoned carts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "put": {
+        "summary": "Save the reminder cadence",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Abandoned carts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "stage": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 5
+                        },
+                        "delayMinutes": {
+                          "type": "integer",
+                          "minimum": 5,
+                          "maximum": 43200
+                        },
+                        "channel": {
+                          "type": "string",
+                          "enum": [
+                            "email",
+                            "push"
+                          ],
+                          "default": "email"
+                        },
+                        "templateCode": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80,
+                          "default": "cart.reminder"
+                        },
+                        "enabled": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "required": [
+                        "stage",
+                        "delayMinutes"
+                      ]
+                    },
+                    "maxItems": 5
+                  }
+                },
+                "required": [
+                  "rules"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/carts/{id}/remind": {
+      "post": {
+        "summary": "Send the next reminder now (email or push)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Abandoned carts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "push"
+                    ],
+                    "default": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers": {
+      "get": {
+        "summary": "Customers (tabs All/Active/VIP/Flagged/Blocked, search, sort spend|orders|createdAt|lastOrderAt)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "vip",
+                "flagged",
+                "blocked"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Standard",
+                "Silver",
+                "Gold",
+                "Signature"
+              ]
+            },
+            "required": false,
+            "name": "tier",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/export": {
+      "get": {
+        "summary": "Export customers (CSV, same filters as the list)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "vip",
+                "flagged",
+                "blocked"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Standard",
+                "Silver",
+                "Gold",
+                "Signature"
+              ]
+            },
+            "required": false,
+            "name": "tier",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}": {
+      "get": {
+        "summary": "Customer profile: stats, wallet, addresses, notes, tags, recent orders",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete customer: anonymise personal data (orders and ledger are kept)",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/status": {
+      "patch": {
+        "summary": "Set status (blocked signs the customer out everywhere)",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "vip",
+                      "flagged",
+                      "blocked"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/tier": {
+      "patch": {
+        "summary": "Set tier",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tier": {
+                    "type": "string",
+                    "enum": [
+                      "Standard",
+                      "Silver",
+                      "Gold",
+                      "Signature"
+                    ]
+                  }
+                },
+                "required": [
+                  "tier"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/marketing": {
+      "post": {
+        "summary": "Marketing opt-in / out",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "optIn": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "optIn"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/notes": {
+      "post": {
+        "summary": "Add a note",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/notes/{noteId}": {
+      "delete": {
+        "summary": "Remove a note",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "noteId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/tags": {
+      "post": {
+        "summary": "Add a tag",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tag": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "tag"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/tags/{tag}": {
+      "delete": {
+        "summary": "Remove a tag",
+        "description": "**Permission:** `customers.edit`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "required": true,
+            "name": "tag",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/customers/{id}/wallet-adjust": {
+      "post": {
+        "summary": "Credit or debit the wallet",
+        "description": "**Permission:** `customers.wallet`",
+        "tags": [
+          "Admin · Customers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "credit",
+                      "adjustment"
+                    ],
+                    "default": "adjustment"
+                  },
+                  "note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "amount",
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
     "/store/wishlist": {
       "get": {
         "summary": "Saved items (product cards + on-sale count)",
@@ -10381,6 +11437,1797 @@
         }
       }
     },
+    "/store/me/orders/{id}/invoice.pdf": {
+      "get": {
+        "summary": "Invoice PDF for one of my orders (id or number)",
+        "description": "Returns `application/pdf`.",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/orders/by-token/{token}/invoice.pdf": {
+      "get": {
+        "summary": "Invoice PDF by the order's private access token",
+        "description": "Returns `application/pdf`.",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/orders/print-slips": {
+      "post": {
+        "summary": "Packing slips for several orders (one PDF, one page per order)",
+        "description": "Returns `application/pdf`.\n\n**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/invoice.pdf": {
+      "get": {
+        "summary": "Invoice PDF",
+        "description": "Returns `application/pdf`.\n\n**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/packing-slip.pdf": {
+      "get": {
+        "summary": "Packing slip PDF (no prices)",
+        "description": "Returns `application/pdf`.\n\n**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/email-invoice": {
+      "post": {
+        "summary": "Email the invoice PDF to the customer",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/draft-orders": {
+      "get": {
+        "summary": "Drafts table (tabs Draft / Sent to customer / Converted, KPIs)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "draft",
+                "sent",
+                "converted"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "New draft (catalogue products and/or custom lines)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "customerName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "brand": {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        "size": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "color": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 60
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100
+                        },
+                        "unitPrice": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 1024
+                        }
+                      },
+                      "required": [
+                        "qty"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "discount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "shipping": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 0
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "items"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/draft-orders/{id}": {
+      "get": {
+        "summary": "Draft detail (id or DFT- number)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit (draft / sent only)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "customerName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "email": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "email"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 191
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "brand": {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        "size": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 40
+                        },
+                        "color": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 60
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100
+                        },
+                        "unitPrice": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "imageUrl": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 1024
+                        }
+                      },
+                      "required": [
+                        "qty"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "discount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "shipping": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "note": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete (not converted)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/draft-orders/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate as a new draft",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/draft-orders/{id}/send": {
+      "post": {
+        "summary": "Email the customer a pay link (valid 7 days)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/draft-orders/{id}/convert": {
+      "post": {
+        "summary": "Customer paid offline → create the paid order",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Draft orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reference": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 120
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "bank_transfer",
+                      "cash",
+                      "pos",
+                      "other"
+                    ],
+                    "default": "bank_transfer"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reference"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/pay/{token}": {
+      "get": {
+        "summary": "What the pay link is for (404 when expired or already paid)",
+        "tags": [
+          "Store · Draft orders"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "post": {
+        "summary": "Open the payment page for this draft",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Draft orders"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/me/orders/{id}/returnable": {
+      "get": {
+        "summary": "Per item: bought, returned, still returnable and why not (window, category, not delivered)",
+        "tags": [
+          "Store · Returns"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/returns": {
+      "get": {
+        "summary": "My return requests (chips: In Progress / Approved / Completed / Rejected)",
+        "tags": [
+          "Store · Returns"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "In Progress",
+                "Approved",
+                "Completed",
+                "Rejected"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "post": {
+        "summary": "Request a return (multipart: orderId, items = JSON [{orderItemId, qty}], reason, details, refundTo; up to 5 `photos`)",
+        "description": "Photos are required for \"Damaged or defective\" (reported within `returns.damagedReportHours` of delivery).\n\n**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Returns"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orderItemId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "orderItemId",
+                        "qty"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "Wrong size",
+                      "Changed my mind",
+                      "Wrong colour received",
+                      "Damaged or defective",
+                      "Not as described",
+                      "Received wrong item",
+                      "Authenticity concern",
+                      "Other"
+                    ]
+                  },
+                  "details": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "refundTo": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  }
+                },
+                "required": [
+                  "orderId",
+                  "items",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/returns/{id}": {
+      "get": {
+        "summary": "Return detail: items, timeline, refund info (id or RET- number)",
+        "tags": [
+          "Store · Returns"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/returns/{id}/cancel": {
+      "post": {
+        "summary": "Cancel while still awaiting review",
+        "tags": [
+          "Store · Returns"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/returns": {
+      "get": {
+        "summary": "Returns table (tabs, search, KPIs)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "awaiting_review",
+                "approved",
+                "in_transit",
+                "received",
+                "investigating",
+                "refunded",
+                "rejected"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "orderId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "New RMA on behalf of a customer",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "orderItemId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "orderItemId",
+                        "qty"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "details": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "refundTo": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  },
+                  "refundAmount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "override": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "orderId",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}": {
+      "get": {
+        "summary": "Return detail (id or RET- number) + suggested refund",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}/approve": {
+      "post": {
+        "summary": "Approve",
+        "description": "**Permission:** `orders.refund`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}/reject": {
+      "post": {
+        "summary": "Reject with a reason (shown to the customer)",
+        "description": "**Permission:** `orders.refund`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}/in-transit": {
+      "post": {
+        "summary": "Customer shipped it back",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}/received": {
+      "post": {
+        "summary": "Received at the warehouse (optional restock)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "restock": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}/investigate": {
+      "post": {
+        "summary": "Open an investigation (authenticity / condition)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/returns/{id}/refund": {
+      "post": {
+        "summary": "Refund to original payment or wallet",
+        "description": "**Permission:** `orders.refund`",
+        "tags": [
+          "Admin · Returns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
     "/store/shipping/quote": {
       "get": {
         "summary": "Delivery options + fees for a destination",
@@ -11558,6 +14405,978 @@
           },
           "403": {
             "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/pickups/bookings": {
+      "get": {
+        "summary": "Pick-up bookings (tabs + counts, location / day filter)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "today",
+                "scheduled",
+                "ready",
+                "collected",
+                "no_show",
+                "cancelled"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "locationId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            },
+            "required": false,
+            "name": "date",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/pickups/bookings/{id}": {
+      "get": {
+        "summary": "Booking (id or PU- number)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Reschedule (day / store), within the store's daily capacity",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scheduledAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "locationId": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "scheduledAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/pickups/bookings/{id}/advance": {
+      "post": {
+        "summary": "Ready (notifies the customer) · Collected (order delivered) · No-show · Cancelled",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled",
+                      "ready",
+                      "collected",
+                      "no_show",
+                      "cancelled"
+                    ]
+                  },
+                  "collectedBy": {
+                    "type": "string",
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/pickups/bookings/{id}/notes": {
+      "post": {
+        "summary": "Set the booking note",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Pick-ups"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipments": {
+      "get": {
+        "summary": "Shipments (tabs by status, search, carrier filter, KPIs)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Shipments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "label_created",
+                "picked_up",
+                "in_transit",
+                "out_for_delivery",
+                "delivered",
+                "exception",
+                "returned"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DHL",
+                "FedEx",
+                "UPS",
+                "GIG",
+                "Aramex",
+                "Local",
+                "InHouse"
+              ]
+            },
+            "required": false,
+            "name": "carrier",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "orderId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a shipment for a paid order",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Shipments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "carrier": {
+                    "type": "string",
+                    "enum": [
+                      "DHL",
+                      "FedEx",
+                      "UPS",
+                      "GIG",
+                      "Aramex",
+                      "Local",
+                      "InHouse"
+                    ]
+                  },
+                  "service": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "trackingNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 120
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "insured": {
+                    "type": "boolean"
+                  },
+                  "signatureRequired": {
+                    "type": "boolean"
+                  },
+                  "etaAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "originWarehouseId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "orderId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "carrier",
+                  "service",
+                  "orderId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipments/{id}": {
+      "get": {
+        "summary": "Shipment + tracking events (id or SHP- number)",
+        "description": "**Permission:** `orders.view`",
+        "tags": [
+          "Admin · Shipments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit tracking, service, ETA, notes, insurance…",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Shipments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "carrier": {
+                    "type": "string",
+                    "enum": [
+                      "DHL",
+                      "FedEx",
+                      "UPS",
+                      "GIG",
+                      "Aramex",
+                      "Local",
+                      "InHouse"
+                    ]
+                  },
+                  "service": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "trackingNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 120
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "insured": {
+                    "type": "boolean"
+                  },
+                  "signatureRequired": {
+                    "type": "boolean"
+                  },
+                  "etaAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "originWarehouseId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete (only while label created)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Shipments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/shipments/{id}/advance": {
+      "post": {
+        "summary": "Add a tracking scan / move status (drives the order status)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Shipments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "label_created",
+                      "picked_up",
+                      "in_transit",
+                      "out_for_delivery",
+                      "delivered",
+                      "exception",
+                      "returned"
+                    ]
+                  },
+                  "location": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "status",
+                  "location"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/orders/{id}/fulfil": {
+      "post": {
+        "summary": "Create a shipment for a paid delivery order (pick-up orders use bookings)",
+        "description": "**Permission:** `orders.edit`",
+        "tags": [
+          "Admin · Orders"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "carrier": {
+                    "type": "string",
+                    "enum": [
+                      "DHL",
+                      "FedEx",
+                      "UPS",
+                      "GIG",
+                      "Aramex",
+                      "Local",
+                      "InHouse"
+                    ]
+                  },
+                  "service": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "trackingNumber": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 120
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "insured": {
+                    "type": "boolean"
+                  },
+                  "signatureRequired": {
+                    "type": "boolean"
+                  },
+                  "etaAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "originWarehouseId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "carrier",
+                  "service"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/orders/{id}/tracking": {
+      "get": {
+        "summary": "Tracking: status, shipments with events, pick-up booking",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/orders/by-token/{token}/tracking": {
+      "get": {
+        "summary": "Guest tracking by the order's private access token",
+        "tags": [
+          "Store · Orders"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
           }
         }
       }
@@ -13351,6 +17170,1735 @@
           },
           "401": {
             "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/ledger/accounts": {
+      "get": {
+        "summary": "Chart of accounts with debit / credit / balance (signed by normal side)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "true"
+            },
+            "required": false,
+            "name": "includeArchived",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add account",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{3,6}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "asset",
+                      "liability",
+                      "equity",
+                      "revenue",
+                      "expense"
+                    ]
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "type"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/accounts/{code}": {
+      "patch": {
+        "summary": "Rename account",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{3,6}$"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/accounts/{code}/archive": {
+      "post": {
+        "summary": "Archive account (no new postings)",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{3,6}$"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/accounts/{code}/unarchive": {
+      "post": {
+        "summary": "Unarchive account",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{3,6}$"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/entries": {
+      "get": {
+        "summary": "Journal entries (filters: source, status, account, from/to, q) + status tabs",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "order",
+                "refund",
+                "payout",
+                "fee",
+                "adjustment",
+                "tax",
+                "wallet",
+                "manual"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "posted",
+                "void"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            },
+            "required": false,
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Manual entry (draft or posted; must balance)",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "adjustment",
+                      "tax"
+                    ],
+                    "default": "manual"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "posted"
+                    ],
+                    "default": "posted"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "accountCode": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 10
+                        },
+                        "debit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "default": 0
+                        },
+                        "credit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "default": 0
+                        },
+                        "memo": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 300
+                        }
+                      },
+                      "required": [
+                        "accountCode"
+                      ]
+                    },
+                    "minItems": 2,
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "description",
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/entries/export": {
+      "get": {
+        "summary": "Export journal lines (CSV)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "order",
+                "refund",
+                "payout",
+                "fee",
+                "adjustment",
+                "tax",
+                "wallet",
+                "manual"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "posted",
+                "void"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 10
+            },
+            "required": false,
+            "name": "account",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/entries/{id}": {
+      "get": {
+        "summary": "Journal entry (id or JE- number)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit a draft entry",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "reference": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "adjustment",
+                      "tax"
+                    ],
+                    "default": "manual"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "accountCode": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 10
+                        },
+                        "debit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "default": 0
+                        },
+                        "credit": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "default": 0
+                        },
+                        "memo": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 300
+                        }
+                      },
+                      "required": [
+                        "accountCode"
+                      ]
+                    },
+                    "minItems": 2,
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a draft",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/entries/{id}/post": {
+      "post": {
+        "summary": "Post a draft",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/entries/{id}/void": {
+      "post": {
+        "summary": "Void an entry (kept, excluded from balances)",
+        "description": "**Permission:** `finance.ledger`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/trial-balance": {
+      "get": {
+        "summary": "Trial balance (posted entries in the period)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/ledger/trial-balance/export": {
+      "get": {
+        "summary": "Export trial balance (CSV)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Ledger"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts": {
+      "get": {
+        "summary": "Payouts (tabs by status, KPIs: next payout, paid last 30 days, pending)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduled",
+                "in_transit",
+                "paid",
+                "failed",
+                "on_hold"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "provider",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create payout manually",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 40
+                  },
+                  "reference": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "gross": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2000000000
+                  },
+                  "fees": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2000000000,
+                    "default": 0
+                  },
+                  "refunds": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2000000000,
+                    "default": 0
+                  },
+                  "adjustments": {
+                    "type": "integer",
+                    "minimum": -2000000000,
+                    "maximum": 2000000000,
+                    "default": 0
+                  },
+                  "scheduledAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "scheduled",
+                      "in_transit"
+                    ],
+                    "default": "scheduled"
+                  },
+                  "bankName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "bankAccountMasked": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 20
+                  },
+                  "bankAccountName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "provider",
+                  "gross",
+                  "scheduledAt"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/export": {
+      "get": {
+        "summary": "Export payouts (CSV)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduled",
+                "in_transit",
+                "paid",
+                "failed",
+                "on_hold"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "provider",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "to",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/sync": {
+      "post": {
+        "summary": "Build settlements from captured payments now (also runs daily)",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/{id}": {
+      "get": {
+        "summary": "Payout with its transactions (id or PO- number)",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update notes / scheduled date",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  },
+                  "scheduledAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete (scheduled or failed only)",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/{id}/mark-paid": {
+      "post": {
+        "summary": "Mark paid (books Dr bank / Cr clearing)",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/{id}/mark-failed": {
+      "post": {
+        "summary": "Mark failed",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/{id}/retry": {
+      "post": {
+        "summary": "Retry a failed payout (back to scheduled)",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/{id}/hold": {
+      "post": {
+        "summary": "Put on hold",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "note"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/payouts/{id}/release": {
+      "post": {
+        "summary": "Release a held payout",
+        "description": "**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
           }
         }
       }
