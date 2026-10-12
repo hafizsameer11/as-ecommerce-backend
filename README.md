@@ -92,7 +92,9 @@ Money is always integer **kobo** (₦1 = 100). Actions that create money movemen
 | 3 | Cart, wishlist, addresses, coupons, shipping zones, pick-up stores, tax, checkout, orders, payments (mock gateway + webhooks), saved cards, wallet | Done |
 | 4 | Shipments + tracking, pick-up bookings, returns/RMA, invoices + packing slips (PDF), draft orders + pay links, abandoned carts + reminders, ledger (auto journals), payouts, admin customers, customer order emails/push | Done |
 | 5 | ASL Club (points, tiers, rewards), referrals, drop reservations with deposits, concierge (requests, quotes, payments, chat, suppliers, SLA) | Done |
-| 6 | Support tickets, notifications centre, marketing (segments, campaigns, banners, slots, announcements, push blasts) | Next |
-| 7+ | Support tickets + notifications centre, marketing (segments, campaigns, banners), content (CMS/FAQ/blog/SEO), analytics, reports, global search | Planned |
+| 6 | Support tickets, notifications centre, marketing (templates, push blasts, segments, campaigns, banners, slots, announcements) | In progress |
+| 7+ | Content (CMS/FAQ/blog/SEO), activity feed, app config, global search, analytics, reports, hardening | Planned |
+
+**Where things stand right now, module by module: [`docs/PROGRESS.md`](docs/PROGRESS.md).** How code is written: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 Background jobs (need `npm run dev:worker` + Redis): unpaid-order expiry (5 min), drop release + reservation expiry (5 min), abandoned-cart scan (15 min), concierge SLA check + quote expiry (15 min), referral qualification (6 h), payouts sync, deleted-account purge, tier recompute, points expiry, birthday bonus (daily).

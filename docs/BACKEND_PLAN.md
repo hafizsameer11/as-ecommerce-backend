@@ -1,5 +1,7 @@
 # ASL ORIGINALS — Backend Plan (`asl-backend`)
 
+> **Live status:** see [PROGRESS.md](PROGRESS.md) — which modules are done, what is next, and how to continue by hand.
+
 > Status: **draft for review** — no code has been written yet.
 > Stack: **Express 5 + TypeScript + Prisma + MySQL 8**, Docker for local/dev/test.
 > Pattern: **module folders, each with routes → controller → service** (+ validation schemas and DTO mappers).
