@@ -68,3 +68,9 @@ npm test               # ~10 min, 260 tests
 ```
 
 Then take an item from section 1, follow `CONTRIBUTING.md`, and tick it in `PROGRESS.md`.
+
+## 5. Unfinished work saved on a branch
+
+When work was stopped, two helpers had already started on items 1.1, 1.2 and 1.3 (refund outbox, Redis rate limits, S3 driver, /ready + /metrics, backup script, concierge cart edits, shipping labels, draft CSV import).
+That code is **not finished or tested**, and it changes the database schema without a migration, so it is kept off `main` on the branch **`wip/hardening-2`** (`git checkout wip/hardening-2` to look at it).
+Use it as a starting point, but review it, add a migration (see CONTRIBUTING.md → Schema changes) and run the full test suite before merging.
