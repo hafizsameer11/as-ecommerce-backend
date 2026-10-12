@@ -52,6 +52,8 @@ model Ticket {
   customerCreated Boolean        @default(true)
   slaDueAt        DateTime?
   firstResponseAt DateTime?
+  /// set once by the support.sla-check job when the first-response SLA was missed (staff notified once)
+  slaBreachedAt   DateTime?
   resolvedAt      DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt

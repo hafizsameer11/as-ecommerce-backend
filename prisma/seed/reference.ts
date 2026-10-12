@@ -149,7 +149,7 @@ export async function seedReferenceData(prisma: PrismaClient) {
   for (const [id, category, label, description, recipients, priority] of rules)
     await prisma.notificationRule.upsert({
       where: { id },
-      create: { id, category, label, description, recipients: [...recipients], priority, channels: { email: true, push: false, in_app: true, slack: false, sms: false } },
+      create: { id, category, label, description, recipients: [...recipients], priority, channels: { email: priority === "high" || priority === "critical", push: false, in_app: true, slack: false, sms: false } },
       update: {},
     });
 

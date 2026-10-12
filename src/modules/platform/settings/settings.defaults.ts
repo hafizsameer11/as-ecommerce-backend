@@ -164,6 +164,23 @@ export const settingsSchemas = {
     /** where a customer cancellation refunds the deposit */
     cancelRefundTo: z.enum(["wallet", "original"]),
   }),
+  /** support tickets (support/tickets): first-response SLA per priority */
+  support: z.object({
+    firstResponseHours: z.object({ low: z.number().min(0.25), normal: z.number().min(0.25), high: z.number().min(0.25), urgent: z.number().min(0.25) }),
+    /** guest contact form / signed-in help form tickets start with this priority */
+    defaultPriority: z.enum(["low", "normal", "high", "urgent"]),
+  }),
+  /** staff alerts (platform/notification-settings): channel config, quiet hours, digest — admin /notification-settings */
+  staffAlerts: z.object({
+    channels: z.object({
+      email: z.object({ fromName: z.string(), fromAddress: z.string(), replyTo: z.string(), provider: z.enum(["resend", "sendgrid", "ses", "smtp"]) }),
+      push: z.object({ enabled: z.boolean(), sound: z.boolean(), vibration: z.boolean() }),
+      slack: z.object({ webhookUrl: z.string(), channel: z.string(), connected: z.boolean() }),
+      sms: z.object({ provider: z.enum(["twilio", "africas_talking"]), senderId: z.string(), enabled: z.boolean() }),
+    }),
+    quietHours: z.object({ enabled: z.boolean(), start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/), timezone: z.string(), exceptCritical: z.boolean() }),
+    digest: z.object({ enabled: z.boolean(), frequency: z.enum(["daily", "weekly"]), time: z.string().regex(/^\d{2}:\d{2}$/), day: z.string() }),
+  }),
 } as const;
 
 export type SettingsGroup = keyof typeof settingsSchemas;
@@ -283,6 +300,19 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
   },
   // D4 default: an unpaid balance forfeits the deposit; cancelling before release refunds it (wallet = instant)
   drops: { balanceWindowHours: 72, depositPctDefault: 20, depositRefundable: false, reservationHoldMinutes: 30, cancelCutoffHours: 48, cancelRefundTo: "wallet" },
+  // admin tickets mock: every ticket due 8 h after it was opened → normal = 8 h
+  support: { firstResponseHours: { low: 24, normal: 8, high: 4, urgent: 1 }, defaultPriority: "normal" },
+  // admin /notification-settings mock values (Slack / SMS are not wired yet: test sends are mocked)
+  staffAlerts: {
+    channels: {
+      email: { fromName: "ASL ORIGINALS", fromAddress: "no-reply@asloriginals.online", replyTo: "concierge@asloriginals.online", provider: "smtp" },
+      push: { enabled: true, sound: true, vibration: true },
+      slack: { webhookUrl: "", channel: "#asl-ops", connected: false },
+      sms: { provider: "twilio", senderId: "ASL", enabled: false },
+    },
+    quietHours: { enabled: true, start: "22:00", end: "07:00", timezone: "Africa/Lagos", exceptCritical: true },
+    digest: { enabled: true, frequency: "daily", time: "08:00", day: "monday" },
+  },
 };
 
 /** Groups readable by anyone (no secrets in here). */

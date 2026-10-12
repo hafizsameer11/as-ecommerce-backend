@@ -13,6 +13,8 @@ export async function registerSchedules() {
   // concierge: response-SLA levels (staff notified once per level), unpaid quotes past expiry
   await scheduleRepeating("concierge.sla-check", 15 * 60_000);
   await scheduleRepeating("concierge.expire-quotes", 15 * 60_000);
+  // support tickets past their first-response SLA → staff alert once
+  await scheduleRepeating("support.sla-check", 15 * 60_000);
   // ASL Club: rolling-spend tier review (downgrades happen here), points expiry, birthday bonus; referral qualification
   await scheduleRepeating("club.recompute-tiers", 24 * 3_600_000);
   await scheduleRepeating("club.expire-points", 24 * 3_600_000);
@@ -21,4 +23,7 @@ export async function registerSchedules() {
   // drops: upcoming → live at releaseAt (stock held, holders notified), live ↔ sold out; unpaid deposits / balances expire
   await scheduleRepeating("drops.release", 5 * 60_000);
   await scheduleRepeating("reservations.expire", 5 * 60_000);
+  // marketing: due scheduled campaigns (→ sending → batches → sent) and push blasts
+  await scheduleRepeating("campaigns.dispatch", 60_000);
+  await scheduleRepeating("blasts.dispatch", 60_000);
 }

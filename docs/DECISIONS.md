@@ -62,6 +62,11 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Self-deleted accounts | Personal data removed automatically after `account.deletionGraceDays` (30) |
 | Draft-order pay links | Valid 7 days; sending again makes the old link stop working. Orders from drafts have no delivery address yet (drafts have no address field) |
 
+| Support SLA | First response due in: urgent 1 h, high 4 h, normal 8 h, low 24 h (setting `support`). Signature customers' tickets start at high priority |
+| Customer notifications | Every order/return/concierge/pick-up/wallet event lands in the in-app inbox. Push/email/SMS only where the customer's channel AND topic are switched on; promotions are off by default |
+| Staff alerts | Bell row per admin. Email only for high/critical rules by default, held during quiet hours 22:00–07:00 unless critical |
+| Campaigns | Email/SMS only to customers who opted in to marketing; never to blocked/deleted accounts. Click links may only point to the storefront/API hosts. Unsubscribe link shows a confirm button (so email scanners can't unsubscribe people) |
+
 ## Open business decisions (defaults in place until decided)
 
 | # | Question | Current default |

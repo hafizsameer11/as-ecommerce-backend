@@ -52,6 +52,16 @@ import { clubAdminRoutes, clubStoreRoutes } from "./loyalty/club/club.routes";
 import { registerClubListeners } from "./loyalty/club/club.listeners";
 import { myReferralsStoreRoutes, referralsAdminRoutes, referralsStoreRoutes } from "./loyalty/referrals/referrals.routes";
 import { registerReferralListeners } from "./loyalty/referrals/referrals.listeners";
+import { myTicketsStoreRoutes, supportStoreRoutes, ticketsAdminRoutes } from "./support/tickets/tickets.routes";
+import { registerTicketListeners } from "./support/tickets/tickets.listeners";
+import { feedbackAdminRoutes, feedbackStoreRoutes } from "./support/feedback/feedback.routes";
+import { myNotificationPreferencesStoreRoutes, myNotificationsStoreRoutes } from "./support/notifications/notifications.routes";
+import { registerNotificationListeners } from "./support/notifications/notifications.listeners";
+import { adminNotificationsRoutes, notificationSettingsAdminRoutes } from "./platform/notification-settings/notification-settings.routes";
+import { registerStaffAlertListeners } from "./platform/notification-settings/notification-settings.listeners";
+import { messagingAdminRoutes, pushOpensStoreRoutes } from "./marketing/messaging/messaging.routes";
+import { segmentsAdminRoutes } from "./marketing/segments/segments.routes";
+import { campaignsAdminRoutes, campaignTrackingRoutes, unsubscribeRoutes } from "./marketing/campaigns/campaigns.routes";
 
 export const moduleRouters: ModuleRouter[] = [
   // identity
@@ -144,6 +154,23 @@ export const moduleRouters: ModuleRouter[] = [
   myReferralsStoreRoutes,
   referralsStoreRoutes,
   referralsAdminRoutes,
+  // support + notifications
+  supportStoreRoutes,
+  myTicketsStoreRoutes,
+  ticketsAdminRoutes,
+  feedbackStoreRoutes,
+  feedbackAdminRoutes,
+  myNotificationsStoreRoutes,
+  myNotificationPreferencesStoreRoutes,
+  notificationSettingsAdminRoutes,
+  adminNotificationsRoutes,
+  // marketing: messaging templates + push blasts, segments, campaigns (+ public tracking / unsubscribe)
+  messagingAdminRoutes,
+  pushOpensStoreRoutes,
+  segmentsAdminRoutes,
+  campaignsAdminRoutes,
+  campaignTrackingRoutes,
+  unsubscribeRoutes,
 ];
 
 /** side-effect imports: event listeners + job processors */
@@ -154,4 +181,5 @@ export async function registerListeners() {
   registerLedgerListeners();
   registerConciergeListeners();
   registerClubListeners(); registerReferralListeners();
+  registerTicketListeners(); registerNotificationListeners(); registerStaffAlertListeners();
 }

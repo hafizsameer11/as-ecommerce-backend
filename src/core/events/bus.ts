@@ -21,6 +21,7 @@ export type DomainEvents = {
   "payment.succeeded": { paymentId: string };
   "payment.failed": { paymentId: string };
   "review.published": { reviewId: string };
+  "review.submitted": { reviewId: string };
   "stock.low": { variantId: string; sku: string; available: number };
   "concierge.requested": { requestId: string };
   "concierge.status_changed": { requestId: string; to: string };

@@ -1915,7 +1915,8 @@
                 "legal",
                 "maintenance",
                 "app",
-                "drops"
+                "drops",
+                "support"
               ]
             },
             "required": true,
@@ -24928,6 +24929,5157 @@
           },
           "403": {
             "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/support/tickets": {
+      "post": {
+        "summary": "Open a ticket: topic + message (multipart: up to 5 `attachments`, images / PDF) → reference \"#5201\"",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "topic": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 5000
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "order",
+                      "delivery",
+                      "returns",
+                      "payment",
+                      "product",
+                      "concierge",
+                      "account",
+                      "other"
+                    ]
+                  },
+                  "orderRef": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "web",
+                      "app"
+                    ],
+                    "default": "web"
+                  }
+                },
+                "required": [
+                  "topic",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/support/contact": {
+      "post": {
+        "summary": "Contact form (guest: name, email, subject, message) → ticket + confirmation e-mail",
+        "description": "Linked to the account when the caller is signed in. Rate limited.",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 190,
+                    "format": "email"
+                  },
+                  "subject": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 5000
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "orderRef": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "name",
+                  "email",
+                  "subject",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/me/tickets": {
+      "get": {
+        "summary": "My tickets (tabs: all / open / closed)",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "closed"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/tickets/{id}": {
+      "get": {
+        "summary": "Ticket thread (id or #number) — internal notes are never included",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/tickets/{id}/messages": {
+      "post": {
+        "summary": "Reply (multipart: `body` + up to 5 `attachments`); not allowed once closed",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/tickets/{id}/reopen": {
+      "post": {
+        "summary": "Reopen a resolved / closed ticket",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/tickets": {
+      "get": {
+        "summary": "Inbox: tabs (all / status / unassigned / mine / breached), filters (priority, channel, category, assignee id|me|none, tag, q); KPIs",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "pending",
+                "on_hold",
+                "resolved",
+                "closed",
+                "unassigned",
+                "mine",
+                "breached"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "pending",
+                "on_hold",
+                "resolved",
+                "closed"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "low",
+                "normal",
+                "high",
+                "urgent"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "chat",
+                "whatsapp",
+                "instagram",
+                "phone",
+                "web",
+                "app"
+              ]
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "order",
+                "delivery",
+                "returns",
+                "payment",
+                "product",
+                "concierge",
+                "account",
+                "other"
+              ]
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "assignee",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "tag",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}": {
+      "get": {
+        "summary": "Ticket with the full thread (internal notes included)",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Change status / priority / category",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "pending",
+                      "on_hold",
+                      "resolved",
+                      "closed"
+                    ]
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "normal",
+                      "high",
+                      "urgent"
+                    ]
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "order",
+                      "delivery",
+                      "returns",
+                      "payment",
+                      "product",
+                      "concierge",
+                      "account",
+                      "other"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}/reply": {
+      "post": {
+        "summary": "Reply to the customer, or add an internal note (`internal: true`). Multipart allowed (`attachments`)",
+        "description": "**Permission:** `support.reply`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000
+                  },
+                  "internal": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          "true",
+                          "false"
+                        ]
+                      }
+                    ],
+                    "default": false
+                  }
+                },
+                "required": [
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}/status": {
+      "patch": {
+        "summary": "Change status",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "pending",
+                      "on_hold",
+                      "resolved",
+                      "closed"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}/priority": {
+      "patch": {
+        "summary": "Change priority (SLA follows until the first response)",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "normal",
+                      "high",
+                      "urgent"
+                    ]
+                  }
+                },
+                "required": [
+                  "priority"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}/assign": {
+      "post": {
+        "summary": "Assign to a team member with support access (adminId null = unassign)",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "adminId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "adminId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}/tags": {
+      "post": {
+        "summary": "Add a tag",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tag": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "tag"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/tickets/{id}/tags/{tag}": {
+      "delete": {
+        "summary": "Remove a tag",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "required": true,
+            "name": "tag",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/feedback": {
+      "post": {
+        "summary": "Send feedback (idea / bug / praise, area, message, optional reply e-mail)",
+        "tags": [
+          "Store · Support"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "idea",
+                      "bug",
+                      "praise"
+                    ]
+                  },
+                  "area": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60,
+                    "default": "General"
+                  },
+                  "message": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 5000
+                  },
+                  "email": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 190,
+                        "format": "email"
+                      },
+                      {
+                        "type": "string",
+                        "enum": [
+                          ""
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "type",
+                  "message"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/feedback": {
+      "get": {
+        "summary": "Feedback (tabs by status new / triaged / done; counts by type)",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "new",
+                "triaged",
+                "done"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "idea",
+                "bug",
+                "praise"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "area",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/feedback/{id}/status": {
+      "patch": {
+        "summary": "Triage",
+        "description": "**Permission:** `support.tickets`",
+        "tags": [
+          "Admin · Support"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "triaged",
+                      "done"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/notifications": {
+      "get": {
+        "summary": "My notifications (tabs: All / Orders / Offers / Account / Wishlist / ASL Club / Updates); meta.unread + per-tab unread",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Orders",
+                "Offers",
+                "Account",
+                "Wishlist",
+                "ASL Club",
+                "Updates",
+                "All"
+              ]
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "unread",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/notifications/unread-count": {
+      "get": {
+        "summary": "Bell badge count",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/notifications/read-all": {
+      "post": {
+        "summary": "Mark all read (optionally one category)",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "Orders",
+                      "Offers",
+                      "Account",
+                      "Wishlist",
+                      "ASL Club",
+                      "Updates"
+                    ]
+                  }
+                },
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/notifications/{id}/read": {
+      "post": {
+        "summary": "Mark one read",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/notifications/{id}": {
+      "delete": {
+        "summary": "Delete a notification",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/notification-preferences": {
+      "get": {
+        "summary": "Channels (push / email / sms) and topics (orders / concierge / shipping / promos / wishlist)",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update channels / topics (partial objects are merged)",
+        "tags": [
+          "Store · Notifications"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channels": {
+                    "type": "object",
+                    "properties": {
+                      "push": {
+                        "type": "boolean"
+                      },
+                      "email": {
+                        "type": "boolean"
+                      },
+                      "sms": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "topics": {
+                    "type": "object",
+                    "properties": {
+                      "orders": {
+                        "type": "boolean"
+                      },
+                      "concierge": {
+                        "type": "boolean"
+                      },
+                      "shipping": {
+                        "type": "boolean"
+                      },
+                      "promos": {
+                        "type": "boolean"
+                      },
+                      "wishlist": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings": {
+      "get": {
+        "summary": "Alert rules (by category) + channel config, quiet hours, digest",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/rules/{id}": {
+      "patch": {
+        "summary": "Edit a rule: enabled, channels, priority, recipients (role ids or e-mails)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "channels": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": "boolean"
+                      },
+                      "push": {
+                        "type": "boolean"
+                      },
+                      "in_app": {
+                        "type": "boolean"
+                      },
+                      "slack": {
+                        "type": "boolean"
+                      },
+                      "sms": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "low",
+                      "normal",
+                      "high",
+                      "critical"
+                    ]
+                  },
+                  "recipients": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 190
+                    },
+                    "maxItems": 30
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/rules/{id}/toggle": {
+      "post": {
+        "summary": "Turn a rule on / off",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/rules/{id}/channels/{channel}/toggle": {
+      "post": {
+        "summary": "Turn one channel of a rule on / off",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "push",
+                "in_app",
+                "slack",
+                "sms"
+              ]
+            },
+            "required": true,
+            "name": "channel",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/channels": {
+      "patch": {
+        "summary": "Channel configuration (e-mail sender, push, Slack, SMS)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "object",
+                    "properties": {
+                      "fromName": {
+                        "type": "string"
+                      },
+                      "fromAddress": {
+                        "type": "string"
+                      },
+                      "replyTo": {
+                        "type": "string"
+                      },
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "resend",
+                          "sendgrid",
+                          "ses",
+                          "smtp"
+                        ]
+                      }
+                    }
+                  },
+                  "push": {
+                    "type": "object",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      },
+                      "sound": {
+                        "type": "boolean"
+                      },
+                      "vibration": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "slack": {
+                    "type": "object",
+                    "properties": {
+                      "webhookUrl": {
+                        "type": "string"
+                      },
+                      "channel": {
+                        "type": "string"
+                      },
+                      "connected": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "sms": {
+                    "type": "object",
+                    "properties": {
+                      "provider": {
+                        "type": "string",
+                        "enum": [
+                          "twilio",
+                          "africas_talking"
+                        ]
+                      },
+                      "senderId": {
+                        "type": "string"
+                      },
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/quiet-hours": {
+      "patch": {
+        "summary": "Quiet hours (staff e-mails held back; critical alerts optional)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "start": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "end": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "timezone": {
+                    "type": "string"
+                  },
+                  "exceptCritical": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/digest": {
+      "patch": {
+        "summary": "Digest schedule",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "frequency": {
+                    "type": "string",
+                    "enum": [
+                      "daily",
+                      "weekly"
+                    ]
+                  },
+                  "time": {
+                    "type": "string",
+                    "pattern": "^\\d{2}:\\d{2}$"
+                  },
+                  "day": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notification-settings/test/{channel}": {
+      "post": {
+        "summary": "Send a test (e-mail goes to you; Slack / SMS / push are mocked)",
+        "description": "**Permission:** `settings.manage`",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "push",
+                "in_app",
+                "slack",
+                "sms"
+              ]
+            },
+            "required": true,
+            "name": "channel",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notifications": {
+      "get": {
+        "summary": "My alerts (newest first; `unread=true` filter); meta.unread = badge",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "unread",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notifications/unread-count": {
+      "get": {
+        "summary": "Bell badge count",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notifications/read-all": {
+      "post": {
+        "summary": "Mark all my alerts read",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/notifications/{id}/read": {
+      "post": {
+        "summary": "Mark one alert read",
+        "tags": [
+          "Admin · Notification settings"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates": {
+      "get": {
+        "summary": "Templates (filters channel / category / status, tabs, sent counts)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "push",
+                "sms",
+                "whatsapp"
+              ]
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "transactional",
+                "lifecycle",
+                "concierge",
+                "system"
+              ]
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "draft",
+                "paused"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates/{id}": {
+      "get": {
+        "summary": "Template",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit subject, preheader, body ({{variables}}), CTA, link, status",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "subject": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 300
+                  },
+                  "preheader": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 300
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "ctaLabel": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "cta": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "linkTo": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "draft",
+                      "paused"
+                    ]
+                  },
+                  "trigger": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 5000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a copied template (built-in ones can only be paused)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates/{id}/status": {
+      "patch": {
+        "summary": "Activate / pause / draft (paused and draft templates are not sent)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "draft",
+                      "paused"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate as a draft (code gets .copy)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates/{id}/reset": {
+      "post": {
+        "summary": "Reset to the built-in default text",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates/{id}/preview": {
+      "post": {
+        "summary": "Render with sample data (lists the template's variables; pass `draft` to preview unsaved edits)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vars": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "default": {}
+                  },
+                  "draft": {
+                    "type": "object",
+                    "properties": {
+                      "subject": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 300
+                      },
+                      "preheader": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 300
+                      },
+                      "body": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 20000
+                      },
+                      "ctaLabel": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 80
+                      },
+                      "cta": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 80
+                      },
+                      "linkTo": {
+                        "type": "string",
+                        "nullable": true,
+                        "maxLength": 1000
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/templates/{id}/test": {
+      "post": {
+        "summary": "Send a test: email to you (or `to`), SMS to `to`, push to a test device",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vars": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 2000
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    "default": {}
+                  },
+                  "to": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "token": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/blasts": {
+      "get": {
+        "summary": "Push blasts (tabs, recipients / opens)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "draft",
+                "scheduled",
+                "sending",
+                "sent"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create push blast (draft or scheduled)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "audience": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "segment"
+                    ],
+                    "default": "all"
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "scheduledFor": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "draft",
+                      "scheduled"
+                    ],
+                    "default": "draft"
+                  }
+                },
+                "required": [
+                  "title",
+                  "body"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/blasts/{id}": {
+      "get": {
+        "summary": "Push blast (with current audience size)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit a draft / scheduled blast",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1000
+                  },
+                  "audience": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "segment"
+                    ],
+                    "default": "all"
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "scheduledFor": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete push blast",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/blasts/{id}/schedule": {
+      "post": {
+        "summary": "Schedule",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scheduledFor": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "scheduledFor"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/blasts/{id}/unschedule": {
+      "post": {
+        "summary": "Back to draft",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/messaging/blasts/{id}/send-now": {
+      "post": {
+        "summary": "Send now (customers with push tokens, in batches)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Messaging"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/push/opened": {
+      "post": {
+        "summary": "Count a push blast open",
+        "tags": [
+          "Store · Messaging"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blastId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "blastId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/segments": {
+      "get": {
+        "summary": "Segments (with live customer counts; ?counts=false to skip)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "pinned",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "true"
+            },
+            "required": false,
+            "name": "counts",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create segment",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$",
+                    "default": "#0f0f0f"
+                  },
+                  "match": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "any"
+                    ],
+                    "default": "all"
+                  },
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "enum": [
+                            "spend",
+                            "orders",
+                            "aov",
+                            "concierge",
+                            "tier",
+                            "status",
+                            "country",
+                            "city",
+                            "tags",
+                            "marketingOptIn",
+                            "lastOrderAt",
+                            "createdAt"
+                          ]
+                        },
+                        "op": {
+                          "type": "string",
+                          "enum": [
+                            "eq",
+                            "neq",
+                            "gt",
+                            "lt",
+                            "gte",
+                            "lte",
+                            "in",
+                            "contains",
+                            "within_days",
+                            "before_days"
+                          ]
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 100
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              },
+                              "maxItems": 100
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "op",
+                        "value"
+                      ]
+                    },
+                    "maxItems": 30,
+                    "default": []
+                  },
+                  "pinned": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/preview": {
+      "post": {
+        "summary": "Preview unsaved rules: count, marketable, spend, 20 sample customers",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "match": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "any"
+                    ],
+                    "default": "all"
+                  },
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "enum": [
+                            "spend",
+                            "orders",
+                            "aov",
+                            "concierge",
+                            "tier",
+                            "status",
+                            "country",
+                            "city",
+                            "tags",
+                            "marketingOptIn",
+                            "lastOrderAt",
+                            "createdAt"
+                          ]
+                        },
+                        "op": {
+                          "type": "string",
+                          "enum": [
+                            "eq",
+                            "neq",
+                            "gt",
+                            "lt",
+                            "gte",
+                            "lte",
+                            "in",
+                            "contains",
+                            "within_days",
+                            "before_days"
+                          ]
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 100
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              },
+                              "maxItems": 100
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "op",
+                        "value"
+                      ]
+                    },
+                    "maxItems": 30
+                  }
+                },
+                "required": [
+                  "rules"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/{id}": {
+      "get": {
+        "summary": "Segment",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update segment",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500
+                  },
+                  "color": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$",
+                    "default": "#0f0f0f"
+                  },
+                  "match": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "any"
+                    ],
+                    "default": "all"
+                  },
+                  "rules": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "field": {
+                          "type": "string",
+                          "enum": [
+                            "spend",
+                            "orders",
+                            "aov",
+                            "concierge",
+                            "tier",
+                            "status",
+                            "country",
+                            "city",
+                            "tags",
+                            "marketingOptIn",
+                            "lastOrderAt",
+                            "createdAt"
+                          ]
+                        },
+                        "op": {
+                          "type": "string",
+                          "enum": [
+                            "eq",
+                            "neq",
+                            "gt",
+                            "lt",
+                            "gte",
+                            "lte",
+                            "in",
+                            "contains",
+                            "within_days",
+                            "before_days"
+                          ]
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "maxLength": 100
+                                  },
+                                  {
+                                    "type": "number"
+                                  }
+                                ]
+                              },
+                              "maxItems": 100
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "field",
+                        "op",
+                        "value"
+                      ]
+                    },
+                    "maxItems": 30,
+                    "default": []
+                  },
+                  "pinned": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete segment (built-in ones can't be deleted)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/{id}/preview": {
+      "get": {
+        "summary": "Count, share, marketable, spend + 20 sample customers",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/{id}/customers": {
+      "get": {
+        "summary": "Customers in the segment (paginated; ?marketable=true for opted-in only)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "marketable",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/{id}/customers/export": {
+      "get": {
+        "summary": "Export the segment's customers (CSV)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "marketable",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate segment",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/segments/{id}/pin": {
+      "post": {
+        "summary": "Pin / unpin",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Segments"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns": {
+      "get": {
+        "summary": "Campaigns (tabs by status, channel filter, KPIs; conversions = paid orders ≤ 7 days after a click)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "draft",
+                "scheduled",
+                "sending",
+                "sent",
+                "paused",
+                "archived"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "email",
+                "push",
+                "sms",
+                "whatsapp",
+                "inapp"
+              ]
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "segmentId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create campaign (draft)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "default": ""
+                  },
+                  "preheader": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 300
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "push",
+                      "sms",
+                      "whatsapp",
+                      "inapp"
+                    ],
+                    "default": "email"
+                  },
+                  "goal": {
+                    "type": "string",
+                    "enum": [
+                      "awareness",
+                      "conversion",
+                      "retention",
+                      "winback",
+                      "launch"
+                    ],
+                    "default": "conversion"
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 20000,
+                    "default": ""
+                  },
+                  "ctaLabel": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "ctaUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "cta": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      "url": {
+                        "type": "string",
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "url"
+                    ]
+                  },
+                  "utm": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "medium": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "campaign": {
+                        "type": "string",
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "source",
+                      "medium",
+                      "campaign"
+                    ]
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  },
+                  "pinned": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "scheduledAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}": {
+      "get": {
+        "summary": "Campaign with stats",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit a draft / scheduled / paused campaign",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "subject": {
+                    "type": "string",
+                    "maxLength": 300,
+                    "default": ""
+                  },
+                  "preheader": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 300
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "push",
+                      "sms",
+                      "whatsapp",
+                      "inapp"
+                    ],
+                    "default": "email"
+                  },
+                  "goal": {
+                    "type": "string",
+                    "enum": [
+                      "awareness",
+                      "conversion",
+                      "retention",
+                      "winback",
+                      "launch"
+                    ],
+                    "default": "conversion"
+                  },
+                  "segmentId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "body": {
+                    "type": "string",
+                    "maxLength": 20000,
+                    "default": ""
+                  },
+                  "ctaLabel": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 80
+                  },
+                  "ctaUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 1000
+                  },
+                  "cta": {
+                    "type": "object",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "maxLength": 80
+                      },
+                      "url": {
+                        "type": "string",
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "url"
+                    ]
+                  },
+                  "utm": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "source": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "medium": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "campaign": {
+                        "type": "string",
+                        "maxLength": 100
+                      }
+                    },
+                    "required": [
+                      "source",
+                      "medium",
+                      "campaign"
+                    ]
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 40
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  },
+                  "pinned": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "scheduledAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete campaign",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}/audience": {
+      "get": {
+        "summary": "How many customers would receive it now",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate as draft",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}/pin": {
+      "post": {
+        "summary": "Pin / unpin",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}/status": {
+      "patch": {
+        "summary": "schedule · unschedule · pause · resume · archive · unarchive",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "schedule",
+                      "unschedule",
+                      "pause",
+                      "resume",
+                      "archive",
+                      "unarchive"
+                    ]
+                  },
+                  "scheduledAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}/send-test": {
+      "post": {
+        "summary": "Send a test (email to you / SMS to `to` / push to a test device / in-app to `customerId`)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "token": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "customerId": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/campaigns/{id}/send-now": {
+      "post": {
+        "summary": "Send now (audience built from the segment, batches in the background)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Campaigns"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/t/o/{token}": {
+      "get": {
+        "summary": "Open pixel (1×1 GIF)",
+        "tags": [
+          "Other · Campaign tracking"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/t/c/{token}": {
+      "get": {
+        "summary": "Click redirect (`u` must be a path or a URL on the storefront host)",
+        "tags": [
+          "Other · Campaign tracking"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "required": false,
+            "name": "u",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/unsubscribe/{token}": {
+      "get": {
+        "summary": "Unsubscribe confirm page (HTML) — link scanners can't unsubscribe by opening it",
+        "tags": [
+          "Other · Campaign tracking"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "post": {
+        "summary": "One-click unsubscribe",
+        "tags": [
+          "Other · Campaign tracking"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "token",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
           }
         }
       }

@@ -77,6 +77,7 @@ export const reviewsService = {
         photos: urls, status: "pending",
       },
     });
+    events.emit("review.submitted", { reviewId: r.id });
     return { ...storeDto(r), status: r.status, message: "Thanks! Your review will appear once it's approved." };
   },
 

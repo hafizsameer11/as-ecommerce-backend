@@ -26,11 +26,11 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 | Payments | payments/payments (mock gateway), wallets, payment-methods, ledger, payouts | ✅ | |
 | Loyalty | loyalty/club, referrals | ✅ | |
 | Concierge | concierge/requests, quotes, chat, suppliers | ✅ | chat is polling, no websocket yet |
-| Support | support/tickets, feedback | ⬜ | plan §5.8 |
-| Support | support/notifications (customer inbox + preferences) + staff bell + notification-settings | ⬜ | plan §5.8, §5.12 |
-| Marketing | marketing/messaging admin (templates, push blasts) | ⬜ | service exists; admin API missing. plan §5.9 |
-| Marketing | marketing/segments, campaigns | ⬜ | plan §5.9 |
-| Marketing | marketing/banners, announcements, slots (+ impressions) | ⬜ | plan §5.9 |
+| Support | support/tickets, feedback | ✅ | SLA by priority, internal notes, tags, assign |
+| Support | support/notifications (customer inbox + preferences) + staff bell + notification-settings | ✅ | `notify()` and `notifyStaff()` helpers |
+| Marketing | marketing/messaging admin (templates, push blasts) | ✅ | |
+| Marketing | marketing/segments, campaigns | ✅ | open/click tracking, unsubscribe; segment coupons now work |
+| Marketing | marketing/banners, announcements, slots (+ impressions) | 🟡 next | plan §5.9 |
 | Content | content/pages (CMS), faqs, blog, seo, media library API | ⬜ | media upload service exists; plan §5.11 |
 | Platform | platform/activity feed, app-config, global-search | ⬜ | plan §5.12 |
 | Insights | analytics events + rollups, dashboard, analytics screens, reports | ⬜ | plan §5.12 |
@@ -57,3 +57,4 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 
 ## Change log
 - Phases 0–5 delivered (identity → concierge), 144 e2e tests.
+- Phase 6 part 1: support tickets, feedback, customer notification centre, staff bell + notification settings, message templates admin, push blasts, segments, campaigns.

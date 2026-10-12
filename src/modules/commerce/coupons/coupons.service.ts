@@ -10,6 +10,7 @@ import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
 import { smartWhere, type SmartRule } from "@/modules/catalog/products/products.query";
 import { fullName } from "@/modules/identity/auth/customer.mapper";
+import { segmentsService } from "@/modules/marketing/segments/segments.service";
 import type { CouponBody, CouponListQuery, CouponPatch } from "./coupons.schemas";
 
 export type PricedLine = {
@@ -97,8 +98,8 @@ async function evaluateCoupon(c: Coupon, ctx: CouponContext): Promise<AppliedCou
       if (paid) throw invalid("This coupon is for your first order only.");
     } else if (c.eligibility === "vip") {
       if (customer.status !== "vip" && !VIP_TIERS.has(customer.tier)) throw invalid("This coupon is for Gold and Signature members.");
-    } else {
-      // customer segments arrive with the marketing module; until then segment coupons can't be redeemed
+    } else if (!c.segmentId || !(await segmentsService.isMember(c.segmentId, ctx.customerId!))) {
+      // segment coupons: the customer must match the segment's rules right now
       throw invalid("This coupon is not available for your account.");
     }
   }
