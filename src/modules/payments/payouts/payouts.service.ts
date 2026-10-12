@@ -17,7 +17,6 @@ import { formatters, nextSequence } from "@/core/utils/sequence";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import { env } from "@/config/env";
 import { paymentProvider } from "@/providers/payment/payment";
-import { REFUND_OWED_STATUSES } from "@/modules/payments/payments/payments.service";
 import { PAYOUT_STATUS_LABEL, providerLabel, toPayout } from "./payouts.mapper";
 import type { PayoutBody, PayoutListQuery, PayoutPatch } from "./payouts.schemas";
 
@@ -185,7 +184,7 @@ export const payoutsService = {
         const pays = await tx.payment.findMany({
           where: { provider: { not: "manual" }, status: { in: ["succeeded", "partially_refunded", "refunded"] }, paidAt: { not: null, lt: cutoff } },
           // refunds the provider returns out of the settlement (failed ones and ones moved to the wallet never left it)
-          include: { refunds: { where: { status: { in: REFUND_OWED_STATUSES } } }, order: { select: { number: true } } },
+          include: { refunds: { where: { status: { in: ["pending", "processed"] } } }, order: { select: { number: true } } },
           orderBy: { paidAt: "asc" },
           take: 20_000,
         });

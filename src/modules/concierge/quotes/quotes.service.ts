@@ -30,8 +30,6 @@ import type { AcceptBody, AdminQuotesQuery, CreateQuoteBody, DeclineBody, PayBal
 
 const HOUR = 3_600_000;
 export const QUOTE_TARGET = "concierge_quote";
-/** one payment for several quotes (cart checkout, see ../cart) */
-export const CHECKOUT_TARGET = "concierge_checkout";
 const ACC = { bank: "1000", clearing: "1010", wallets: "2000", vat: "2100", deposits: "2200", sales: "4000", shipping: "4100", fees: "4200" } as const;
 
 const reqSelect = { id: true, number: true, status: true, customerId: true, contactEmail: true, contactName: true, itemName: true, brand: true, supplierId: true, assigneeId: true, deliveryAddress: true } as const;
@@ -83,7 +81,7 @@ async function expireQuote(quoteId: string, now = new Date()) {
   });
 }
 
-export async function resolveAddress(customerId: string, b: Pick<AcceptBody, "addressId" | "address">, current: unknown) {
+async function resolveAddress(customerId: string, b: AcceptBody, current: unknown) {
   if (b.addressId) {
     const a = await prisma.address.findFirst({ where: { id: b.addressId, customerId } });
     if (!a) throw ApiError.notFound("Address");
@@ -97,31 +95,8 @@ export async function resolveAddress(customerId: string, b: Pick<AcceptBody, "ad
 }
 
 /** stop waiting for earlier checkout attempts on this quote (a late capture is still settled — and refunded if not needed) */
-export async function abandonPending(tx: Tx, quoteId: string) {
+async function abandonPending(tx: Tx, quoteId: string) {
   await tx.payment.updateMany({ where: { targetType: QUOTE_TARGET, targetId: quoteId, status: "pending" }, data: { status: "abandoned" } });
-  const checkouts = await tx.conciergeCheckoutLine.findMany({ where: { quoteId }, select: { checkoutId: true } });
-  if (checkouts.length)
-    await tx.payment.updateMany({ where: { targetType: CHECKOUT_TARGET, targetId: { in: checkouts.map((c) => c.checkoutId) }, status: "pending" }, data: { status: "abandoned" } });
-}
-
-/**
- * Money received for one quote, newest first: its own payments plus its share of cart-checkout payments.
- * `available` = what can still go back to the original payment for this quote.
- */
-async function quotePayments(db: Tx | typeof prisma, quoteId: string) {
-  const ok = { in: ["succeeded", "partially_refunded"] as Payment["status"][] };
-  const direct = await db.payment.findMany({ where: { targetType: QUOTE_TARGET, targetId: quoteId, status: ok } });
-  const lines = await db.conciergeCheckoutLine.findMany({ where: { quoteId } });
-  const viaCheckout = lines.length
-    ? await db.payment.findMany({ where: { targetType: CHECKOUT_TARGET, targetId: { in: lines.map((l) => l.checkoutId) }, status: ok } })
-    : [];
-  return [
-    ...direct.map((p) => ({ payment: p, lineId: null as string | null, available: p.amount - p.amountRefunded })),
-    ...viaCheckout.map((p) => {
-      const l = lines.find((x) => x.checkoutId === p.targetId)!;
-      return { payment: p, lineId: l.id as string | null, available: Math.min(l.amount - l.refunded, p.amount - p.amountRefunded) };
-    }),
-  ].sort((a, b) => (b.payment.paidAt?.getTime() ?? 0) - (a.payment.paidAt?.getTime() ?? 0));
 }
 
 /** Dr cash / Cr 2200 for what we kept from a concierge payment */
@@ -130,14 +105,10 @@ async function journalDeposit(paymentId: string) {
   if (!p) return;
   const kept = p.amount - p.amountRefunded;
   if (kept <= 0) return;
-  const q = p.targetType === QUOTE_TARGET && p.targetId
-    ? await prisma.conciergeQuote.findUnique({ where: { id: p.targetId }, select: { number: true, request: { select: { number: true } } } })
-    : null;
-  const lines = p.targetType === CHECKOUT_TARGET && p.targetId ? await prisma.conciergeCheckoutLine.findMany({ where: { checkoutId: p.targetId }, select: { requestId: true } }) : [];
-  const reqs = lines.length ? await prisma.conciergeRequest.findMany({ where: { id: { in: lines.map((l) => l.requestId) } }, select: { number: true } }) : [];
+  const q = p.targetId ? await prisma.conciergeQuote.findUnique({ where: { id: p.targetId }, select: { number: true, request: { select: { number: true } } } }) : null;
   await ledgerService.postOnce("order", p.reference, {
     date: p.paidAt ?? new Date(),
-    description: (lines.length ? `Concierge cart payment · ${reqs.map((r) => r.number).join(", ")}` : `Concierge payment · ${q?.request.number ?? ""} ${q?.number ?? ""}`).trim().slice(0, 190),
+    description: `Concierge payment · ${q?.request.number ?? ""} ${q?.number ?? ""}`.trim(),
     createdBy: SYSTEM_USER,
     lines: [
       { accountCode: p.provider === "manual" ? ACC.bank : ACC.clearing, debit: kept, credit: 0, memo: p.provider },
@@ -390,7 +361,8 @@ export const quotesService = {
     if (!r0) throw ApiError.notFound("Request");
     // the 2200 deposit must be booked before we reverse it (journalDeposit runs after the payment commits)
     const paidQuotes = await prisma.conciergeQuote.findMany({ where: { requestId: r0.id, amountPaid: { gt: 0 } }, select: { id: true } });
-    for (const pq of paidQuotes) for (const x of await quotePayments(prisma, pq.id)) await journalDeposit(x.payment.id);
+    const pays = await prisma.payment.findMany({ where: { targetType: QUOTE_TARGET, targetId: { in: paidQuotes.map((q) => q.id) }, status: { in: ["succeeded", "partially_refunded"] } }, select: { id: true } });
+    for (const p of pays) await journalDeposit(p.id);
 
     const out = await prisma.$transaction(async (tx) => {
       const req = await lockRequest(tx, r0.id);
@@ -409,13 +381,15 @@ export const quotesService = {
         await walletsService.refund(tx, req.customerId, amount, `Refund for concierge request ${req.number}`, { conciergeRequest: req.number, quote: q.number });
         credits.set(ACC.wallets, amount);
       } else {
+        const payments = await tx.payment.findMany({
+          where: { targetType: QUOTE_TARGET, targetId: q.id, status: { in: ["succeeded", "partially_refunded"] } }, orderBy: { paidAt: "desc" },
+        });
         let left = amount;
-        for (const { payment: p, lineId, available } of await quotePayments(tx, q.id)) {
+        for (const p of payments) {
           if (left <= 0) break;
-          const take = Math.min(left, available);
+          const take = Math.min(left, p.amount - p.amountRefunded);
           if (take <= 0) continue;
           await paymentsService.refund(tx, p.id, take, `${req.number}: ${b.reason}`, admin.name);
-          if (lineId) await tx.conciergeCheckoutLine.update({ where: { id: lineId }, data: { refunded: { increment: take } } });
           const acc = p.provider === "manual" ? ACC.bank : ACC.clearing;
           credits.set(acc, (credits.get(acc) ?? 0) + take);
           left -= take;
@@ -463,7 +437,6 @@ export const quotesService = {
     });
 
     if (b.to === "wallet" && out.req.customerId) events.emit("wallet.changed", { customerId: out.req.customerId });
-    if (b.to !== "wallet") await paymentsService.flushRefunds(); // card refunds go to the gateway only after commit (outbox)
     if (out.cancel) events.emit("concierge.status_changed", { requestId: out.req.id, to: "cancelled" });
     const customer = out.req.customerId ? await prisma.customer.findUnique({ where: { id: out.req.customerId }, select: { firstName: true } }) : null;
     await messaging.email(out.req.contactEmail, "concierge.refunded", {
@@ -532,90 +505,46 @@ function adminRow(q: QuoteRow & { request: { id: string; number: string; itemNam
   };
 }
 
-type AfterCommit = () => Promise<void>;
+paymentsService.register("concierge", {
+  async succeeded(tx, p: Payment) {
+    const q = p.targetType === QUOTE_TARGET && p.targetId ? await lockQuote(tx, p.targetId) : null;
+    const req = q ? await lockRequest(tx, q.requestId) : null;
+    const refundAll = async (why: string) => {
+      await paymentsService.refund(tx, p.id, p.amount, why, "system");
+      if (q) await addTimeline(tx, q.requestId, "note", `Payment ${p.reference} (${formatNaira(p.amount)}) refunded automatically: ${why}.`, "System", true);
+      logger.warn({ reference: p.reference, quote: p.targetId, why }, "concierge payment refunded");
+    };
+    if (!q || !req) return void (await refundAll("Quote not found"));
+    if (["declined", "expired"].includes(q.status) || ["cancelled", "unavailable", "delivered"].includes(req.status) || req.quotes[0]?.id !== q.id)
+      return void (await refundAll(`Quote ${q.number} is no longer payable`));
+    // the quote was revised after this checkout opened and now needs a bigger deposit
+    if (q.status !== "paid" && p.amount < q.deposit) return void (await refundAll(`Quote ${q.number} changed`));
 
-/**
- * Applies `amount` of payment `p` to one quote, inside the payment transaction (single quote checkout or one line of a
- * cart checkout). Returns how much of `amount` must go back to the customer (quote gone / changed / overpaid) and
- * the work to run after commit. The caller refunds.
- */
-async function applyToQuote(tx: Tx, p: Payment, quoteId: string, amount: number): Promise<{ refund: number; why?: string; after?: AfterCommit }> {
-  const q = await lockQuote(tx, quoteId);
-  const req = q ? await lockRequest(tx, q.requestId) : null;
-  if (!q || !req) return { refund: amount, why: "Quote not found" };
-  const gone = async (why: string) => {
-    await addTimeline(tx, q.requestId, "note", `Payment ${p.reference} (${formatNaira(amount)}) refunded automatically: ${why}.`, "System", true);
-    logger.warn({ reference: p.reference, quote: q.number, why }, "concierge payment refunded");
-    return { refund: amount, why };
-  };
-  if (["declined", "expired"].includes(q.status) || ["cancelled", "unavailable", "delivered"].includes(req.status) || req.quotes[0]?.id !== q.id)
-    return gone(`Quote ${q.number} is no longer payable`);
-  // the quote was revised after this checkout opened and now needs a bigger deposit
-  if (q.status !== "paid" && amount < q.deposit) return gone(`Quote ${q.number} changed`);
-
-  const before = q.amountPaid;
-  const paid = Math.min(q.total, before + amount);
-  const excess = before + amount - paid;
-  if (paid === before) return { refund: excess, why: `Overpayment on ${q.number}` };
-  await tx.conciergeQuote.update({ where: { id: q.id }, data: { amountPaid: paid, status: "paid", paidAt: q.paidAt ?? new Date() } });
-  const full = paid >= q.total;
-  const label = before === 0 ? (full ? "Payment" : "Deposit") : "Balance payment";
-  await addTimeline(tx, q.requestId, "status", `${label} of ${formatNaira(paid - before)} received${full ? "" : `. Balance due: ${formatNaira(q.total - paid)}`}.`, "System");
-  let to: "ordered" | "approved" | null = null;
-  if (full && ["quoted", "payment_pending", "approved"].includes(req.status)) to = "ordered";
-  else if (!full && ["quoted", "payment_pending"].includes(req.status)) to = "approved";
-  if (to) await applyStatus(tx, req, to, "System", to === "ordered" ? "Payment received - we're placing your order" : `Deposit received. Balance of ${formatNaira(q.total - paid)} is due before dispatch`);
-  return {
-    refund: excess,
-    why: `Overpayment on ${q.number}`,
-    after: async () => {
+    const before = q.amountPaid;
+    const paid = Math.min(q.total, before + p.amount);
+    const excess = before + p.amount - paid;
+    if (excess > 0) await paymentsService.refund(tx, p.id, excess, `Overpayment on ${q.number}`, "system");
+    if (paid === before) return; // fully refunded above
+    await tx.conciergeQuote.update({ where: { id: q.id }, data: { amountPaid: paid, status: "paid", paidAt: q.paidAt ?? new Date() } });
+    const full = paid >= q.total;
+    const label = before === 0 ? (full ? "Payment" : "Deposit") : "Balance payment";
+    await addTimeline(tx, q.requestId, "status", `${label} of ${formatNaira(paid - before)} received${full ? "" : `. Balance due: ${formatNaira(q.total - paid)}`}.`, "System");
+    let to: "ordered" | "approved" | null = null;
+    if (full && ["quoted", "payment_pending", "approved"].includes(req.status)) to = "ordered";
+    else if (!full && ["quoted", "payment_pending"].includes(req.status)) to = "approved";
+    if (to) await applyStatus(tx, req, to, "System", to === "ordered" ? "Payment received - we're placing your order" : `Deposit received. Balance of ${formatNaira(q.total - paid)} is due before dispatch`);
+    return async () => {
+      await journalDeposit(p.id).catch((err) => logger.error({ err, reference: p.reference }, "concierge deposit journal failed"));
       if (to) events.emit("concierge.status_changed", { requestId: q.requestId, to });
       await notifyStaff("concierge_quote", {
         title: `${label} received · ${q.request.number}`, body: `${formatNaira(paid - before)} on ${q.number}${full ? " (paid in full)" : ""}.`,
         link: `/concierge/inbox?id=${q.requestId}`, adminId: q.request.assigneeId,
       });
-    },
-  };
-}
-
-paymentsService.register("concierge", {
-  async succeeded(tx, p: Payment) {
-    const after: AfterCommit[] = [];
-    if (p.targetType === CHECKOUT_TARGET && p.targetId) {
-      // cart checkout: one payment, split over its lines
-      const lines = await tx.conciergeCheckoutLine.findMany({ where: { checkoutId: p.targetId }, orderBy: { id: "asc" } });
-      const allocated = lines.reduce((n, l) => n + l.amount, 0);
-      for (const l of lines) {
-        const r = await applyToQuote(tx, p, l.quoteId, l.amount);
-        if (r.refund > 0) {
-          await paymentsService.refund(tx, p.id, r.refund, r.why ?? "Not payable", "system");
-          await tx.conciergeCheckoutLine.update({ where: { id: l.id }, data: { refunded: { increment: r.refund } } });
-        }
-        if (r.after) after.push(r.after);
-      }
-      if (p.amount > allocated) await paymentsService.refund(tx, p.id, p.amount - allocated, "Overpayment on concierge checkout", "system");
-    } else if (p.targetType === QUOTE_TARGET && p.targetId) {
-      const r = await applyToQuote(tx, p, p.targetId, p.amount);
-      if (r.refund > 0) await paymentsService.refund(tx, p.id, r.refund, r.why ?? "Not payable", "system");
-      if (r.after) after.push(r.after);
-    } else {
-      await paymentsService.refund(tx, p.id, p.amount, "Quote not found", "system");
-      logger.warn({ reference: p.reference }, "concierge payment without a quote refunded");
-      return;
-    }
-    return async () => {
-      await journalDeposit(p.id).catch((err) => logger.error({ err, reference: p.reference }, "concierge deposit journal failed"));
-      for (const fn of after) await fn();
     };
   },
   async failed(tx, p: Payment) {
-    const quoteIds = p.targetType === CHECKOUT_TARGET && p.targetId
-      ? (await tx.conciergeCheckoutLine.findMany({ where: { checkoutId: p.targetId }, select: { quoteId: true } })).map((l) => l.quoteId)
-      : p.targetId ? [p.targetId] : [];
-    for (const id of quoteIds) {
-      const q = await tx.conciergeQuote.findUnique({ where: { id }, select: { requestId: true, number: true } });
-      if (q) await addTimeline(tx, q.requestId, "note", `Payment ${p.reference} for ${q.number} failed.`, "System", true);
-    }
+    const q = p.targetId ? await tx.conciergeQuote.findUnique({ where: { id: p.targetId }, select: { requestId: true, number: true } }) : null;
+    if (q) await addTimeline(tx, q.requestId, "note", `Payment ${p.reference} for ${q.number} failed.`, "System", true);
   },
 });
 

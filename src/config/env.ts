@@ -16,32 +16,12 @@ export const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().default(30),
-  /** local = disk under UPLOAD_DIR (one server only) · s3 = any S3-compatible store (AWS S3, Cloudflare R2, MinIO) */
-  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  STORAGE_DRIVER: z.enum(["local"]).default("local"),
   UPLOAD_DIR: z.string().default("./uploads"),
   PUBLIC_UPLOAD_URL: z.string().default("http://localhost:4000/uploads"),
-  /** public uploads (product images, media library) */
-  S3_BUCKET: z.string().optional(),
-  /** "auto" for R2 */
-  S3_REGION: z.string().default("auto"),
-  /** R2: https://<account>.r2.cloudflarestorage.com · MinIO: http://minio:9000 · empty for AWS */
-  S3_ENDPOINT: z.string().url().optional(),
-  /** empty = the AWS default credential chain (IAM role) */
-  S3_ACCESS_KEY_ID: z.string().optional(),
-  S3_SECRET_ACCESS_KEY: z.string().optional(),
-  /** public base URL of S3_BUCKET (CDN / R2 custom domain), e.g. https://cdn.asloriginals.com */
-  S3_PUBLIC_URL: z.string().url().optional(),
-  /** private files (report exports): a bucket with NO public access. Empty = S3_BUCKET under `private/` (only safe if the bucket policy keeps that prefix private) */
-  S3_PRIVATE_BUCKET: z.string().optional(),
-  /** GET /metrics needs `Authorization: Bearer <token>` when set (always set it in production) */
-  METRICS_TOKEN: z.string().optional(),
-  /** worker: serve its own /metrics on this port (0 = off) */
-  WORKER_METRICS_PORT: z.coerce.number().default(0),
   PAYMENT_PROVIDER: z.enum(["mock", "paystack"]).default("mock"),
   /** mock gateway webhook secret (Paystack signs webhooks with PAYSTACK_SECRET_KEY) */
   PAYMENT_WEBHOOK_SECRET: z.string().min(8).default("dev-webhook-secret"),
-  /** shared secret carriers send in `X-Carrier-Secret` on POST /webhooks/carriers/:carrier (unset = carrier webhooks refused) */
-  CARRIER_WEBHOOK_SECRET: z.string().min(16).optional(),
   PAYSTACK_SECRET_KEY: z.string().regex(/^sk_(test|live)_\w+$/, "must look like sk_test_… or sk_live_…").optional(),
   PAYSTACK_PUBLIC_KEY: z.string().regex(/^pk_(test|live)_\w+$/, "must look like pk_test_… or pk_live_…").optional(),
   /** where Paystack sends the customer after paying (default: the dashboard setting) */
@@ -57,12 +37,6 @@ export const envSchema = z.object({
   PUSH_PROVIDER: z.enum(["mock", "expo"]).default("mock"),
   LOG_LEVEL: z.string().default("info"),
 }).superRefine((e, ctx) => {
-  if (e.STORAGE_DRIVER === "s3") {
-    if (!e.S3_BUCKET) ctx.addIssue({ code: "custom", path: ["S3_BUCKET"], message: "required when STORAGE_DRIVER=s3" });
-    if (!e.S3_PUBLIC_URL) ctx.addIssue({ code: "custom", path: ["S3_PUBLIC_URL"], message: "required when STORAGE_DRIVER=s3 (public URL of the bucket / CDN)" });
-    if (!!e.S3_ACCESS_KEY_ID !== !!e.S3_SECRET_ACCESS_KEY)
-      ctx.addIssue({ code: "custom", path: ["S3_SECRET_ACCESS_KEY"], message: "set both S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY (or neither, for an IAM role)" });
-  }
   if (e.PAYMENT_PROVIDER === "paystack" && !e.PAYSTACK_SECRET_KEY)
     ctx.addIssue({ code: "custom", path: ["PAYSTACK_SECRET_KEY"], message: "required when PAYMENT_PROVIDER=paystack" });
   if (e.PAYMENT_PROVIDER === "mock" && e.NODE_ENV === "production" && !e.ALLOW_MOCK_PAYMENTS)

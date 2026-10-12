@@ -55,16 +55,7 @@ model Refund {
   status     String   @default("pending")
   providerRef String?
   actor      String?
-  /// outbox: gateway sends tried (queued → sending → pending/processed; failed after the last retry)
-  attempts   Int       @default(0)
-  /// queued: not before this time (retry backoff)
-  nextAttemptAt DateTime?
-  /// last time it was handed to the gateway
-  sentAt     DateTime?
-  lastError  String?   @db.VarChar(500)
   createdAt  DateTime @default(now())
-
-  @@index([status, nextAttemptAt])
 }
 
 model WebhookLog {

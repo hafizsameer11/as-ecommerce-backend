@@ -13,9 +13,9 @@ import { errorHandler, notFoundHandler } from "@/core/middleware/error-handler";
 import { ApiError } from "@/core/http/errors";
 import { jsonReplacer } from "@/core/http/response";
 import { buildOpenApiDocument } from "@/core/http/openapi";
+import { prisma } from "@/core/db/prisma";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import { moduleRouters, registerListeners } from "@/modules";
-import { httpMetrics, opsRouter } from "@/core/http/ops";
 
 export function createApp() {
   const app = express();
@@ -23,7 +23,6 @@ export function createApp() {
   app.disable("x-powered-by");
   app.set("json replacer", jsonReplacer);
 
-  app.use(httpMetrics);
   app.use((req, res, next) => {
     req.id = (req.header("X-Request-Id") ?? crypto.randomUUID()).slice(0, 64);
     res.setHeader("X-Request-Id", req.id);
@@ -35,7 +34,7 @@ export function createApp() {
     pinoHttp({
       logger,
       genReqId: (req) => (req as Request).id,
-      autoLogging: { ignore: (req) => ["/health", "/ready", "/metrics"].includes(req.url!) || req.url!.startsWith("/uploads") },
+      autoLogging: { ignore: (req) => req.url === "/health" || req.url!.startsWith("/uploads") },
       // one short line per request instead of full header dumps
       serializers: {
         req: (req) => ({ id: req.id, method: req.method, url: req.url }),
@@ -59,8 +58,10 @@ export function createApp() {
 
   app.use("/uploads", express.static(path.resolve(env.UPLOAD_DIR), { maxAge: "30d", immutable: true }));
 
-  // GET /health (liveness), /ready (DB, Redis, storage), /metrics (Prometheus)
-  app.use(opsRouter());
+  app.get("/health", async (_req, res) => {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", time: new Date().toISOString() });
+  });
 
   // maintenance mode blocks the storefront, never the admin
   app.use("/api/v1/store", async (req: Request, _res: Response, next: NextFunction) => {

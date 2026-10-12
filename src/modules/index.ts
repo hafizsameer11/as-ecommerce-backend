@@ -32,13 +32,11 @@ import { checkoutStoreRoutes } from "./commerce/checkout/checkout.routes";
 import { myOrdersStoreRoutes, ordersAdminRoutes, ordersStoreRoutes } from "./commerce/orders/orders.routes";
 import { myOrderDocumentsStoreRoutes, orderDocumentsAdminRoutes, orderDocumentsStoreRoutes } from "./commerce/documents/documents.routes";
 import { draftOrdersAdminRoutes, draftPayStoreRoutes } from "./commerce/draft-orders/draft-orders.routes";
-import { draftImportAdminRoutes } from "./commerce/draft-orders-import/draft-import.routes";
 import { myReturnsStoreRoutes, returnableStoreRoutes, returnsAdminRoutes } from "./commerce/returns/returns.routes";
 import { registerReturnListeners } from "./commerce/returns/returns.listeners";
 import { shippingStoreRoutes, shippingZonesAdminRoutes } from "./fulfilment/shipping-zones/shipping-zones.routes";
 import { pickupBookingsAdminRoutes, pickupLocationsAdminRoutes, pickupLocationsStoreRoutes } from "./fulfilment/pickups/pickups.routes";
 import { myTrackingStoreRoutes, orderFulfilAdminRoutes, shipmentsAdminRoutes, tokenTrackingStoreRoutes } from "./fulfilment/shipments/shipments.routes";
-import { carrierWebhookRoutes, shipmentLabelsAdminRoutes } from "./fulfilment/shipment-labels/labels.routes";
 import { registerPickupListeners } from "./fulfilment/pickups/pickups.listeners";
 import { registerShipmentListeners } from "./fulfilment/shipments/shipments.listeners";
 import { registerOrderListeners } from "./commerce/orders/orders.listeners";
@@ -53,7 +51,6 @@ import { conciergeRequestsAdminRoutes, conciergeRequestsStoreRoutes } from "./co
 import { conciergeQuotesAdminRoutes, conciergeQuotesStoreRoutes } from "./concierge/quotes/quotes.routes";
 import { conciergeChatAdminRoutes, conciergeChatStoreRoutes } from "./concierge/chat/chat.routes";
 import { suppliersAdminRoutes } from "./concierge/suppliers/suppliers.routes";
-import { conciergeCartStoreRoutes } from "./concierge/cart/cart.routes";
 import { registerConciergeListeners } from "./concierge/requests/requests.listeners";
 import { clubAdminRoutes, clubStoreRoutes } from "./loyalty/club/club.routes";
 import { registerClubListeners } from "./loyalty/club/club.listeners";
@@ -140,7 +137,6 @@ export const moduleRouters: ModuleRouter[] = [
   myOrdersStoreRoutes,
   ordersStoreRoutes,
   ordersAdminRoutes,
-  draftImportAdminRoutes, // before draftOrdersAdminRoutes
   draftOrdersAdminRoutes,
   draftPayStoreRoutes,
   returnableStoreRoutes,
@@ -153,9 +149,7 @@ export const moduleRouters: ModuleRouter[] = [
   pickupLocationsAdminRoutes,
   pickupBookingsAdminRoutes,
   orderFulfilAdminRoutes,
-  shipmentLabelsAdminRoutes, // before shipmentsAdminRoutes (`/export` vs `/:id`)
   shipmentsAdminRoutes,
-  carrierWebhookRoutes,
   myTrackingStoreRoutes,
   tokenTrackingStoreRoutes,
   taxAdminRoutes,
@@ -174,7 +168,6 @@ export const moduleRouters: ModuleRouter[] = [
   conciergeRequestsStoreRoutes,
   conciergeQuotesStoreRoutes,
   conciergeChatStoreRoutes,
-  conciergeCartStoreRoutes,
   conciergeRequestsAdminRoutes,
   conciergeQuotesAdminRoutes,
   conciergeChatAdminRoutes,

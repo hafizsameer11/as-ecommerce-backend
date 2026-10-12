@@ -215,32 +215,3 @@ model Supplier {
   updatedAt    DateTime       @updatedAt
   requests     ConciergeRequest[]
 }
-
-/// /concierge/cart → /concierge/payment: one payment for several quotes (Payment.targetType "concierge_checkout")
-model ConciergeCheckout {
-  id         String   @id @default(cuid())
-  customerId String
-  amount     Int
-  paymentRef String?
-  createdAt  DateTime @default(now())
-  lines      ConciergeCheckoutLine[]
-
-  @@index([customerId])
-}
-
-/// the share of a checkout payment that belongs to one quote
-model ConciergeCheckoutLine {
-  id         String            @id @default(cuid())
-  checkoutId String
-  checkout   ConciergeCheckout @relation(fields: [checkoutId], references: [id], onDelete: Cascade)
-  quoteId    String
-  requestId  String
-  /// deposit | balance
-  kind       String            @db.VarChar(16)
-  amount     Int
-  /// part of `amount` refunded so far (automatic + staff refunds)
-  refunded   Int               @default(0)
-
-  @@index([quoteId])
-  @@index([requestId])
-}

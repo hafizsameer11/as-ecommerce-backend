@@ -16,8 +16,6 @@ import { corsOrigins, isProd } from "@/config/env";
 import { notifyStaff } from "@/modules/platform/notification-settings/notification-settings.service";
 import { ledgerService, SYSTEM_USER } from "@/modules/payments/ledger/ledger.service";
 import { paymentProvider, type PaymentMethodKind, type VerifyResult, type WebhookEvent } from "@/providers/payment/payment";
-import { defineJob, jobsRunInline } from "@/core/queue/queue";
-import { paymentOutcomes, refundOutcomes } from "@/core/metrics/metrics";
 
 type AfterCommit = () => void | Promise<void>;
 type Handler = {
@@ -31,25 +29,11 @@ let transferHandler: ((ev: WebhookEvent) => Promise<unknown>) | null = null;
 
 /** Refund.status values */
 export const REFUND_STATUS = {
-  queued: "queued", // outbox: written in the caller's transaction, sent to the gateway after commit (payments.send-refunds)
-  sending: "sending", // claimed by a sender, gateway call in flight
   pending: "pending", // sent to the gateway, waiting for refund.processed / refund.failed
   processed: "processed",
   failed: "failed", // gateway gave up: still owed to the customer (retry or move to wallet)
   wallet: "wallet", // a failed refund paid to the ASL Wallet instead
 } as const;
-
-/** refunds the gateway will (or did) take out of the settlement: everything except failed / moved to wallet */
-export const REFUND_OWED_STATUSES = [REFUND_STATUS.queued, REFUND_STATUS.sending, REFUND_STATUS.pending, REFUND_STATUS.processed];
-
-/** outbox retries: wait this long after attempt n fails; after the last attempt the refund is failed + flagged to finance */
-export const REFUND_RETRY_DELAYS_MS = [60_000, 5 * 60_000, 15 * 60_000, 60 * 60_000];
-export const REFUND_MAX_ATTEMPTS = REFUND_RETRY_DELAYS_MS.length + 1;
-/** a "sending" claim older than this means the sender died mid-call: outcome unknown → finance checks the gateway */
-const SENDING_STALE_MS = 15 * 60_000;
-
-/** transactions that queued a refund (settle flushes the outbox after commit only when needed) */
-const txWithRefunds = new WeakSet<object>();
 
 /** a gateway error never leaks its raw text to customers; staff see it in the message */
 function providerError(err: unknown, what: string): never {
@@ -157,9 +141,7 @@ export const paymentsService = {
     const v = await paymentProvider.verify(reference);
     if (v.status === "pending") return this.publicStatus(reference);
     const after: AfterCommit[] = [];
-    let txUsed: object | null = null;
     await prisma.$transaction(async (tx) => {
-      txUsed = tx;
       const p = await lockPayment(tx, reference);
       if (!p) throw ApiError.notFound("Payment");
       // "abandoned" = we stopped waiting (order expired / customer retried), but the gateway can still capture it
@@ -168,7 +150,6 @@ export const paymentsService = {
         if (v.amount < p.amount) {
           logger.error({ reference, expected: p.amount, got: v.amount }, "payment amount mismatch");
           await tx.payment.update({ where: { id: p.id }, data: { status: "failed", providerData: { ...(p.providerData as object), error: "amount_mismatch", got: v.amount } } });
-          after.push(() => void paymentOutcomes.inc({ purpose: p.purpose, outcome: "amount_mismatch" }));
           return;
         }
         const updated = await tx.payment.update({ where: { id: p.id }, data: { status: "succeeded", fee: v.fee, paidAt: new Date() } });
@@ -177,23 +158,15 @@ export const paymentsService = {
         if (!h) logger.error({ purpose: p.purpose }, "no payment handler registered");
         const fn = await h?.succeeded(tx, updated, v);
         if (fn) after.push(fn);
-        after.push(() => {
-          paymentOutcomes.inc({ purpose: p.purpose, outcome: "succeeded" });
-          events.emit("payment.succeeded", { paymentId: p.id });
-        });
+        after.push(() => events.emit("payment.succeeded", { paymentId: p.id }));
       } else {
         const updated = await tx.payment.update({ where: { id: p.id }, data: { status: "failed" } });
         const fn = await handlers.get(p.purpose)?.failed?.(tx, updated);
         if (fn) after.push(fn);
-        after.push(() => {
-          paymentOutcomes.inc({ purpose: p.purpose, outcome: "failed" });
-          events.emit("payment.failed", { paymentId: p.id });
-        });
+        after.push(() => events.emit("payment.failed", { paymentId: p.id }));
       }
     });
     for (const fn of after) await fn();
-    // late / duplicate / no-longer-wanted payments were refunded by the handler: send them now
-    if (txUsed && txWithRefunds.has(txUsed)) await this.flushRefunds();
     return this.publicStatus(reference);
   },
 
@@ -253,98 +226,26 @@ export const paymentsService = {
   },
 
   /**
-   * Refund (part of) a succeeded payment back to the card/bank — inside the caller's transaction.
-   * Outbox: no gateway call here. The Refund row is written as "queued" and `amountRefunded` (payment + the caller's
-   * order/quote) counts it at once — that is what we owe the customer. After the caller commits, `flushRefunds()`
-   * (or the payments.send-refunds sweep, every minute) hands it to the gateway: "processed" (mock: at once), or
-   * "pending" until the refund.processed / refund.failed webhook. If the caller's transaction rolls back, nothing
-   * was ever sent. Gateway errors are retried with backoff; after the last attempt the refund is failed + flagged
-   * to finance (retryRefund).
+   * Refund (part of) a succeeded payment back to the card/bank.
+   * `amountRefunded` (payment + the caller's order/quote) counts the refund as soon as it is requested — that is what
+   * we owe the customer. The Refund row tracks delivery: "processed" (mock: at once), or "pending" until the gateway's
+   * refund.processed / refund.failed webhook. A failed refund stays counted and is flagged to finance (retryRefund).
    */
   async refund(tx: Tx, paymentId: string, amount: number, reason: string, actor: string) {
     await tx.$queryRaw`SELECT id FROM \`Payment\` WHERE id = ${paymentId} FOR UPDATE`;
     const p = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
     const left = p.amount - p.amountRefunded;
     if (amount <= 0 || amount > left) throw ApiError.badRequest("VALIDATION_FAILED", `You can refund up to ₦${(left / 100).toLocaleString("en-NG")} on this payment.`);
-    const row = await tx.refund.create({ data: { paymentId, amount, reason, status: REFUND_STATUS.queued, actor } });
+    let r: Awaited<ReturnType<typeof paymentProvider.refund>>;
+    try {
+      r = await paymentProvider.refund(p.reference, amount);
+    } catch (err) {
+      providerError(err, `refund ${p.reference}`);
+    }
+    const row = await tx.refund.create({ data: { paymentId, amount, reason, status: r.status, providerRef: r.refundRef, actor } });
     const refunded = p.amountRefunded + amount;
     await tx.payment.update({ where: { id: paymentId }, data: { amountRefunded: refunded, status: refunded >= p.amount ? "refunded" : "partially_refunded" } });
-    txWithRefunds.add(tx);
     return row;
-  },
-
-  /**
-   * After commit: send queued refunds to the gateway. Without Redis (tests, quick local runs) they are sent
-   * right here, so the caller's response already shows the gateway's answer; with Redis the worker sends them.
-   * Never throws — anything left queued is picked up by the every-minute sweep.
-   */
-  async flushRefunds() {
-    try {
-      if (jobsRunInline()) await this.sendDueRefunds();
-      else await sendRefundsJob({});
-    } catch (err) {
-      logger.error({ err }, "refund outbox flush failed (the sweep will retry)");
-    }
-  },
-
-  /** job payments.send-refunds: every due queued refund → gateway; stale "sending" claims → failed for finance */
-  async sendDueRefunds(now = new Date(), limit = 50) {
-    const stale = await prisma.refund.findMany({ where: { status: REFUND_STATUS.sending, sentAt: { lt: new Date(now.getTime() - SENDING_STALE_MS) } }, include: { payment: true }, take: limit });
-    for (const r of stale) {
-      const reason = "No answer from the gateway — check its dashboard before retrying, it may already be refunded";
-      const n = await prisma.refund.updateMany({ where: { id: r.id, status: REFUND_STATUS.sending }, data: { status: REFUND_STATUS.failed, lastError: reason } });
-      if (n.count) await flagFailedRefund(r, reason);
-    }
-    const due = await prisma.refund.findMany({
-      where: { status: REFUND_STATUS.queued, OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] },
-      orderBy: { createdAt: "asc" }, take: limit, select: { id: true },
-    });
-    const out = { sent: 0, retrying: 0, failed: 0, stale: stale.length };
-    for (const { id } of due) {
-      const r = await this.sendRefund(id, now);
-      if (r === "sent") out.sent++;
-      else if (r === "retry") out.retrying++;
-      else if (r === "failed") out.failed++;
-    }
-    return out;
-  },
-
-  /** one queued refund → gateway. Claimed atomically, so two senders never send the same refund. */
-  async sendRefund(refundId: string, now = new Date()): Promise<"sent" | "retry" | "failed" | "skipped"> {
-    const claimed = await prisma.refund.updateMany({
-      where: { id: refundId, status: REFUND_STATUS.queued, OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] },
-      data: { status: REFUND_STATUS.sending, sentAt: new Date(), attempts: { increment: 1 } },
-    });
-    if (!claimed.count) return "skipped";
-    const r = await prisma.refund.findUniqueOrThrow({ where: { id: refundId }, include: { payment: true } });
-    let res: Awaited<ReturnType<typeof paymentProvider.refund>>;
-    try {
-      res = await paymentProvider.refund(r.payment.reference, r.amount);
-    } catch (err) {
-      const msg = String((err as Error)?.message ?? err).slice(0, 500);
-      logger.error({ err: msg, refundId, reference: r.payment.reference, attempt: r.attempts }, "gateway refund failed");
-      if (r.attempts >= REFUND_MAX_ATTEMPTS) {
-        const n = await prisma.refund.updateMany({ where: { id: r.id, status: REFUND_STATUS.sending }, data: { status: REFUND_STATUS.failed, lastError: msg } });
-        if (n.count) await flagFailedRefund(r, msg);
-        refundOutcomes.inc({ outcome: "failed" });
-        return "failed";
-      }
-      const wait = REFUND_RETRY_DELAYS_MS[Math.min(r.attempts, REFUND_RETRY_DELAYS_MS.length) - 1];
-      await prisma.refund.updateMany({
-        where: { id: r.id, status: REFUND_STATUS.sending },
-        data: { status: REFUND_STATUS.queued, nextAttemptAt: new Date(now.getTime() + wait), lastError: msg },
-      });
-      refundOutcomes.inc({ outcome: "retry" });
-      return "retry";
-    }
-    // a refund.processed / refund.failed webhook may have beaten us here (matched by reference): keep its outcome
-    const n = await prisma.refund.updateMany({
-      where: { id: r.id, status: REFUND_STATUS.sending },
-      data: { status: res.status, providerRef: res.refundRef, nextAttemptAt: null, lastError: null },
-    });
-    if (!n.count) await prisma.refund.updateMany({ where: { id: r.id, providerRef: null }, data: { providerRef: res.refundRef } });
-    refundOutcomes.inc({ outcome: res.status });
-    return "sent";
   },
 
   /** refund.processed / refund.failed webhook */
@@ -358,16 +259,27 @@ export const paymentsService = {
     const failed = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM \`Refund\` WHERE id = ${found.id} FOR UPDATE`;
       const r = await tx.refund.findUniqueOrThrow({ where: { id: found.id }, include: { payment: true } });
-      // "sending": the webhook beat our own gateway call's answer (sendRefund keeps this outcome)
-      if (r.status !== REFUND_STATUS.pending && r.status !== REFUND_STATUS.sending) {
+      if (r.status !== REFUND_STATUS.pending) {
         if (r.status !== outcome) logger.warn({ refundId: r.id, status: r.status, outcome }, "refund webhook for a refund that is no longer pending — ignored");
         return null;
       }
       await tx.refund.update({ where: { id: r.id }, data: { status: outcome, ...(ev.refundRef && !r.providerRef ? { providerRef: ev.refundRef } : {}) } });
-      refundOutcomes.inc({ outcome: outcome === REFUND_STATUS.failed ? "webhook_failed" : "webhook_processed" });
-      return outcome === REFUND_STATUS.failed ? r : null;
+      if (outcome !== REFUND_STATUS.failed) return null;
+      if (r.payment.orderId)
+        await tx.orderEvent.create({
+          data: {
+            orderId: r.payment.orderId, type: "note", title: "Refund failed — finance to retry", internal: true, actor: "System",
+            detail: `${formatNaira(r.amount)} to ${r.payment.method} (${r.payment.reference})${ev.reason ? `: ${ev.reason}` : ""}`,
+          },
+        });
+      return r;
     });
-    if (failed) await flagFailedRefund(failed, ev.reason);
+    if (failed)
+      await notifyStaff("finance_failed", {
+        title: `Refund failed · ${failed.payment.reference}`,
+        body: `${formatNaira(failed.amount)} to ${failed.payment.email} could not be returned${ev.reason ? ` (${ev.reason})` : ""}. Retry it or move it to the customer's wallet.`,
+        link: `/payments?reference=${encodeURIComponent(failed.payment.reference)}`, entity: `refund:${failed.id}`,
+      });
     return found.id;
   },
 
@@ -378,7 +290,7 @@ export const paymentsService = {
       if (r) return r;
     }
     if (!ev.reference) return null;
-    const where = { status: { in: [REFUND_STATUS.pending, REFUND_STATUS.sending] }, payment: { reference: ev.reference } };
+    const where = { status: REFUND_STATUS.pending, payment: { reference: ev.reference } };
     return (
       (ev.amount ? await prisma.refund.findFirst({ where: { ...where, amount: ev.amount }, orderBy: { createdAt: "asc" } }) : null) ??
       (await prisma.refund.findFirst({ where, orderBy: { createdAt: "asc" } }))
@@ -394,14 +306,14 @@ export const paymentsService = {
     if (!r0) throw ApiError.notFound("Refund");
     if (r0.status !== REFUND_STATUS.failed) throw ApiError.conflict("INVALID_STATE", "Only failed refunds can be retried.");
     if (to === "original") {
-      // back into the outbox with fresh attempts (a new gateway refund → new providerRef)
-      const n = await prisma.refund.updateMany({
-        where: { id: r0.id, status: REFUND_STATUS.failed },
-        data: { status: REFUND_STATUS.queued, attempts: 0, nextAttemptAt: null, lastError: null, providerRef: null, actor },
-      });
-      if (!n.count) throw ApiError.conflict("INVALID_STATE", "Only failed refunds can be retried.");
-      if (jobsRunInline()) await this.sendRefund(r0.id);
-      else await this.flushRefunds();
+      let r: Awaited<ReturnType<typeof paymentProvider.refund>>;
+      try {
+        r = await paymentProvider.refund(r0.payment.reference, r0.amount);
+      } catch (err) {
+        providerError(err, `refund ${r0.payment.reference}`);
+      }
+      const n = await prisma.refund.updateMany({ where: { id: r0.id, status: REFUND_STATUS.failed }, data: { status: r.status, providerRef: r.refundRef, actor } });
+      if (!n.count) logger.error({ refundId }, "refund retried twice at the same time");
     } else {
       if (!r0.payment.customerId) throw ApiError.badRequest("VALIDATION_FAILED", "This payment has no customer account, so there is no wallet to refund to.");
       // wallets.service imports this file → load it lazily
@@ -447,27 +359,6 @@ export const paymentsService = {
     );
   },
 };
-
-/** a refund the gateway won't take: note on the order + finance alert (retry to card or move to wallet) */
-async function flagFailedRefund(r: { id: string; amount: number; payment: Payment }, reason?: string | null) {
-  if (r.payment.orderId)
-    await prisma.orderEvent.create({
-      data: {
-        orderId: r.payment.orderId, type: "note", title: "Refund failed — finance to retry", internal: true, actor: "System",
-        detail: `${formatNaira(r.amount)} to ${r.payment.method} (${r.payment.reference})${reason ? `: ${reason}` : ""}`.slice(0, 500),
-      },
-    }).catch((err) => logger.error({ err, refundId: r.id }, "refund failure note not saved"));
-  await notifyStaff("finance_failed", {
-    title: `Refund failed · ${r.payment.reference}`,
-    body: `${formatNaira(r.amount)} to ${r.payment.email} could not be returned${reason ? ` (${reason})` : ""}. Retry it or move it to the customer's wallet.`,
-    link: `/payments?reference=${encodeURIComponent(r.payment.reference)}`, entity: `refund:${r.id}`,
-  });
-}
-
-/** payments.send-refunds: after-commit flushes (with Redis) + the every-minute sweep */
-export const sendRefundsJob = defineJob("payments.send-refunds", async () => {
-  await paymentsService.sendDueRefunds();
-});
 
 async function saveCard(tx: Tx, customerId: string, v: VerifyResult) {
   const a = v.authorization!;
