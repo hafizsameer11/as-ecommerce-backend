@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchOf } from "@/core/http/patch-schema";
 
 const list = <T extends z.ZodTypeAny>(t: T) =>
   z.preprocess((v) => (typeof v === "string" ? v.split(",").map((s) => s.trim()).filter(Boolean) : v), z.array(t)).optional();
@@ -56,7 +57,7 @@ export const productInput = z.object({
   seoTitle: z.string().max(190).nullable().optional(),
   seoDescription: z.string().max(500).nullable().optional(),
 });
-export const productPatch = productInput.partial();
+export const productPatch = patchOf(productInput);
 
 export const adminListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),

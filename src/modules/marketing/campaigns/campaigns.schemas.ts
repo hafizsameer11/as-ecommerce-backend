@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const CAMPAIGN_CHANNELS = ["email", "push", "sms", "whatsapp", "inapp"] as const;
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "sent", "paused", "archived"] as const;
@@ -30,7 +31,7 @@ const campaignBase = z.object({
 });
 
 export const campaignBody = campaignBase;
-export const campaignPatch = campaignBase.partial();
+export const campaignPatch = patchOf(campaignBase);
 
 export const campaignListQuery = pageQuery.extend({
   status: z.enum(["all", ...CAMPAIGN_STATUSES]).default("all"),

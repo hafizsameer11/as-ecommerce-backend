@@ -148,6 +148,10 @@ export const settingsSchemas = {
     androidStoreUrl: z.string(),
     onboarding: z.array(z.object({ title: z.string(), body: z.string(), image: z.string().optional() })),
     features: z.record(z.string(), z.boolean()),
+    /** platform/app-config: splash screen, home section toggles, web "download our app" offer */
+    splash: z.object({ enabled: z.boolean(), image: z.string(), tagline: z.string(), durationMs: z.number().int().min(0).max(10_000) }),
+    homeSections: z.record(z.string(), z.boolean()),
+    downloadOffer: z.object({ enabled: z.boolean(), percent: z.number().int().min(1).max(100), label: z.string(), validDays: z.number().int().min(1).max(365) }),
   }),
   /** coming-soon drop reservations (catalog/drops) */
   drops: z.object({
@@ -297,6 +301,10 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
       { title: "ASL Club", body: "Earn points on every order and unlock member rewards." },
     ],
     features: { concierge: true, drops: true, wallet: true, referrals: true },
+    splash: { enabled: true, image: "", tagline: "Authentic luxury, delivered.", durationMs: 1800 },
+    homeSections: { hero: true, announcement: true, categories: true, newArrivals: true, drops: true, brands: true, concierge: true, editorial: true },
+    // web AppDownloadOffer: "10% off your first app order", saved as "App Download Reward"
+    downloadOffer: { enabled: true, percent: 10, label: "App Download Reward", validDays: 30 },
   },
   // D4 default: an unpaid balance forfeits the deposit; cancelling before release refunds it (wallet = instant)
   drops: { balanceWindowHours: 72, depositPctDefault: 20, depositRefundable: false, reservationHoldMinutes: 30, cancelCutoffHours: 48, cancelRefundTo: "wallet" },

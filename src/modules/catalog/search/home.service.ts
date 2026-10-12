@@ -2,19 +2,15 @@ import { prisma } from "@/core/db/prisma";
 import { productInclude, toProductCard } from "../products/product.mapper";
 import { categoriesService } from "../categories/categories.service";
 import { collectionsService } from "../collections/collections.service";
-
-const live = (now = new Date()) => ({
-  status: "live" as const,
-  AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gt: now } }] }],
-});
+import { slotsService } from "@/modules/marketing/slots/slots.service";
 
 export const homeService = {
   /** Home screen in ONE request (fast first paint on web + app). */
-  async home() {
+  async home(customerId?: string) {
     const base = { status: "active" as const, deletedAt: null };
-    const [heroSlots, slots, categories, bestSellers, trending, newArrivals, heroCollections, row1, row2] = await Promise.all([
-      prisma.slot.findMany({ where: { page: "home", type: "hero", ...live() }, orderBy: [{ pinned: "desc" }, { position: "asc" }] }),
-      prisma.slot.findMany({ where: { page: "home", NOT: { type: "hero" }, ...live() }, orderBy: [{ pinned: "desc" }, { position: "asc" }] }),
+    const [pageSlots, categories, bestSellers, trending, newArrivals, heroCollections, row1, row2] = await Promise.all([
+      // live home slots for this caller (audience), pinned first then position — see marketing/slots
+      slotsService.forPage("home", customerId),
       categoriesService.storeList(),
       prisma.product.findMany({ where: { ...base, bestSellerScore: { gt: 0 } }, include: productInclude, orderBy: { bestSellerScore: "desc" }, take: 8 }),
       prisma.product.findMany({ where: { ...base, trendingScore: { gt: 0 } }, include: productInclude, orderBy: { trendingScore: "desc" }, take: 10 }),
@@ -24,8 +20,9 @@ export const homeService = {
       collectionsService.bySlot("home_row_2", 10),
     ]);
     return {
-      hero: heroSlots,
-      slots,
+      hero: pageSlots.filter((s) => s.type === "hero"),
+      /** every other home slot (promo banners, grids, carousels…) in display order */
+      slots: pageSlots.filter((s) => s.type !== "hero"),
       categories: categories.filter((c) => c.id !== "sale"),
       bestSellers: bestSellers.map(toProductCard),
       trending: trending.map(toProductCard),

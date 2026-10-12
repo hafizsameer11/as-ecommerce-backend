@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const notifyMeBody = z.object({ size: z.string().max(20).optional() });
 export const notifyMeQuery = z.object({ size: z.string().optional() });
@@ -45,7 +46,7 @@ export const createDropBody = z.object({
   depositPct: z.number().int().min(1).max(100).optional(),
   teaser: z.string().trim().max(2000).nullable().optional(),
 });
-export const updateDropBody = createDropBody.omit({ productId: true }).partial();
+export const updateDropBody = patchOf(createDropBody.omit({ productId: true }));
 export const adminReservationsQuery = pageQuery.extend({
   tab: z.enum(["all", "pending_deposit", "reserved", "balance_paid", "cancelled", "expired"]).default("all"),
 });

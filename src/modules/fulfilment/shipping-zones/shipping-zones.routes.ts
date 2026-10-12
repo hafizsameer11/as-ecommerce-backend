@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ModuleRouter, idParam } from "@/core/http/router";
 import { shippingZonesController as c } from "./shipping-zones.controller";
 import { quoteQuery, rateBody, zoneBody } from "./shipping-zones.schemas";
+import { patchOf } from "@/core/http/patch-schema";
 
 /** checkout delivery-fee card, cart estimate, shipping-policy page */
 export const shippingStoreRoutes = new ModuleRouter({ surface: "store", prefix: "/shipping", tag: "Shipping" })
@@ -18,7 +19,7 @@ export const shippingZonesAdminRoutes = new ModuleRouter({
   .get("/", { summary: "Zones with rates and 30-day stats", permission: "orders.view" }, c.list)
   .get("/:id", { summary: "Zone", permission: "orders.view", params: idParam }, c.get)
   .post("/", { summary: "Create zone", body: zoneBody, status: 201, audit: audit("shipping_zone.created") }, c.create)
-  .patch("/:id", { summary: "Update zone (sending `rates` replaces all rates)", params: idParam, body: zoneBody.partial(), audit: audit("shipping_zone.updated") }, c.update)
+  .patch("/:id", { summary: "Update zone (sending `rates` replaces all rates)", params: idParam, body: patchOf(zoneBody), audit: audit("shipping_zone.updated") }, c.update)
   .post("/:id/duplicate", { summary: "Duplicate zone (created inactive)", params: idParam, status: 201, audit: audit("shipping_zone.duplicated") }, c.duplicate)
   .post("/:id/toggle", { summary: "Activate / deactivate", params: idParam, audit: audit("shipping_zone.toggled") }, c.toggle)
   .delete("/:id", { summary: "Delete zone", params: idParam, audit: audit("shipping_zone.deleted") }, c.remove)

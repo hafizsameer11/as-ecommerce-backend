@@ -30,21 +30,32 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 | Support | support/notifications (customer inbox + preferences) + staff bell + notification-settings | ✅ | `notify()` and `notifyStaff()` helpers |
 | Marketing | marketing/messaging admin (templates, push blasts) | ✅ | |
 | Marketing | marketing/segments, campaigns | ✅ | open/click tracking, unsubscribe; segment coupons now work |
-| Marketing | marketing/banners, announcements, slots (+ impressions) | 🟡 next | plan §5.9 |
-| Content | content/pages (CMS), faqs, blog, seo, media library API | ⬜ | media upload service exists; plan §5.11 |
-| Platform | platform/activity feed, app-config, global-search | ⬜ | plan §5.12 |
-| Insights | analytics events + rollups, dashboard, analytics screens, reports | ⬜ | plan §5.12 |
+| Marketing | marketing/banners, announcements, slots (+ impressions) | ✅ | seeded from the storefront; `/store/home` includes slots |
+| Content | content/pages (CMS), faqs, blog, seo (robots, sitemap, redirects), media library API | ✅ | storefront policy pages seeded; business numbers filled from settings |
+| Platform | platform/activity feed, app-config (+ consent, app-download offer), global-search | ✅ | |
+| Insights | analytics events + rollups, dashboard, analytics screens, reports (CSV/XLSX/PDF, scheduled email) | ✅ | report files stored privately, streamed with auth |
 | Hardening | real payment provider, refund/transfer webhooks, websocket chat, S3 storage (if >1 server), backups, monitoring | ⬜ | plan §10, §13 |
 
 ## Phase order from here
 
 | Phase | Scope | Status |
 |---|---|---|
-| 6 | Support (tickets, feedback, notifications centre, staff bell, notification settings) + marketing (templates admin, push blasts, segments, campaigns, banners, announcements, slots) | 🟡 next |
-| 7 | Content (CMS pages, FAQs, blog, SEO, media library) + activity feed, app-config, global search | ⬜ |
-| 8 | Analytics events + rollups, dashboard, analytics screens, reports | ⬜ |
-| 9 | Hardening for launch | ⬜ |
+| 6 | Support (tickets, feedback, notifications centre, staff bell, notification settings) + marketing (templates admin, push blasts, segments, campaigns, banners, announcements, slots) | ✅ |
+| 7 | Content (CMS pages, FAQs, blog, SEO, media library) + activity feed, app-config, global search | ✅ |
+| 8 | Analytics events + rollups, dashboard, analytics screens, reports | ✅ |
+| 9 | Hardening for launch — see list below | 🟡 next |
 | — | Frontend wiring: replace each zustand mock store in asl-web / asl-mobile / asl-admin with API calls | ⬜ separate work, not started |
+
+## Remaining backend work (hardening)
+
+1. **Real payment provider** (Paystack or Flutterwave): new class implementing `PaymentProvider` in `src/providers/payment/`, plus webhooks for refunds and transfers (today the mock settles them instantly).
+2. **Concierge refunds after payment** (D12) and **concierge cart edit endpoints**.
+3. **Websocket chat** (concierge + live admin activity) — today apps poll.
+4. **Push preferences everywhere**: older listeners call `messaging.push` directly and ignore customer preferences; route them through `notify()`.
+5. **Missing events**: `payout.pending` (payouts sync), `catalog.updated`, club tier upgrade → inbox row.
+6. **Unseeded notification rules** the admin UI lists: `order_risk`, `customer_vip`, `finance_payout`, `system_role`, `system_backup`.
+7. **Shipping labels PDF / carrier webhooks**, **CSV import of draft orders**, **GET /payouts/providers**.
+8. **Ops**: S3/R2 storage driver if more than one server, Redis-backed rate limits, backups, monitoring, load test, admin URL env for links in staff emails.
 
 ## How to continue a module by hand
 
@@ -57,4 +68,6 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 
 ## Change log
 - Phases 0–5 delivered (identity → concierge), 144 e2e tests.
+- Phases 7–8: activity feed, app config, consent, app-download offer, global search, analytics ingest + rollups, dashboard, analytics screens, reports. Missing `/uploads/...` files now 404 instead of 500. Private report storage volume added to docker-compose.
+- Phase 6 part 2 + content: banners, announcements, slots, impressions; CMS pages, FAQs, blog, SEO, media library. Fixed a cross-cutting bug: PATCH bodies built with zod `.partial()` re-applied create defaults (silently resetting fields) — all now use `patchOf()` from `src/core/http/patch-schema.ts`.
 - Phase 6 part 1: support tickets, feedback, customer notification centre, staff bell + notification settings, message templates admin, push blasts, segments, campaigns.

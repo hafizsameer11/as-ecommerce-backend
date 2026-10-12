@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const addressBody = z.object({
   label: z.string().trim().min(1).max(40).default("Home"),
@@ -14,7 +15,7 @@ export const addressBody = z.object({
   postalCode: z.string().trim().max(20).nullable().optional(),
   isDefault: z.boolean().optional(),
 });
-export const addressPatch = addressBody.partial();
+export const addressPatch = patchOf(addressBody);
 
 export const adminAddressQuery = pageQuery.extend({
   tab: z.enum(["all", "shipping", "billing", "pickup", "flagged", "unverified"]).default("all"),

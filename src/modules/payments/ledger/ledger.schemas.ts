@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 const accountType = z.enum(["asset", "liability", "equity", "revenue", "expense"]);
 const source = z.enum(["order", "refund", "payout", "fee", "adjustment", "tax", "wallet", "manual"]);
@@ -34,7 +35,7 @@ export const entryBody = z.object({
   status: z.enum(["draft", "posted"]).default("posted"),
   lines: z.array(lineInput).min(2).max(100),
 });
-export const entryPatch = entryBody.omit({ status: true }).partial();
+export const entryPatch = patchOf(entryBody.omit({ status: true }));
 
 export const entriesQuery = pageQuery.extend({
   source: source.optional(),

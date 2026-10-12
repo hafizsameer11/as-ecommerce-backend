@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 const FIELDS = ["spend", "orders", "aov", "concierge", "tier", "status", "country", "city", "tags", "marketingOptIn", "lastOrderAt", "createdAt"] as const;
 const OPS = ["eq", "neq", "gt", "lt", "gte", "lte", "in", "contains", "within_days", "before_days"] as const;
@@ -21,7 +22,7 @@ const segmentBase = z.object({
 });
 
 export const segmentBody = segmentBase;
-export const segmentPatch = segmentBase.partial();
+export const segmentPatch = patchOf(segmentBase);
 export const rulesBody = z.object({ match: z.enum(["all", "any"]).default("all"), rules: z.array(segmentRule).max(30) });
 
 export const segmentListQuery = pageQuery.extend({

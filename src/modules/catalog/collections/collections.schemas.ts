@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const collectionSlotQuery = z.object({ slot: z.enum(["hero", "home_row_1", "home_row_2", "shop_hub"]) });
 export const collectionAdminQuery = z.object({ q: z.string().optional(), status: z.enum(["active", "scheduled", "draft", "archived"]).optional() });
@@ -16,7 +17,7 @@ export const collectionBody = z.object({
   sortOrder: z.enum(["manual", "newest", "price_asc", "price_desc", "bestseller"]).optional(), tags: z.array(z.string().max(40)).max(20).optional(),
   scheduledFor: z.string().datetime().nullable().optional(),
 });
-export const collectionPatch = collectionBody.partial();
+export const collectionPatch = patchOf(collectionBody);
 
 export type CollectionSlotQuery = z.infer<typeof collectionSlotQuery>;
 export type CollectionAdminQuery = z.infer<typeof collectionAdminQuery>;

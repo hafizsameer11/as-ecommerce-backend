@@ -6,3 +6,5 @@ uploads/*
 src/generated
 coverage
 .test-uploads
+uploads-private/
+.test-uploads-private/

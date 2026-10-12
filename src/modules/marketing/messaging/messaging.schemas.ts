@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 const CHANNELS = ["email", "push", "sms", "whatsapp"] as const;
 const CATEGORIES = ["transactional", "lifecycle", "concierge", "system"] as const;
@@ -56,7 +57,7 @@ export const blastBody = blastBase
   .extend({ status: z.enum(["draft", "scheduled"]).default("draft") })
   .refine((b) => b.audience !== "segment" || !!b.segmentId, { message: "Choose a segment", path: ["segmentId"] })
   .refine((b) => b.status !== "scheduled" || !!b.scheduledFor, { message: "Pick a send time", path: ["scheduledFor"] });
-export const blastPatch = blastBase.partial();
+export const blastPatch = patchOf(blastBase);
 export const scheduleBody = z.object({ scheduledFor: z.coerce.date() });
 export const pushOpenedBody = z.object({ blastId: z.string().min(1).max(64) });
 

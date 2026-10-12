@@ -56,7 +56,7 @@ export function createApp() {
   app.use(express.json({ limit: "1mb", verify: (req, _res, buf) => ((req as any).rawBody = buf) }));
   app.use(express.urlencoded({ extended: false }));
 
-  app.use("/uploads", express.static(path.resolve(env.UPLOAD_DIR), { maxAge: "30d", immutable: true, fallthrough: false }));
+  app.use("/uploads", express.static(path.resolve(env.UPLOAD_DIR), { maxAge: "30d", immutable: true }));
 
   app.get("/health", async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;

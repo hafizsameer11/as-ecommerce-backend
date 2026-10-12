@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
 import { settingsSchemas } from "@/modules/platform/settings/settings.defaults";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const REFERRAL_STATUSES = ["pending", "qualified", "rewarded", "expired", "flagged", "rejected"] as const;
 export const CHANNELS = ["link", "whatsapp", "email", "sms", "instagram"] as const;
@@ -22,7 +23,7 @@ export const advocateListQuery = pageQuery.extend({
 });
 export const advocateStatusBody = z.object({ status: z.enum(["active", "paused", "banned"]) });
 export const noteBody = z.object({ note: z.string().trim().max(500).optional() }).default({});
-export const configBody = settingsSchemas.referrals.partial();
+export const configBody = patchOf(settingsSchemas.referrals);
 
 export type ReferralListQuery = z.infer<typeof referralListQuery>;
 export type AdvocateListQuery = z.infer<typeof advocateListQuery>;

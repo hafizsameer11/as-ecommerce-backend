@@ -90,6 +90,9 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "It's drop day", body: "{{productName}} is live. Pay your {{balance}} balance by {{dueBy}}." },
   { code: "reservation.expired", name: "Drop reservation expired", channel: "email", category: "transactional", trigger: "reservation.expired",
     subject: "Your reservation {{reservationNumber}} has expired", body: "Hi {{firstName}},\n\nThe balance for {{productName}} wasn't paid by {{dueBy}}, so the reservation has expired. {{depositText}}", ctaLabel: "View reservation", linkTo: "{{reservationUrl}}" },
+  // ── staff: scheduled reports ──
+  { code: "report.ready", name: "Scheduled report", channel: "email", category: "system", trigger: "report.scheduled",
+    subject: "{{reportName}} · {{period}}", body: "Hello,\n\nYour {{schedule}} report \"{{reportName}}\" for {{period}} is attached ({{files}}, {{rows}} rows).\n\nGenerated {{generatedAt}} UTC by ASL ORIGINALS Admin. Change the schedule or recipients in Admin → Reports." },
   { code: "reservation.cancelled", name: "Drop reservation cancelled", channel: "email", category: "transactional", trigger: "reservation.cancelled",
     subject: "Reservation {{reservationNumber}} cancelled", body: "Hi {{firstName}},\n\nYour reservation for {{productName}} has been cancelled. {{depositText}}", ctaLabel: "View reservation", linkTo: "{{reservationUrl}}" },
 ];

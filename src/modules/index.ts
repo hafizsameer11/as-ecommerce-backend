@@ -8,6 +8,10 @@ import { adminAuthRoutes, adminMeRoutes } from "./identity/admin-auth/admin-auth
 import { teamAdminRoutes } from "./identity/team/team.routes";
 import { settingsAdminRoutes, settingsStoreRoutes } from "./platform/settings/settings.routes";
 import { auditAdminRoutes } from "./platform/audit/audit.routes";
+import { activityAdminRoutes } from "./platform/activity/activity.routes";
+import { registerActivityListeners } from "./platform/activity/activity.listeners";
+import { appConfigAdminRoutes, appConfigStoreRoutes } from "./platform/app-config/app-config.routes";
+import { globalSearchAdminRoutes } from "./platform/global-search/global-search.routes";
 import { productsAdminRoutes, productsStoreRoutes } from "./catalog/products/products.routes";
 import { categoriesAdminRoutes, categoriesStoreRoutes } from "./catalog/categories/categories.routes";
 import { brandsAdminRoutes, brandsStoreRoutes, conciergeBrandsStoreRoutes } from "./catalog/brands/brands.routes";
@@ -62,6 +66,21 @@ import { registerStaffAlertListeners } from "./platform/notification-settings/no
 import { messagingAdminRoutes, pushOpensStoreRoutes } from "./marketing/messaging/messaging.routes";
 import { segmentsAdminRoutes } from "./marketing/segments/segments.routes";
 import { campaignsAdminRoutes, campaignTrackingRoutes, unsubscribeRoutes } from "./marketing/campaigns/campaigns.routes";
+import { bannersAdminRoutes, bannersStoreRoutes } from "./marketing/banners/banners.routes";
+import { announcementsAdminRoutes, announcementsStoreRoutes } from "./marketing/announcements/announcements.routes";
+import { slotsAdminRoutes, slotsStoreRoutes } from "./marketing/slots/slots.routes";
+import { impressionsStoreRoutes } from "./marketing/impressions/impressions.routes";
+import { pagesAdminRoutes, pagesStoreRoutes } from "./content/pages/pages.routes";
+import { faqsAdminRoutes, faqsStoreRoutes } from "./content/faqs/faqs.routes";
+import { blogAdminRoutes, blogStoreRoutes } from "./content/blog/blog.routes";
+import { seoAdminRoutes, seoPublicRoutes, seoStoreRoutes } from "./content/seo/seo.routes";
+import { mediaAdminRoutes } from "./content/media/media.routes";
+import { registerContentJobs } from "./content/content.jobs";
+import { analyticsAdminRoutes, eventsStoreRoutes } from "./platform/analytics/analytics.routes";
+import { registerAnalyticsListeners } from "./platform/analytics/analytics.listeners";
+import { dashboardAdminRoutes } from "./platform/dashboard/dashboard.routes";
+import { reportsAdminRoutes } from "./platform/reports/reports.routes";
+import { registerReportJobs } from "./platform/reports/reports.service";
 
 export const moduleRouters: ModuleRouter[] = [
   // identity
@@ -75,6 +94,10 @@ export const moduleRouters: ModuleRouter[] = [
   settingsStoreRoutes,
   settingsAdminRoutes,
   auditAdminRoutes,
+  activityAdminRoutes,
+  appConfigStoreRoutes,
+  appConfigAdminRoutes,
+  globalSearchAdminRoutes,
   // catalog (order matters: specific paths before /products/:id)
   homeStoreRoutes,
   stockAlertsStoreRoutes,
@@ -171,6 +194,30 @@ export const moduleRouters: ModuleRouter[] = [
   campaignsAdminRoutes,
   campaignTrackingRoutes,
   unsubscribeRoutes,
+  // merchandising: banners, announcement bar, page slots (+ storefront counters)
+  bannersStoreRoutes,
+  bannersAdminRoutes,
+  announcementsStoreRoutes,
+  announcementsAdminRoutes,
+  slotsStoreRoutes,
+  slotsAdminRoutes,
+  impressionsStoreRoutes,
+  // content: CMS pages + navigation, FAQs, blog, SEO (+ robots.txt / sitemap.xml), media library
+  pagesStoreRoutes,
+  pagesAdminRoutes,
+  faqsStoreRoutes,
+  faqsAdminRoutes,
+  blogStoreRoutes,
+  blogAdminRoutes,
+  seoStoreRoutes,
+  seoAdminRoutes,
+  seoPublicRoutes,
+  mediaAdminRoutes,
+  // insights: storefront events, dashboard, analytics screens
+  eventsStoreRoutes,
+  dashboardAdminRoutes,
+  analyticsAdminRoutes,
+  reportsAdminRoutes,
 ];
 
 /** side-effect imports: event listeners + job processors */
@@ -182,4 +229,7 @@ export async function registerListeners() {
   registerConciergeListeners();
   registerClubListeners(); registerReferralListeners();
   registerTicketListeners(); registerNotificationListeners(); registerStaffAlertListeners();
+  registerContentJobs();
+  registerAnalyticsListeners(); registerReportJobs();
+  registerActivityListeners();
 }

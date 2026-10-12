@@ -92,8 +92,9 @@ Money is always integer **kobo** (₦1 = 100). Actions that create money movemen
 | 3 | Cart, wishlist, addresses, coupons, shipping zones, pick-up stores, tax, checkout, orders, payments (mock gateway + webhooks), saved cards, wallet | Done |
 | 4 | Shipments + tracking, pick-up bookings, returns/RMA, invoices + packing slips (PDF), draft orders + pay links, abandoned carts + reminders, ledger (auto journals), payouts, admin customers, customer order emails/push | Done |
 | 5 | ASL Club (points, tiers, rewards), referrals, drop reservations with deposits, concierge (requests, quotes, payments, chat, suppliers, SLA) | Done |
-| 6 | Support tickets, notifications centre, marketing (templates, push blasts, segments, campaigns, banners, slots, announcements) | In progress |
-| 7+ | Content (CMS/FAQ/blog/SEO), activity feed, app config, global search, analytics, reports, hardening | Planned |
+| 6 | Support tickets, notifications centre, staff alerts, marketing (templates, push blasts, segments, campaigns, banners, slots, announcements), content (CMS, FAQs, blog, SEO, media) | Done |
+| 7 | Activity feed, app config, global search, analytics, dashboard, reports | Done |
+| 8 | Hardening for launch (real payment provider, websockets, backups, monitoring) — list in docs/PROGRESS.md | Next |
 
 **Where things stand right now, module by module: [`docs/PROGRESS.md`](docs/PROGRESS.md).** How code is written: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 

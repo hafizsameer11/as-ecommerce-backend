@@ -221,10 +221,15 @@ model Slot {
   status      PlacementStatus @default(draft)
   device      DeviceTarget    @default(all)
   audience    String          @default("all")
+  /// small label above the headline ("NEW SEASON", "Concierge")
+  eyebrow     String?
   headline    String
   subhead     String?
   cta         String?
   linkTo      String?
+  /// optional second button (storefront promo banners: "How It Works", "All Brands")
+  secondaryCta    String?
+  secondaryLinkTo String?
   imageUrl    String?         @db.VarChar(1024)
   imageColor  String?
   accent      String?

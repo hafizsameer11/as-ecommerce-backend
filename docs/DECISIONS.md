@@ -67,6 +67,15 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Staff alerts | Bell row per admin. Email only for high/critical rules by default, held during quiet hours 22:00–07:00 unless critical |
 | Campaigns | Email/SMS only to customers who opted in to marketing; never to blocked/deleted accounts. Click links may only point to the storefront/API hosts. Unsubscribe link shows a confirm button (so email scanners can't unsubscribe people) |
 
+| CMS policy pages | Return window, delivery fees/times, free-shipping threshold, store hours, payment methods and concierge response times are filled from settings at request time, so the pages can't drift again |
+
+| Analytics days | All business days are Lagos days. A sale counts on the day it was paid; refunds on the day the money went back. Purchases are recorded by the server, never trusted from the app |
+| App download offer | Signed-in customers claim a personal 10 % code once (setting `app.downloadOffer`). The web currently hard-codes APP10, which only works in the mobile app |
+
+### Old storefront copy that contradicted the backend (now replaced)
+Shipping page fees ₦5k/₦15k/₦10k → zone fees · delivery "7–14 days" → per-zone times · return window 14 days / "3–7 days" → 7 · order cancel "within 24 h" / "within 1 h" → until it ships · "shipping refunded if our error" → shipping never refunded · fragrances non-returnable "once opened" → never · store hours Mon–Fri 9–7 → settings · concierge reply "2–6 h" → SLA settings · Apple Pay / Google Pay / Amex listed → only enabled methods.
+Still hard-coded in **asl-web** and wrong until it reads the API: free shipping shown as ₦50,000 (order summary, product page) and ₦1,000,000 (product shipping text).
+
 ## Open business decisions (defaults in place until decided)
 
 | # | Question | Current default |
@@ -74,6 +83,8 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | D4 | Drop deposit when the balance is never paid | **Kept (forfeited)** by default; setting `drops.depositRefundable = true` refunds it instead |
 | D10 | Value of 1 point | ₦5 (from the redeem page: 500 pts = ₦2,500). The UIs disagree — confirm |
 | D11 | Drop deposit % | 20 % per drop (admin-editable). The web and admin UIs hard-code **50 %** — pick one; the apps must read it from the API |
+| D13 | Return policy text says sale / clearance / limited-edition items can't be returned | The backend does **not** block them yet — confirm the rule, then add those categories/flags |
+| D14 | Gift cards | Mentioned in an FAQ but no feature exists — FAQ seeded as draft |
 | D12 | Concierge refunds after payment | Not built yet — once money is in, a request can't be cancelled from the system; handle manually for now |
 | D5 | Guest checkout | Off (setting exists: `checkout.guestCheckout`) |
 | D6 | Charge in foreign currencies? | No — display conversion only, settle in NGN |

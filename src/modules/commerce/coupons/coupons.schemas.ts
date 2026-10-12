@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 const couponBase = z.object({
     code: z.string().trim().min(3).max(40).regex(/^[A-Za-z0-9_-]+$/, "Letters, numbers, - and _ only").transform((s) => s.toUpperCase()),
@@ -32,7 +33,7 @@ export const couponBody = couponBase
   .refine((c) => c.type !== "fixed" || c.value > 0, { message: "Enter an amount", path: ["value"] })
   .refine((c) => !c.startsAt || !c.endsAt || c.endsAt > c.startsAt, { message: "End date must be after start date", path: ["endsAt"] });
 
-export const couponPatch = couponBase.partial();
+export const couponPatch = patchOf(couponBase);
 
 export const couponListQuery = pageQuery.extend({
   status: z.enum(["all", "active", "scheduled", "expired", "paused", "draft"]).default("all"),

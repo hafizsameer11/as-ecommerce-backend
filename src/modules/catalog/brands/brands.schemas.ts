@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const brandStoreQuery = z.object({ q: z.string().max(80).optional(), featured: z.coerce.boolean().optional() });
 export const conciergeBrandQuery = z.object({ q: z.string().max(80).optional() });
@@ -16,7 +17,7 @@ export const brandBody = z.object({
   logoInitial: z.string().max(4).nullable().optional(), accent: z.string().max(16).nullable().optional(), website: z.string().max(190).nullable().optional(),
   seoTitle: z.string().max(190).nullable().optional(), seoDescription: z.string().max(500).nullable().optional(),
 });
-export const brandPatch = brandBody.partial();
+export const brandPatch = patchOf(brandBody);
 
 export type BrandStoreQuery = z.infer<typeof brandStoreQuery>;
 export type ConciergeBrandQuery = z.infer<typeof conciergeBrandQuery>;

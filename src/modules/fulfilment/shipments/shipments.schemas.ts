@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const CARRIERS = ["DHL", "FedEx", "UPS", "GIG", "Aramex", "Local", "InHouse"] as const;
 export const SHIPMENT_STATUSES = ["label_created", "picked_up", "in_transit", "out_for_delivery", "delivered", "exception", "returned"] as const;
@@ -25,7 +26,7 @@ const shipmentFields = {
 export const fulfilBody = z.object(shipmentFields);
 /** POST /admin/shipments (same as fulfil, order in the body) */
 export const createShipmentBody = fulfilBody.extend({ orderId: z.string().min(1).max(64) });
-export const updateShipmentBody = z.object(shipmentFields).partial();
+export const updateShipmentBody = patchOf(z.object(shipmentFields));
 export const advanceBody = z.object({
   status: z.enum(SHIPMENT_STATUSES),
   location: z.string().trim().min(1).max(120),

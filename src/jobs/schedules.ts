@@ -26,4 +26,14 @@ export async function registerSchedules() {
   // marketing: due scheduled campaigns (→ sending → batches → sent) and push blasts
   await scheduleRepeating("campaigns.dispatch", 60_000);
   await scheduleRepeating("blasts.dispatch", 60_000);
+  // banners / announcements / slots: scheduled → live at startsAt, → expired at endsAt
+  await scheduleRepeating("merch.schedule", 60_000);
+  // CMS pages + blog posts: scheduled → published at scheduledFor
+  await scheduleRepeating("content.publish-scheduled", 60_000);
+  // insights: daily rollups (hourly: yesterday + today; nightly: last 3 closed days), scheduled reports emailed
+  await scheduleRepeating("analytics.rollup", 3_600_000);
+  await scheduleRepeating("analytics.rollup-nightly", 24 * 3_600_000);
+  await scheduleRepeating("reports.scheduled", 15 * 60_000);
+  // admin activity feed: keep 90 days
+  await scheduleRepeating("activity.prune", 24 * 3_600_000);
 }

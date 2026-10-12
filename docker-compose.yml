@@ -41,7 +41,7 @@ services:
       REDIS_URL: redis://redis:6379
       SMTP_HOST: mailpit
     ports: ["4000:4000"]
-    volumes: [uploads:/app/uploads]
+    volumes: [uploads:/app/uploads, reports:/app/uploads-private]
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_started }
@@ -55,7 +55,7 @@ services:
       DATABASE_URL: mysql://asl:asl@mysql:3306/asl
       REDIS_URL: redis://redis:6379
       SMTP_HOST: mailpit
-    volumes: [uploads:/app/uploads]
+    volumes: [uploads:/app/uploads, reports:/app/uploads-private]
     depends_on: [api]
     command: node dist/worker.js
 
@@ -63,3 +63,5 @@ volumes:
   mysql-data:
   redis-data:
   uploads:
+  # private report files (finance / customer exports) — never served publicly
+  reports:

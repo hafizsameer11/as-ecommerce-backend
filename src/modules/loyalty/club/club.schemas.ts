@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
 import { settingsSchemas } from "@/modules/platform/settings/settings.defaults";
+import { patchOf } from "@/core/http/patch-schema";
 
 export const TIER_IDS = ["Standard", "Silver", "Gold", "Signature"] as const;
 export const REWARD_CATEGORIES = ["shipping", "credit", "experience", "product", "concierge", "coupon"] as const;
@@ -24,7 +25,7 @@ export const tierPatch = z.object({
   active: z.boolean().optional(),
 });
 
-export const rulesBody = settingsSchemas.club.partial();
+export const rulesBody = patchOf(settingsSchemas.club);
 
 const rewardBase = z.object({
   title: z.string().trim().min(1).max(120),
@@ -42,7 +43,7 @@ const rewardBase = z.object({
 export const rewardBody = rewardBase
   .refine((r) => r.category !== "credit" || (r.value ?? 0) > 0, { message: "Enter the credit amount", path: ["value"] })
   .refine((r) => r.category !== "coupon" || ((r.value ?? 0) >= 1 && (r.value ?? 0) <= 100), { message: "Percent must be 1–100", path: ["value"] });
-export const rewardPatch = rewardBase.partial();
+export const rewardPatch = patchOf(rewardBase);
 export const rewardListQuery = pageQuery.extend({
   category: z.enum(REWARD_CATEGORIES).optional(),
   active: z.enum(["true", "false"]).transform((v) => v === "true").optional(),

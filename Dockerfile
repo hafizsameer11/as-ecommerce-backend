@@ -18,7 +18,7 @@ COPY --from=build /app/src/generated ./src/generated
 COPY --from=build /app/src/assets ./src/assets
 COPY prisma ./prisma
 COPY prisma.config.ts ./
-RUN mkdir -p uploads && chown -R node:node /app
+RUN mkdir -p uploads uploads-private && chown -R node:node /app
 USER node
 EXPOSE 4000
 HEALTHCHECK CMD node -e "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

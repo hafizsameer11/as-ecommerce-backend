@@ -2,6 +2,8 @@ import { prisma } from "../../src/core/db/prisma";
 import { hashPassword } from "../../src/core/auth/password";
 import { seedReferenceData } from "./reference";
 import { seedCatalog } from "./catalog";
+import { seedMerchandising } from "./merchandising";
+import { seedContent } from "./content";
 
 async function main() {
   await seedReferenceData(prisma);
@@ -17,6 +19,8 @@ async function main() {
   console.log(`admin ✓  ${email} / ${password}  (change it after first login)`);
 
   await seedCatalog(prisma);
+  await seedMerchandising(prisma);
+  await seedContent(prisma);
 
   // demo customer used across the prototype screens
   const demo = "john.doe@example.com";

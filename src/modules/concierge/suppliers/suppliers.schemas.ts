@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 const tier = z.enum(["diamond", "platinum", "gold", "silver"]);
 const status = z.enum(["active", "paused", "blocked", "pending"]);
@@ -40,7 +41,7 @@ export const supplierBody = fields.extend({
   onTimeRate: z.number().min(0).max(100).optional(),
   fulfillmentRate: z.number().min(0).max(100).optional(),
 });
-export const supplierPatch = fields.partial();
+export const supplierPatch = patchOf(fields);
 
 export const suppliersQuery = pageQuery.extend({
   tab: z.enum(["all", "active", "pending", "paused", "blocked"]).default("all"),

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pageQuery } from "@/core/http/pagination";
+import { patchOf } from "@/core/http/patch-schema";
 
 const money = z.number().int().min(0).max(100_000_000_000);
 
@@ -22,7 +23,7 @@ export const createQuoteBody = z.object({
   /** hours; default `concierge.quoteValidityHours` */
   validityHours: z.number().int().min(1).max(24 * 30).optional(),
 });
-export const reviseQuoteBody = createQuoteBody.partial().extend({ lines: z.array(quoteLine).min(1).max(20).optional() });
+export const reviseQuoteBody = patchOf(createQuoteBody).extend({ lines: z.array(quoteLine).min(1).max(20).optional() });
 export const withdrawBody = z.object({ reason: z.string().trim().max(500).optional() });
 
 export const quoteTabs = ["all", "pending", "accepted", "paid", "expired", "declined"] as const;

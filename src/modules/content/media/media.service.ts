@@ -1,6 +1,9 @@
 import sharp, { type Sharp, type Metadata } from "sharp";
 import { prisma } from "@/core/db/prisma";
 import { ApiError } from "@/core/http/errors";
+import { pageMeta, paging } from "@/core/http/pagination";
+import { withMeta } from "@/core/http/router";
+import type { MediaAsset, MediaUsage, Prisma } from "@/generated/prisma/client";
 import { newStorageKey, storage } from "@/providers/storage/storage";
 
 const SIZES = { sm: 320, md: 800, lg: 1600 } as const;
@@ -72,4 +75,92 @@ async function syncUsage(entityType: string, entityId: string, urls: (string | n
   ]);
 }
 
-export const mediaService = { upload, remove, syncUsage };
+/* ── admin media library (asl-admin /media) ─────────────────────────── */
+
+export type MediaListQuery = { page: number; pageSize: number; q?: string; sort?: string; folder?: string; type?: "image" | "video" | "document"; starred?: boolean };
+export type MediaPatch = { name?: string; altText?: string; tags?: string[]; folder?: string };
+
+const mediaOut = (a: MediaAsset & { usages?: MediaUsage[] }) => ({
+  id: a.id,
+  name: a.name,
+  url: a.url,
+  variants: (a.variants as Record<string, string> | null) ?? {},
+  mimeType: a.mimeType,
+  type: a.type,
+  folder: a.folder,
+  sizeBytes: a.sizeBytes,
+  sizeKB: Math.round(a.sizeBytes / 1024),
+  width: a.width,
+  height: a.height,
+  altText: a.altText,
+  tags: (a.tags as string[] | null) ?? [],
+  starred: a.starred,
+  uploadedBy: a.uploadedBy,
+  uploadedAt: a.createdAt,
+  usedIn: (a.usages ?? []).map((u) => ({ entityType: u.entityType, entityId: u.entityId })),
+});
+
+async function list(q: MediaListQuery) {
+  const base: Prisma.MediaAssetWhereInput = {
+    ...(q.type ? { type: q.type } : {}),
+    ...(q.starred !== undefined ? { starred: q.starred } : {}),
+    ...(q.q ? { OR: [{ name: { contains: q.q } }, { altText: { contains: q.q } }] } : {}),
+  };
+  const where = { ...base, ...(q.folder ? { folder: q.folder } : {}) };
+  const sort = q.sort === "name" ? { name: "asc" as const } : q.sort === "size" ? { sizeBytes: "desc" as const } : { createdAt: "desc" as const };
+  const [rows, total, folders, size] = await Promise.all([
+    prisma.mediaAsset.findMany({ where, include: { usages: true }, orderBy: sort, ...paging(q) }),
+    prisma.mediaAsset.count({ where }),
+    prisma.mediaAsset.groupBy({ by: ["folder"], where: base, _count: true }),
+    prisma.mediaAsset.aggregate({ _sum: { sizeBytes: true }, _count: true }),
+  ]);
+  return withMeta(rows.map(mediaOut), {
+    ...pageMeta(q, total),
+    folders: Object.fromEntries(folders.map((f) => [f.folder, f._count])),
+    kpis: { assets: size._count, totalBytes: size._sum.sizeBytes ?? 0 },
+  });
+}
+
+async function get(id: string) {
+  const a = await prisma.mediaAsset.findUnique({ where: { id }, include: { usages: true } });
+  if (!a) throw ApiError.notFound("File");
+  return mediaOut(a);
+}
+
+async function uploadMany(files: UploadInput[], folder: string, uploadedBy: string, altText = "", tags: string[] = []) {
+  if (!files.length) throw ApiError.badRequest("VALIDATION_FAILED", "Choose at least one file.", [{ path: "files", message: "Required" }]);
+  const out = [];
+  for (const f of files) {
+    const a = await upload(f, folder, uploadedBy, altText);
+    out.push(tags.length ? await prisma.mediaAsset.update({ where: { id: a.id }, data: { tags } }) : a);
+  }
+  return out.map((a) => mediaOut(a));
+}
+
+async function update(id: string, patch: MediaPatch) {
+  const before = await get(id);
+  const a = await prisma.mediaAsset.update({ where: { id }, data: patch, include: { usages: true } });
+  return { before, after: mediaOut(a) };
+}
+
+async function toggleStar(id: string) {
+  const a = await get(id);
+  return mediaOut(await prisma.mediaAsset.update({ where: { id }, data: { starred: !a.starred }, include: { usages: true } }));
+}
+
+async function move(ids: string[], folder: string) {
+  const r = await prisma.mediaAsset.updateMany({ where: { id: { in: ids } }, data: { folder } });
+  return { moved: r.count, folder };
+}
+
+/** all-or-nothing: refused while any file is in use, unless force */
+async function bulkRemove(ids: string[], force = false) {
+  const assets = await prisma.mediaAsset.findMany({ where: { id: { in: ids } }, include: { usages: true } });
+  const used = assets.filter((a) => a.usages.length);
+  if (used.length && !force)
+    throw ApiError.conflict("CONFLICT", `${used.length} file(s) are in use. Remove them there first or delete with force.`, used.map((a) => ({ id: a.id, name: a.name, usedIn: a.usages.length })));
+  for (const a of assets) await remove(a.id, true);
+  return { deleted: assets.length, notFound: ids.filter((id) => !assets.some((a) => a.id === id)) };
+}
+
+export const mediaService = { upload, remove, syncUsage, list, get, uploadMany, update, toggleStar, move, bulkRemove };
