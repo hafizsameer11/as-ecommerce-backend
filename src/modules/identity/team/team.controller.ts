@@ -13,7 +13,7 @@ export const teamController = {
     return r;
   },
   update: async ({ params, body, admin, res }: Ctx<MemberPatch, unknown, Id>) => {
-    const r = await svc.update(params.id, body, admin.id);
+    const r = await svc.update(params.id, body, admin.id, admin.name);
     res.locals.audit = { entityId: params.id, before: r.before, after: r.after, summary: `Updated ${r.after.email}` };
     return r.after;
   },
@@ -25,6 +25,6 @@ export const teamController = {
   resendInvite: ({ params, admin }: Ctx<unknown, unknown, Id>) => svc.resendInvite(params.id, admin.name),
   roles: async () => Promise.all(await svc.roles()),
   permissions: () => PERMISSIONS,
-  setRolePermissions: ({ params, body }: Ctx<RolePermissionsBody, unknown, RoleParam>) => svc.setRolePermissions(params.role, body.permissions),
-  resetRolePermissions: ({ params }: Ctx<unknown, unknown, RoleParam>) => svc.resetRolePermissions(params.role),
+  setRolePermissions: ({ params, body, admin }: Ctx<RolePermissionsBody, unknown, RoleParam>) => svc.setRolePermissions(params.role, body.permissions, admin.name),
+  resetRolePermissions: ({ params, admin }: Ctx<unknown, unknown, RoleParam>) => svc.resetRolePermissions(params.role, admin.name),
 };

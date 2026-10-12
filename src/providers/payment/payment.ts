@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { env } from "@/config/env";
+import { PaystackProvider } from "./paystack";
 
 export type PaymentMethodKind = "card" | "bank_transfer" | "ussd" | "saved_card" | "paystack";
 
@@ -22,17 +23,41 @@ export type IntentResult = {
 
 export type VerifyResult = { status: "success" | "failed" | "pending"; amount: number; fee: number; authorization?: CardAuthorization };
 export type CardAuthorization = { token: string; brand: string; last4: string; expMonth: number; expYear: number; bank?: string };
-export type WebhookEvent = { eventId: string; type: "charge.success" | "charge.failed" | "transfer.success" | "transfer.failed"; reference: string };
+export type WebhookEventType =
+  | "charge.success" | "charge.failed"
+  | "refund.processed" | "refund.failed"
+  | "transfer.success" | "transfer.failed" | "transfer.reversed"
+  /** anything else the gateway sends (logged, ignored) */
+  | "other";
+export type WebhookEvent = {
+  /** dedupe key (WebhookLog provider + eventId) */
+  eventId: string;
+  type: WebhookEventType;
+  /** charge: payment reference · refund: the refunded payment's reference · transfer: our transfer reference */
+  reference: string;
+  /** refund events: the gateway's refund id (Refund.providerRef) */
+  refundRef?: string;
+  amount?: number;
+  reason?: string;
+};
+export type TransferInput = { amount: number; bankCode: string; accountNumber: string; accountName?: string; reason: string; reference: string };
+/** "pending" = accepted by the gateway; the final result arrives as a transfer.* webhook */
+export type TransferResult = { status: "pending" | "success" | "failed"; transferCode?: string };
 
 /** One interface for every gateway. Paystack / Flutterwave = a new class implementing it. */
 export interface PaymentProvider {
   readonly name: string;
+  /** test keys / sandbox (shown in admin → payouts → providers) */
+  readonly testMode: boolean;
+  /** publishable key for in-app SDKs (never the secret) */
+  readonly publicKey?: string;
   createIntent(input: CreateIntentInput): Promise<IntentResult>;
   /** charge a saved card without redirect (returns final status) */
   chargeSaved(input: CreateIntentInput & { savedToken: string }): Promise<VerifyResult>;
   verify(reference: string): Promise<VerifyResult>;
+  /** "pending" = the gateway confirms later with refund.processed / refund.failed */
   refund(reference: string, amount: number): Promise<{ status: "pending" | "processed"; refundRef: string }>;
-  transfer(input: { amount: number; bankCode: string; accountNumber: string; reason: string; reference: string }): Promise<{ status: "pending" | "success" | "failed" }>;
+  transfer(input: TransferInput): Promise<TransferResult>;
   resolveAccount(bankCode: string, accountNumber: string): Promise<{ accountName: string }>;
   listBanks(): Promise<{ code: string; name: string }[]>;
   verifyWebhook(rawBody: Buffer, signature: string | undefined): boolean;
@@ -45,6 +70,8 @@ export interface PaymentProvider {
  */
 export class MockPaymentProvider implements PaymentProvider {
   readonly name = "mock";
+  readonly testMode = true;
+  readonly publicKey = undefined;
   /** reference → outcome decided on the mock checkout page */
   private outcomes = new Map<string, { status: "success" | "failed"; amount: number; authorization?: CardAuthorization }>();
 
@@ -76,8 +103,8 @@ export class MockPaymentProvider implements PaymentProvider {
   async refund(reference: string) {
     return { status: "processed" as const, refundRef: `RF_${reference}` };
   }
-  async transfer() {
-    return { status: "success" as const };
+  async transfer(): Promise<TransferResult> {
+    return { status: "success" };
   }
   async resolveAccount(_bankCode: string, accountNumber: string) {
     if (!/^\d{10}$/.test(accountNumber)) throw new Error("Invalid account number");
@@ -95,7 +122,11 @@ export class MockPaymentProvider implements PaymentProvider {
     return !!signature && signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   }
   parseWebhook(body: any): WebhookEvent {
-    return { eventId: String(body.id), type: body.event, reference: String(body.data?.reference) };
+    const d = body.data ?? {};
+    return {
+      eventId: String(body.id), type: body.event, reference: String(d.reference ?? d.transaction_reference),
+      refundRef: d.refund_reference ?? undefined, amount: d.amount, reason: d.reason,
+    };
   }
   /** Paystack-like fee: 1.5% + ₦100 (above ₦2,500), capped at ₦2,000 */
   private fee(amount: number) {
@@ -104,4 +135,17 @@ export class MockPaymentProvider implements PaymentProvider {
   }
 }
 
-export const paymentProvider: PaymentProvider = new MockPaymentProvider();
+/** picks the gateway from env at startup (env.ts already refused a missing key / mock in production) */
+export function createPaymentProvider(e: Pick<typeof env, "PAYMENT_PROVIDER" | "PAYSTACK_SECRET_KEY" | "PAYSTACK_PUBLIC_KEY" | "PAYSTACK_CALLBACK_URL">): PaymentProvider {
+  if (e.PAYMENT_PROVIDER === "paystack")
+    return new PaystackProvider({ secretKey: e.PAYSTACK_SECRET_KEY!, publicKey: e.PAYSTACK_PUBLIC_KEY, callbackUrl: e.PAYSTACK_CALLBACK_URL });
+  return new MockPaymentProvider();
+}
+
+// live binding (ESM) so tests can swap the gateway with setPaymentProvider()
+export let paymentProvider: PaymentProvider = createPaymentProvider(env);
+
+/** tests only: run a file against another gateway (e.g. Paystack with a mocked fetch) */
+export function setPaymentProvider(p: PaymentProvider) {
+  paymentProvider = p;
+}

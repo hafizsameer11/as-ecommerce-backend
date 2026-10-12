@@ -10,6 +10,7 @@ import { withMeta } from "@/core/http/router";
 import { events } from "@/core/events/bus";
 import { defineJob } from "@/core/queue/queue";
 import { logger } from "@/core/utils/logger";
+import { realtime } from "@/core/realtime/realtime";
 import { formatters, nextSequence } from "@/core/utils/sequence";
 import { formatNaira } from "@/core/utils/money";
 import { settingsService } from "@/modules/platform/settings/settings.service";
@@ -224,7 +225,16 @@ export const requestsService = {
     const found = await findRequest({ customerId, ...requestKey(id) });
     await prisma.$transaction(async (tx) => {
       const r = await lockRequest(tx, found.id);
-      if (!CUSTOMER_CANCELLABLE.includes(r.status) || r.quotes.some((q) => q.amountPaid > 0))
+      if (r.quotes.some((q) => q.amountPaid > 0)) {
+        // D12: refunds after payment are done by staff (POST /admin/concierge/requests/:id/refund)
+        const { supportEmail, supportPhone } = await settingsService.get("profile");
+        throw ApiError.conflict(
+          "INVALID_STATE",
+          `We've already received your payment for ${r.number}, so it can't be cancelled here. Please contact support (${supportEmail}, ${supportPhone}) or message your concierge and we'll arrange your refund.`,
+          { reason: "paid", supportEmail, supportPhone },
+        );
+      }
+      if (!CUSTOMER_CANCELLABLE.includes(r.status))
         throw ApiError.conflict("INVALID_STATE", "This request can no longer be cancelled. Please message your concierge.");
       await tx.conciergeQuote.updateMany({ where: { requestId: r.id, status: { in: ["sent", "accepted"] } }, data: { status: "declined", declineReason: "Request cancelled by the customer" } });
       await applyStatus(tx, r, "cancelled", "Customer", reason ? `You cancelled this request (${reason})` : "You cancelled this request");
@@ -345,7 +355,7 @@ export const requestsService = {
     if (adminId && adminId !== actor.id)
       await prisma.adminNotification.create({
         data: { adminId, title: `Request ${r.number} assigned to you`, body: `${actor.name} assigned ${[r.brand, r.itemName].filter(Boolean).join(" ")} to you.`, link: `/concierge/inbox?id=${r.id}`, priority: r.priority === "vip" ? "high" : "normal" },
-      }).catch((err) => logger.error({ err }, "assignment notification failed"));
+      }).then((n) => realtime.bell(n)).catch((err) => logger.error({ err }, "assignment notification failed"));
     return this.adminGet(r.id);
   },
 

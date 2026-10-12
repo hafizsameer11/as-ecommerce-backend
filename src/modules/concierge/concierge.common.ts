@@ -9,6 +9,7 @@ import type { ConciergePriority, ConciergeStatus, Prisma } from "@/generated/pri
 import { prisma, type Tx } from "@/core/db/prisma";
 import { ApiError } from "@/core/http/errors";
 import { logger } from "@/core/utils/logger";
+import { realtime } from "@/core/realtime/realtime";
 import type { SettingsOf } from "@/modules/platform/settings/settings.defaults";
 import { STATUS_LABELS } from "@/modules/platform/settings/status-labels";
 
@@ -125,7 +126,10 @@ export async function notifyStaff(ruleId: string, n: { title: string; body: stri
     const roles = (rule.recipients as string[]).filter((r) => !r.includes("@"));
     const data: Prisma.AdminNotificationCreateManyInput[] = roles.map((role) => ({ role, ruleId, title: n.title, body: n.body, link: n.link ?? null, priority: rule.priority }));
     if (n.adminId) data.push({ adminId: n.adminId, ruleId, title: n.title, body: n.body, link: n.link ?? null, priority: rule.priority });
-    if (data.length) await prisma.adminNotification.createMany({ data });
+    if (data.length) {
+      await prisma.adminNotification.createMany({ data });
+      realtime.bell(data);
+    }
   } catch (err) {
     logger.error({ err, ruleId }, "staff notification failed");
   }

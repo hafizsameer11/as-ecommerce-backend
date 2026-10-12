@@ -4,7 +4,7 @@ import { agentSendBody, messagesQuery, pinBody, sendBody, threadsQuery } from ".
 
 const files = { field: "attachments", maxCount: 5, maxMB: 10, accept: /^(image\/(jpeg|png|webp|gif|heic|heif|avif)|application\/pdf)$/ };
 
-/** request chat in the apps (polling — no realtime socket yet) */
+/** request chat in the apps (REST; new messages + typing also arrive on the socket, see core/realtime/realtime.ts) */
 export const conciergeChatStoreRoutes = new ModuleRouter({ surface: "store", prefix: "/concierge", tag: "Concierge chat", defaultAuth: "customer" })
   .get("/unread", { summary: "Unread concierge messages (badge)" }, c.unread)
   .get("/requests/:id/messages", { summary: "Messages, oldest first (marks agent + system messages read). Older pages: `before`", params: idParam, query: messagesQuery }, c.messages)

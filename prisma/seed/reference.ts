@@ -145,6 +145,13 @@ export async function seedReferenceData(prisma: PrismaClient) {
     ["customer_ticket", "customers", "Support ticket opened", "New customer support ticket.", ["support"], "high"],
     ["finance_failed", "finance", "Failed transaction", "Payment attempt failed after retry.", ["finance", "ops_manager"], "high"],
     ["system_login", "system", "Admin sign-in from new device", "Unrecognised device or IP.", ["super_admin"], "critical"],
+    // fired by: payout.pending / payout.paid · Signature tier or status vip · team role / status / permission edits
+    ["finance_payout", "finance", "Payout settled", "Provider confirmed a payout.", ["finance"], "normal"],
+    ["customer_vip", "customers", "New VIP customer", "Customer crossed VIP lifetime value threshold.", ["marketing", "super_admin"], "normal"],
+    ["system_role", "system", "Role or permission changed", "A team member's access was modified.", ["super_admin"], "high"],
+    // seeded for the admin screen; nothing fires them yet (no fraud engine; backups run outside the API)
+    ["order_risk", "orders", "Risk flag on order", "Fraud engine flagged a suspicious order.", ["ops_manager", "finance"], "critical"],
+    ["system_backup", "system", "Daily backup summary", "Nightly backup and integrity report.", ["super_admin"], "low"],
   ] as const;
   for (const [id, category, label, description, recipients, priority] of rules)
     await prisma.notificationRule.upsert({

@@ -26,6 +26,17 @@ export const createQuoteBody = z.object({
 export const reviseQuoteBody = patchOf(createQuoteBody).extend({ lines: z.array(quoteLine).min(1).max(20).optional() });
 export const withdrawBody = z.object({ reason: z.string().trim().max(500).optional() });
 
+/** D12: refund money received on a request (before delivery) */
+export const refundBody = z.object({
+  /** kobo; default = everything paid */
+  amount: money.refine((n) => n > 0, "Enter an amount").optional(),
+  /** original = back to the card/bank it came from; wallet = ASL Wallet (instant, account holders only) */
+  to: z.enum(["original", "wallet"]).default("original"),
+  reason: z.string().trim().min(3).max(500),
+  /** close the request (whatever is not refunded is kept as a cancellation fee). A partial refund without it lowers the price. */
+  cancelRequest: z.boolean().default(false),
+});
+
 export const quoteTabs = ["all", "pending", "accepted", "paid", "expired", "declined"] as const;
 export const adminQuotesQuery = pageQuery.extend({ tab: z.enum(quoteTabs).default("all"), requestId: z.string().max(64).optional() });
 
@@ -63,3 +74,4 @@ export type AdminQuotesQuery = z.infer<typeof adminQuotesQuery>;
 export type AcceptBody = z.infer<typeof acceptBody>;
 export type PayBalanceBody = z.infer<typeof payBalanceBody>;
 export type DeclineBody = z.infer<typeof declineBody>;
+export type RefundBody = z.infer<typeof refundBody>;

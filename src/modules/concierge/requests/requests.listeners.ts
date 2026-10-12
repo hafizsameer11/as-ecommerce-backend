@@ -1,5 +1,7 @@
 /**
  * Concierge notifications: customer e-mail (guests included) + push for app users, staff in-app notifications.
+ * E-mails to the request's contact address are transactional (always sent); pushes follow the customer's
+ * preferences (push channel + topic `concierge`).
  */
 import { env } from "@/config/env";
 import { prisma } from "@/core/db/prisma";
@@ -7,6 +9,7 @@ import { events } from "@/core/events/bus";
 import { formatNaira } from "@/core/utils/money";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
 import { STATUS_LABELS } from "@/modules/platform/settings/status-labels";
+import { preferred } from "@/modules/support/notifications/notifications.service";
 import { notifyStaff } from "../concierge.common";
 
 /** statuses the customer hears about (sourcing / quoted have their own messages) */
@@ -43,7 +46,7 @@ export function registerConciergeListeners() {
     if (!q || !c) return;
     const vars = { ...c.vars, quoteNumber: q.number, total: formatNaira(q.total), deposit: formatNaira(q.deposit), expiresAt: q.expiresAt.toUTCString() };
     await messaging.email(c.r.contactEmail, "concierge.quoted", vars);
-    if (c.r.customerId) await messaging.push(c.r.customerId, "concierge.quoted", vars, { requestId: c.r.id });
+    await preferred.push(c.r.customerId, "concierge", "concierge.quoted", vars, { requestId: c.r.id });
   });
 
   events.on("concierge.status_changed", async ({ requestId, to }) => {
@@ -51,6 +54,6 @@ export function registerConciergeListeners() {
     const c = await context(requestId);
     if (!c) return;
     await messaging.email(c.r.contactEmail, "concierge.status", c.vars);
-    if (c.r.customerId) await messaging.push(c.r.customerId, "concierge.status", c.vars, { requestId: c.r.id });
+    await preferred.push(c.r.customerId, "concierge", "concierge.status", c.vars, { requestId: c.r.id });
   });
 }

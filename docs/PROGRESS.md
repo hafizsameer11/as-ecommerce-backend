@@ -34,7 +34,7 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 | Content | content/pages (CMS), faqs, blog, seo (robots, sitemap, redirects), media library API | ✅ | storefront policy pages seeded; business numbers filled from settings |
 | Platform | platform/activity feed, app-config (+ consent, app-download offer), global-search | ✅ | |
 | Insights | analytics events + rollups, dashboard, analytics screens, reports (CSV/XLSX/PDF, scheduled email) | ✅ | report files stored privately, streamed with auth |
-| Hardening | real payment provider, refund/transfer webhooks, websocket chat, S3 storage (if >1 server), backups, monitoring | ⬜ | plan §10, §13 |
+| Hardening | Paystack + async webhooks ✅, websockets ✅, preferences ✅ · outbox for gateway calls, S3, backups, monitoring ⬜ | 🟡 | see list below |
 
 ## Phase order from here
 
@@ -48,14 +48,18 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 
 ## Remaining backend work (hardening)
 
-1. **Real payment provider** (Paystack or Flutterwave): new class implementing `PaymentProvider` in `src/providers/payment/`, plus webhooks for refunds and transfers (today the mock settles them instantly).
-2. **Concierge refunds after payment** (D12) and **concierge cart edit endpoints**.
-3. **Websocket chat** (concierge + live admin activity) — today apps poll.
-4. **Push preferences everywhere**: older listeners call `messaging.push` directly and ignore customer preferences; route them through `notify()`.
-5. **Missing events**: `payout.pending` (payouts sync), `catalog.updated`, club tier upgrade → inbox row.
-6. **Unseeded notification rules** the admin UI lists: `order_risk`, `customer_vip`, `finance_payout`, `system_role`, `system_backup`.
-7. **Shipping labels PDF / carrier webhooks**, **CSV import of draft orders**, **GET /payouts/providers**.
-8. **Ops**: S3/R2 storage driver if more than one server, Redis-backed rate limits, backups, monitoring, load test, admin URL env for links in staff emails.
+Done:
+- ✅ Paystack adapter (`PAYMENT_PROVIDER=paystack`, keys in `.env`) + async refund/transfer webhooks; mock stays the dev default (refused in production unless `ALLOW_MOCK_PAYMENTS=true`)
+- ✅ Concierge refunds after payment; `GET /admin/payouts/providers`; failed-refund retry
+- ✅ Websockets (socket.io at `/socket.io`): chat, tickets, inbox, staff bell, live activity, order status — rooms/events listed at the top of `src/core/realtime/realtime.ts`
+- ✅ Push/SMS follow customer preferences everywhere (transactional email always sends)
+- ✅ Missing events (`payout.pending`, `catalog.updated`, `club.tier_upgraded`) and the 5 missing staff rules; `ADMIN_URL` for staff-email links
+
+Still to do:
+1. **Gateway calls inside DB transactions** — `paymentsService.refund` calls the gateway inside the caller's transaction; if a later step fails, the gateway has refunded but our rows roll back. Fix: write the Refund row as `pending` in the transaction and send it to the gateway from a job after commit (outbox pattern).
+2. **Concierge cart edit endpoints**, **shipping label PDFs / carrier webhooks**, **CSV import of draft orders**.
+3. **Ops**: S3/R2 storage driver if more than one server, Redis-backed rate limits, backups, monitoring, load test.
+4. Decisions waiting on the business: see "Open business decisions" in `DECISIONS.md` (point value, drop deposit %, gift cards, sale-item returns …).
 
 ## How to continue a module by hand
 
@@ -68,6 +72,7 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 
 ## Change log
 - Phases 0–5 delivered (identity → concierge), 144 e2e tests.
+- Hardening 1: Paystack adapter, async refunds/transfers, concierge refunds, payouts providers, socket.io realtime, preference-aware push/SMS, missing events + staff rules, ADMIN_URL.
 - Phases 7–8: activity feed, app config, consent, app-download offer, global search, analytics ingest + rollups, dashboard, analytics screens, reports. Missing `/uploads/...` files now 404 instead of 500. Private report storage volume added to docker-compose.
 - Phase 6 part 2 + content: banners, announcements, slots, impressions; CMS pages, FAQs, blog, SEO, media library. Fixed a cross-cutting bug: PATCH bodies built with zod `.partial()` re-applied create defaults (silently resetting fields) — all now use `patchOf()` from `src/core/http/patch-schema.ts`.
 - Phase 6 part 1: support tickets, feedback, customer notification centre, staff bell + notification settings, message templates admin, push blasts, segments, campaigns.

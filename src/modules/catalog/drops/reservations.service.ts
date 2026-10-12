@@ -27,6 +27,7 @@ import { taxService } from "@/modules/fulfilment/tax/tax.service";
 import { paymentsService } from "@/modules/payments/payments/payments.service";
 import { walletsService } from "@/modules/payments/wallets/wallets.service";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { preferred } from "@/modules/support/notifications/notifications.service";
 import { productInclude } from "@/modules/catalog/products/product.mapper";
 import { pickVariant } from "@/modules/commerce/carts/carts.service";
 import { ordersService, newAccessToken } from "@/modules/commerce/orders/orders.service";
@@ -119,7 +120,8 @@ async function notify(reservationId: string, code: string, extra: Record<string,
       ...extra,
     };
     await messaging.email(r.customer.email, code, vars);
-    if (withPush) await messaging.push(r.customerId, code, vars, { type: "reservation", reservationId: r.id, number: r.number });
+    // e-mail is transactional (deposit / balance); push follows the customer's preferences (topic orders)
+    if (withPush) await preferred.push(r.customerId, "orders", code, vars, { type: "reservation", reservationId: r.id, number: r.number });
   } catch (err) {
     logger.error({ err, reservationId, code }, "reservation notification failed");
   }

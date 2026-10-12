@@ -20,14 +20,17 @@ import { settingsService } from "@/modules/platform/settings/settings.service";
 import { STATUS_LABELS } from "@/modules/platform/settings/status-labels";
 import { taxService } from "@/modules/fulfilment/tax/tax.service";
 import { paymentsService } from "@/modules/payments/payments/payments.service";
+import { walletsService } from "@/modules/payments/wallets/wallets.service";
+import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { env } from "@/config/env";
 import { ledgerService, SYSTEM_USER } from "@/modules/payments/ledger/ledger.service";
 import { addTimeline, applyStatus, notifyStaff, requestKey, systemMessage } from "../concierge.common";
 import { effectiveStatus, toQuote, type QuoteRow } from "./quotes.mapper";
-import type { AcceptBody, AdminQuotesQuery, CreateQuoteBody, DeclineBody, PayBalanceBody, QuoteLineInput, ReviseQuoteBody } from "./quotes.schemas";
+import type { AcceptBody, AdminQuotesQuery, CreateQuoteBody, DeclineBody, PayBalanceBody, QuoteLineInput, RefundBody, ReviseQuoteBody } from "./quotes.schemas";
 
 const HOUR = 3_600_000;
 export const QUOTE_TARGET = "concierge_quote";
-const ACC = { bank: "1000", clearing: "1010", vat: "2100", deposits: "2200", sales: "4000", shipping: "4100", fees: "4200" } as const;
+const ACC = { bank: "1000", clearing: "1010", wallets: "2000", vat: "2100", deposits: "2200", sales: "4000", shipping: "4100", fees: "4200" } as const;
 
 const reqSelect = { id: true, number: true, status: true, customerId: true, contactEmail: true, contactName: true, itemName: true, brand: true, supplierId: true, assigneeId: true, deliveryAddress: true } as const;
 
@@ -345,6 +348,113 @@ export const quotesService = {
   },
 
   // ── money ──
+  /**
+   * D12 — staff refund money received on a request (any time before delivery).
+   *   to "original": back through the gateway, newest payment first (async with Paystack: Refund rows stay pending
+   *   until refund.processed; a failure is flagged to finance and stays owed). to "wallet": ASL Wallet, instantly.
+   *   cancelRequest: request → cancelled; whatever is not refunded is kept as a cancellation fee (2200 → 4200).
+   *   Otherwise a partial refund is a price reduction (quote total and amountPaid both go down; the balance due is unchanged).
+   * Ledger: Dr 2200 customer deposits / Cr 1010 provider clearing (1000 for manual payments) or Cr 2000 wallet balances.
+   */
+  async refund(requestId: string, b: RefundBody, admin: { id: string; name: string }) {
+    const r0 = await prisma.conciergeRequest.findFirst({ where: requestKey(requestId), select: { id: true } });
+    if (!r0) throw ApiError.notFound("Request");
+    // the 2200 deposit must be booked before we reverse it (journalDeposit runs after the payment commits)
+    const paidQuotes = await prisma.conciergeQuote.findMany({ where: { requestId: r0.id, amountPaid: { gt: 0 } }, select: { id: true } });
+    const pays = await prisma.payment.findMany({ where: { targetType: QUOTE_TARGET, targetId: { in: paidQuotes.map((q) => q.id) }, status: { in: ["succeeded", "partially_refunded"] } }, select: { id: true } });
+    for (const p of pays) await journalDeposit(p.id);
+
+    const out = await prisma.$transaction(async (tx) => {
+      const req = await lockRequest(tx, r0.id);
+      if (req.status === "delivered") throw ApiError.conflict("INVALID_STATE", "This request was delivered and its revenue booked. Refund it as a manual adjustment with finance.");
+      const q0 = req.quotes.find((x) => x.amountPaid > 0);
+      if (!q0) throw ApiError.conflict("INVALID_STATE", "Nothing has been paid on this request.");
+      const q = (await lockQuote(tx, q0.id))!;
+      const amount = b.amount ?? q.amountPaid;
+      if (amount > q.amountPaid) throw ApiError.badRequest("VALIDATION_FAILED", `You can refund up to ${formatNaira(q.amountPaid)} on this request.`);
+      if (amount === q.amountPaid && !b.cancelRequest && !["cancelled", "unavailable"].includes(req.status))
+        throw ApiError.badRequest("VALIDATION_FAILED", "Refunding everything closes the request: set cancelRequest, or refund less.");
+
+      const credits = new Map<string, number>();
+      if (b.to === "wallet") {
+        if (!req.customerId) throw ApiError.badRequest("VALIDATION_FAILED", "Guest requests have no ASL Wallet. Refund to the original payment instead.");
+        await walletsService.refund(tx, req.customerId, amount, `Refund for concierge request ${req.number}`, { conciergeRequest: req.number, quote: q.number });
+        credits.set(ACC.wallets, amount);
+      } else {
+        const payments = await tx.payment.findMany({
+          where: { targetType: QUOTE_TARGET, targetId: q.id, status: { in: ["succeeded", "partially_refunded"] } }, orderBy: { paidAt: "desc" },
+        });
+        let left = amount;
+        for (const p of payments) {
+          if (left <= 0) break;
+          const take = Math.min(left, p.amount - p.amountRefunded);
+          if (take <= 0) continue;
+          await paymentsService.refund(tx, p.id, take, `${req.number}: ${b.reason}`, admin.name);
+          const acc = p.provider === "manual" ? ACC.bank : ACC.clearing;
+          credits.set(acc, (credits.get(acc) ?? 0) + take);
+          left -= take;
+        }
+        if (left > 0) throw ApiError.badRequest("VALIDATION_FAILED", `Only ${formatNaira(amount - left)} can go back to the original payment. Refund the rest to the wallet.`);
+      }
+
+      const amountPaid = q.amountPaid - amount;
+      const cancel = b.cancelRequest && !["cancelled", "unavailable"].includes(req.status);
+      const priceCut = !b.cancelRequest && !["cancelled", "unavailable"].includes(req.status);
+      await tx.conciergeQuote.update({
+        where: { id: q.id },
+        data: {
+          amountPaid,
+          ...(priceCut ? { total: q.total - amount, deposit: Math.min(q.deposit, q.total - amount) } : {}),
+          ...(amountPaid === 0 ? { status: "declined", declineReason: `Refunded: ${b.reason}`.slice(0, 500) } : {}),
+        },
+      });
+
+      const n = await tx.journalEntry.count({ where: { source: "refund", reference: { startsWith: `${req.number}-RF` } } });
+      await ledgerService.postOnce("refund", `${req.number}-RF${n + 1}`, {
+        description: `Concierge refund · ${req.number} · ${q.number}${b.to === "wallet" ? " (to wallet)" : ""}`,
+        createdBy: SYSTEM_USER,
+        lines: [
+          { accountCode: ACC.deposits, debit: amount, credit: 0, memo: "Customer deposit refunded" },
+          ...[...credits].map(([accountCode, credit]) => ({ accountCode, debit: 0, credit, memo: accountCode === ACC.wallets ? "Refund to ASL Wallet" : "Refund to original payment" })),
+        ],
+      }, tx);
+      // cancelled with money kept: the rest of the deposit is earned now (same reference as delivery revenue → never twice)
+      if (cancel && amountPaid > 0)
+        await ledgerService.postOnce("order", req.number, {
+          description: `Concierge cancellation fee kept · ${req.number} · ${q.number}`, createdBy: SYSTEM_USER,
+          lines: [
+            { accountCode: ACC.deposits, debit: amountPaid, credit: 0, memo: `Deposit released · ${q.number}` },
+            { accountCode: ACC.fees, debit: 0, credit: amountPaid, memo: "Cancellation fee kept" },
+          ],
+        }, tx);
+
+      const dest = b.to === "wallet" ? "your ASL Wallet" : "your original payment method";
+      await addTimeline(tx, req.id, "note", `Refund of ${formatNaira(amount)} to ${dest}: ${b.reason}`, admin.name);
+      await systemMessage(tx, req.id, `We've refunded ${formatNaira(amount)} to ${dest}.${b.to === "original" ? " Banks can take a few working days to show it." : ""}`, q.id);
+      if (cancel)
+        await applyStatus(tx, req, "cancelled", admin.name, amountPaid > 0 ? `${formatNaira(amountPaid)} kept as a cancellation fee` : "Your payment has been refunded");
+      return { req, q, amount, amountPaid, cancel, dest };
+    });
+
+    if (b.to === "wallet" && out.req.customerId) events.emit("wallet.changed", { customerId: out.req.customerId });
+    if (out.cancel) events.emit("concierge.status_changed", { requestId: out.req.id, to: "cancelled" });
+    const customer = out.req.customerId ? await prisma.customer.findUnique({ where: { id: out.req.customerId }, select: { firstName: true } }) : null;
+    await messaging.email(out.req.contactEmail, "concierge.refunded", {
+      firstName: customer?.firstName || out.req.contactName.split(" ")[0] || "there",
+      requestNumber: out.req.number,
+      itemName: [out.req.brand, out.req.itemName].filter(Boolean).join(" "),
+      amount: formatNaira(out.amount),
+      destination: out.dest,
+      reason: b.reason,
+      requestUrl: out.req.customerId ? `${env.WEB_URL}/account/requests?id=${out.req.number}` : `${env.WEB_URL}/track-request?id=${out.req.number}`,
+    }).catch((err) => logger.error({ err, request: out.req.number }, "concierge refund email failed"));
+    return {
+      requestId: out.req.id, requestNumber: out.req.number, quoteNumber: out.q.number, refunded: out.amount, to: b.to,
+      amountPaid: out.amountPaid, cancelled: out.cancel,
+      quote: toQuote((await prisma.conciergeQuote.findUniqueOrThrow({ where: { id: out.q.id }, include: { lines: true } })) as QuoteRow),
+    };
+  },
+
   /** delivered: move what the customer paid out of 2200 deposits into revenue (once per request) */
   async recogniseRevenue(requestId: string) {
     const r = await prisma.conciergeRequest.findUnique({ where: { id: requestId }, include: { quotes: { where: { status: "paid" }, orderBy: { createdAt: "desc" }, take: 1 } } });

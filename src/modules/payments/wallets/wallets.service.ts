@@ -12,7 +12,9 @@ import { events } from "@/core/events/bus";
 import { formatNaira } from "@/core/utils/money";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import { paymentsService } from "@/modules/payments/payments/payments.service";
-import { paymentProvider } from "@/providers/payment/payment";
+import { logger } from "@/core/utils/logger";
+import { notifyStaff } from "@/modules/platform/notification-settings/notification-settings.service";
+import { paymentProvider, type TransferResult, type WebhookEvent } from "@/providers/payment/payment";
 import { fullName } from "@/modules/identity/auth/customer.mapper";
 
 export const walletRef = () => `WTX-${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
@@ -37,6 +39,19 @@ async function lockWallet(tx: Tx, customerId: string) {
   const w = await tx.wallet.findUnique({ where: { customerId } });
   return w ?? tx.wallet.create({ data: { customerId } });
 }
+
+async function lockTx(tx: Tx, id: string) {
+  await tx.$queryRaw`SELECT id FROM \`WalletTransaction\` WHERE id = ${id} FOR UPDATE`;
+  const t = await tx.walletTransaction.findUnique({ where: { id }, include: { wallet: { select: { customerId: true } } } });
+  if (!t) throw ApiError.notFound("Wallet transaction");
+  return t;
+}
+
+type WithdrawalMeta = {
+  bankAccountId: string; bankCode: string; accountNumber: string; accountName?: string;
+  /** set once the transfer is sent to the provider */
+  transfer?: { status: "sending" | "sent" | "success" | "failed"; by?: string; at: string; code?: string | null };
+};
 
 async function post(tx: Tx, customerId: string, i: PostInput) {
   const w = await lockWallet(tx, customerId);
@@ -134,37 +149,116 @@ export const walletsService = {
       }),
     );
     events.emit("wallet.changed", { customerId });
-    if (input.amount < limits.autoApproveWithdrawalBelow) await this.payOut(tx.id, "system");
+    if (input.amount < limits.autoApproveWithdrawalBelow)
+      // provider down / refused: stays pending for staff to approve again
+      await this.payOut(tx.id, "system").catch((err) => logger.warn({ err: (err as Error)?.message, txId: tx.id }, "automatic withdrawal payout not sent"));
     return toCustomerTx(await prisma.walletTransaction.findUniqueOrThrow({ where: { id: tx.id } }));
   },
 
-  /** send a pending withdrawal to the bank */
+  /**
+   * Send a pending withdrawal to the bank. The money stays held (status pending) until the provider confirms:
+   * mock → at once; Paystack → transfer.success (completed) or transfer.failed / transfer.reversed (back to the balance).
+   */
   async payOut(txId: string, actor: string) {
-    const t = await prisma.walletTransaction.findUniqueOrThrow({ where: { id: txId }, include: { wallet: true } });
-    if (t.kind !== "withdrawal" || t.status !== "pending") throw ApiError.conflict("INVALID_STATE", "Only pending withdrawals can be paid out.");
-    const m = t.meta as { bankCode: string; accountNumber: string };
-    const r = await paymentProvider.transfer({ amount: -t.amount, bankCode: m.bankCode, accountNumber: m.accountNumber, reason: "ASL wallet withdrawal", reference: t.reference });
-    if (r.status === "failed") return this.failWithdrawal(txId, actor, "Transfer failed");
-    await prisma.$transaction(async (tx) => {
-      await tx.walletTransaction.update({ where: { id: txId }, data: { status: r.status === "success" ? "completed" : "pending", note: `Paid out by ${actor}` } });
-      if (r.status === "success") await tx.wallet.update({ where: { id: t.walletId }, data: { held: { decrement: -t.amount } } });
+    // claim it first, so two approvals (or approval + auto payout) can never send two transfers
+    const t = await prisma.$transaction(async (tx) => {
+      const row = await lockTx(tx, txId);
+      if (row.kind !== "withdrawal" || row.status !== "pending") throw ApiError.conflict("INVALID_STATE", "Only pending withdrawals can be paid out.");
+      const m = row.meta as WithdrawalMeta;
+      if (m.transfer) throw ApiError.conflict("INVALID_STATE", "This withdrawal was already sent to the bank. Waiting for the provider's confirmation.");
+      await tx.walletTransaction.update({ where: { id: row.id }, data: { meta: { ...m, transfer: { status: "sending", by: actor, at: new Date().toISOString() } } } });
+      return row;
+    });
+    const m = t.meta as WithdrawalMeta;
+    let r: TransferResult;
+    try {
+      r = await paymentProvider.transfer({
+        amount: -t.amount, bankCode: m.bankCode, accountNumber: m.accountNumber, accountName: m.accountName, reason: "ASL wallet withdrawal", reference: t.reference,
+      });
+    } catch (err) {
+      // not accepted: release the claim so it can be approved again (the provider rejects a reused reference, so a retry can't pay twice)
+      await prisma.walletTransaction.update({ where: { id: txId }, data: { meta: m as Prisma.InputJsonValue } });
+      logger.error({ err: (err as Error)?.message, txId }, "withdrawal transfer not accepted");
+      throw new ApiError(502, "PAYMENT_FAILED", `The bank transfer couldn't be started: ${(err as Error)?.message ?? "provider error"}. The withdrawal is still pending — try again.`);
+    }
+    if (r.status === "failed") return this.failWithdrawal(txId, actor, "Transfer failed", { fromProvider: true });
+    if (r.status === "success") return this.completeWithdrawal(txId, `Paid out by ${actor}`);
+    await prisma.walletTransaction.update({
+      where: { id: txId },
+      data: { note: `Sent to bank by ${actor} — awaiting confirmation`, meta: { ...m, transfer: { status: "sent", by: actor, at: new Date().toISOString(), code: r.transferCode ?? null } } },
     });
     events.emit("wallet.changed", { customerId: t.wallet.customerId });
-    events.emit("wallet.posted", { txId });
     return prisma.walletTransaction.findUniqueOrThrow({ where: { id: txId } });
   },
 
-  /** failed / rejected withdrawal → money goes back to the balance */
-  async failWithdrawal(txId: string, actor: string, reason: string) {
-    const t = await prisma.walletTransaction.findUniqueOrThrow({ where: { id: txId }, include: { wallet: true } });
-    if (t.kind !== "withdrawal" || t.status !== "pending") throw ApiError.conflict("INVALID_STATE", "Only pending withdrawals can be failed.");
-    await prisma.$transaction(async (tx) => {
-      await lockWallet(tx, t.wallet.customerId);
-      await tx.walletTransaction.update({ where: { id: txId }, data: { status: "failed", note: `${reason} (${actor})` } });
-      await tx.wallet.update({ where: { id: t.walletId }, data: { balance: { increment: -t.amount }, held: { decrement: -t.amount } } });
+  /** the bank confirmed the transfer: release the hold, book Dr 2000 / Cr bank */
+  async completeWithdrawal(txId: string, note: string) {
+    const t = await prisma.$transaction(async (tx) => {
+      const row = await lockTx(tx, txId);
+      if (row.kind !== "withdrawal" || row.status !== "pending") return null;
+      const m = row.meta as WithdrawalMeta;
+      await tx.walletTransaction.update({ where: { id: txId }, data: { status: "completed", note, meta: { ...m, transfer: { ...(m.transfer ?? {}), status: "success", at: new Date().toISOString() } } } });
+      await tx.wallet.update({ where: { id: row.walletId }, data: { held: { decrement: -row.amount } } });
+      return row;
+    });
+    if (t) {
+      events.emit("wallet.changed", { customerId: t.wallet.customerId });
+      events.emit("wallet.posted", { txId });
+    }
+    return prisma.walletTransaction.findUniqueOrThrow({ where: { id: txId } });
+  },
+
+  /**
+   * Failed / rejected withdrawal → money goes back to the balance.
+   * Staff can't fail one the bank is still processing (it may yet succeed); the provider's webhook can.
+   */
+  async failWithdrawal(txId: string, actor: string, reason: string, o: { fromProvider?: boolean } = {}) {
+    const t = await prisma.$transaction(async (tx) => {
+      const row = await lockTx(tx, txId);
+      if (row.kind !== "withdrawal" || row.status !== "pending") throw ApiError.conflict("INVALID_STATE", "Only pending withdrawals can be failed.");
+      const m = row.meta as WithdrawalMeta;
+      if (m.transfer && !o.fromProvider)
+        throw ApiError.conflict("INVALID_STATE", "The bank is still processing this transfer. It is failed automatically if the provider reports a failure.");
+      await lockWallet(tx, row.wallet.customerId);
+      await tx.walletTransaction.update({
+        where: { id: txId },
+        data: { status: "failed", note: `${reason} (${actor})`, ...(m.transfer ? { meta: { ...m, transfer: { ...m.transfer, status: "failed", at: new Date().toISOString() } } } : {}) },
+      });
+      await tx.wallet.update({ where: { id: row.walletId }, data: { balance: { increment: -row.amount }, held: { decrement: -row.amount } } });
+      return row;
     });
     events.emit("wallet.changed", { customerId: t.wallet.customerId });
     return prisma.walletTransaction.findUniqueOrThrow({ where: { id: txId } });
+  },
+
+  /** transfer.success / transfer.failed / transfer.reversed webhooks */
+  async onTransferEvent(ev: WebhookEvent) {
+    const t = await prisma.walletTransaction.findFirst({ where: { reference: ev.reference.toUpperCase(), kind: "withdrawal" }, include: { wallet: { select: { customerId: true } } } });
+    if (!t) {
+      logger.warn({ type: ev.type, reference: ev.reference }, "transfer webhook: no matching withdrawal");
+      return null;
+    }
+    if (ev.type === "transfer.success") {
+      if (t.status === "pending") return this.completeWithdrawal(t.id, "Paid out (bank confirmed)");
+      return null;
+    }
+    const why = ev.type === "transfer.reversed" ? "Transfer reversed by the bank" : "Transfer failed";
+    if (t.status === "pending") {
+      const r = await this.failWithdrawal(t.id, "provider", ev.reason ? `${why}: ${ev.reason}` : why, { fromProvider: true });
+      await notifyStaff("finance_failed", {
+        title: `Withdrawal failed · ${t.reference}`, body: `${formatNaira(-t.amount)} returned to the customer's wallet. ${why}${ev.reason ? `: ${ev.reason}` : ""}.`,
+        link: `/wallets?q=${encodeURIComponent(t.reference)}`, entity: `wallet_tx:${t.id}`,
+      });
+      return r;
+    }
+    if (t.status === "completed")
+      // already paid out and booked: the money came back to our bank → finance credits the customer by hand
+      await notifyStaff("finance_failed", {
+        title: `Completed withdrawal reversed · ${t.reference}`,
+        body: `${formatNaira(-t.amount)} came back from the bank after the payout was completed. Credit the customer's wallet (Wallet → Adjust) once the money is in.`,
+        link: `/wallets?q=${encodeURIComponent(t.reference)}`, entity: `wallet_tx:${t.id}`,
+      });
+    return null;
   },
 
   // ── banks (withdraw form) ──
@@ -247,6 +341,8 @@ export const walletsService = {
     return prisma.wallet.update({ where: { id: w.id }, data: { frozen } });
   },
 };
+
+paymentsService.onTransfer((ev) => walletsService.onTransferEvent(ev));
 
 // a successful top-up payment credits the wallet
 paymentsService.register("wallet_topup", {

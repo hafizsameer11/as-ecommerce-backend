@@ -9,6 +9,8 @@ import { ApiError } from "@/core/http/errors";
 import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
 import { logger } from "@/core/utils/logger";
+import { env } from "@/config/env";
+import { realtime } from "@/core/realtime/realtime";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import type { SettingsOf } from "@/modules/platform/settings/settings.defaults";
@@ -63,6 +65,13 @@ export function inQuietHours(q: StaffAlerts["quietHours"], now = new Date()) {
   return start <= end ? local >= start && local < end : local >= start || local < end;
 }
 
+/** admin-app path → absolute link for e-mails (ADMIN_URL); absolute URLs are kept */
+export const adminLink = (path?: string | null) => {
+  if (!path) return env.ADMIN_URL;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${env.ADMIN_URL.replace(/\/+$/, "")}${path.startsWith("/") ? "" : "/"}${path}`;
+};
+
 export type StaffAlert = {
   title: string;
   body: string;
@@ -106,6 +115,7 @@ export async function notifyStaff(ruleId: string, n: StaffAlert) {
         adminId: a.id, role: a.role, ruleId, title: n.title, body: n.body, link: n.link ?? null, priority: rule.priority,
       }));
       inApp = (await prisma.adminNotification.createMany({ data })).count;
+      realtime.bell(data);
     }
 
     let sent = 0;
@@ -115,7 +125,7 @@ export async function notifyStaff(ruleId: string, n: StaffAlert) {
       if (!quiet) {
         const to = [...new Set([...admins.map((a) => a.email.toLowerCase()), ...emails])];
         for (const addr of to) {
-          await messaging.email(addr, "staff.alert", { title: n.title, body: n.body, rule: rule.label, priority: rule.priority, url: n.link ?? "" });
+          await messaging.email(addr, "staff.alert", { title: n.title, body: n.body, rule: rule.label, priority: rule.priority, url: adminLink(n.link) });
           sent++;
         }
       }
@@ -207,10 +217,10 @@ export const notificationSettingsService = {
     const body = `Hi ${admin.name}, this is a test from ASL ORIGINALS Admin → Notification settings.`;
     switch (channel) {
       case "email":
-        await messaging.email(admin.email, "staff.alert", { title, body, rule: "Test", priority: "normal", url: "/notification-settings" });
+        await messaging.email(admin.email, "staff.alert", { title, body, rule: "Test", priority: "normal", url: adminLink("/notification-settings") });
         return { channel, sent: true, message: `Test email queued to ${admin.email}` };
       case "in_app":
-        await prisma.adminNotification.create({ data: { adminId: admin.id, role: admin.role, title, body, link: "/notification-settings", priority: "normal" } });
+        realtime.bell(await prisma.adminNotification.create({ data: { adminId: admin.id, role: admin.role, title, body, link: "/notification-settings", priority: "normal" } }));
         return { channel, sent: true, message: "Test notification added to your bell" };
       case "slack": {
         const cfg = await settingsService.get("staffAlerts");

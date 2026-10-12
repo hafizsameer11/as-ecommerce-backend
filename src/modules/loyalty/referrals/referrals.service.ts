@@ -23,6 +23,7 @@ import { settingsService } from "@/modules/platform/settings/settings.service";
 import type { SettingsOf } from "@/modules/platform/settings/settings.defaults";
 import { walletsService } from "@/modules/payments/wallets/wallets.service";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { preferred } from "@/modules/support/notifications/notifications.service";
 import { fullName } from "@/modules/identity/auth/customer.mapper";
 import { pointsService } from "@/modules/loyalty/club/points.service";
 import { mintCustomerCoupon } from "@/modules/loyalty/club/club.service";
@@ -159,7 +160,8 @@ async function afterGrant(out: Granted, notify: { customerId: string; code: stri
     if (t) events.emit("wallet.changed", { customerId: t.wallet.customerId });
   }
   await pointsService.journal(out.entries);
-  for (const n of notify) await messaging.push(n.customerId, n.code, n.vars, { type: "referral" });
+  // account notice: push follows the customer's push switch (no topic)
+  for (const n of notify) await preferred.push(n.customerId, null, n.code, n.vars, { type: "referral" });
 }
 
 /**

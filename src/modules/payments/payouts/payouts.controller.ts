@@ -42,4 +42,5 @@ export const payoutsController = {
     return r;
   },
   sync: () => svc.sync(),
+  providers: () => svc.providers(),
 };

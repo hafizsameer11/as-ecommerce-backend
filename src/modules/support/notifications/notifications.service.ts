@@ -13,7 +13,8 @@ import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
 import { logger } from "@/core/utils/logger";
 import { push } from "@/providers/push/push";
-import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { realtime } from "@/core/realtime/realtime";
+import { messaging, type Vars as TemplateVars } from "@/modules/marketing/messaging/messaging.service";
 import {
   NOTIFICATION_CATEGORIES, PREF_CHANNELS, PREF_TOPICS,
   type InboxQuery, type NotificationCategoryLabel, type PrefChannel, type PreferencesBody, type PrefTopic,
@@ -55,6 +56,65 @@ export async function getPreferences(customerId: string): Promise<Preferences> {
   return normalise(await prisma.notificationPreference.findUnique({ where: { customerId } }));
 }
 
+/**
+ * May a customer-facing message go out to this customer on `channel`?
+ * Both the channel switch and the topic must be on; `topic: null` = account notice (only the channel switch counts).
+ *
+ * THE RULE (used by every module):
+ *  - push + SMS to a customer with an account → always follow these preferences;
+ *  - promotional / reminder e-mail (cart reminders …) → follows them too;
+ *  - transactional e-mail (order confirmed / shipped / cancelled, refunds + returns, receipts / invoices, password reset,
+ *    OTP, pay links, ticket and concierge replies to the contact address, staff alerts) → ALWAYS sent, never gated;
+ *  - OTP SMS → always sent (it is how people sign in);
+ *  - guests (no account, so no preferences) → transactional messages always go out.
+ */
+export async function shouldSend(customerId: string, topic: PrefTopic | null, channel: PrefChannel) {
+  const p = await getPreferences(customerId);
+  return p.channels[channel] && (topic === null || p.topics[topic]);
+}
+
+/**
+ * messaging.* with the customer's preferences applied (see `shouldSend`). Never throws.
+ * Returns true when the message was handed to the provider.
+ */
+export const preferred = {
+  async push(customerId: string | null | undefined, topic: PrefTopic | null, code: string, vars: TemplateVars, data?: Record<string, string>) {
+    if (!customerId) return false;
+    try {
+      if (!(await shouldSend(customerId, topic, "push"))) return false;
+      await messaging.push(customerId, code, vars, data);
+      return true;
+    } catch (err) {
+      logger.error({ err, code }, "preferred push failed");
+      return false;
+    }
+  },
+  /** guests (no customerId) get transactional SMS; account holders only when SMS + topic are on */
+  async sms(customerId: string | null | undefined, phone: string | null | undefined, topic: PrefTopic | null, code: string, vars: TemplateVars) {
+    if (!phone) return false;
+    try {
+      if (customerId && !(await shouldSend(customerId, topic, "sms"))) return false;
+      await messaging.sms(phone, code, vars);
+      return true;
+    } catch (err) {
+      logger.error({ err, code }, "preferred sms failed");
+      return false;
+    }
+  },
+  /** promotional / reminder mail: account holders only when e-mail + topic are on (guests: always) */
+  async promoEmail(customerId: string | null | undefined, to: string | null | undefined, topic: PrefTopic | null, code: string, vars: TemplateVars) {
+    if (!to) return false;
+    try {
+      if (customerId && !(await shouldSend(customerId, topic, "email"))) return false;
+      await messaging.email(to, code, vars);
+      return true;
+    } catch (err) {
+      logger.error({ err, code }, "preferred email failed");
+      return false;
+    }
+  },
+};
+
 export type NotifyInput = {
   category: NotificationCategoryLabel;
   title: string;
@@ -92,6 +152,7 @@ export async function notify(customerId: string, input: NotifyInput) {
         ctaLabel: input.ctaLabel ?? null, ctaHref: input.ctaLink ?? null, icon: input.icon ?? null, tag: input.tag ?? null,
       },
     });
+    if (row) realtime.emit(`customer:${customerId}`, "notification.new", toInboxDto(row));
     const prefs = await getPreferences(customerId);
     const topic = input.topic === undefined ? DEFAULT_TOPIC[input.category] : input.topic;
     const allowed = (ch: PrefChannel) => (!input.channels || input.channels.includes(ch)) && prefs.channels[ch] && (topic === null || prefs.topics[topic]);
@@ -130,6 +191,7 @@ const mine = (customerId: string, id: string) => prisma.notification.findFirst({
 export const notificationsService = {
   notify,
   getPreferences,
+  shouldSend,
 
   async list(customerId: string, q: InboxQuery) {
     const base: Prisma.NotificationWhereInput = { customerId };

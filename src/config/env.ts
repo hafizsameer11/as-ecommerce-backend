@@ -1,11 +1,14 @@
 import { z } from "zod";
 
-const schema = z.object({
+/** exported for tests (cross-field rules: Paystack key, mock gateway in production) */
+export const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().default(4000),
   APP_URL: z.string().url().default("http://localhost:4000"),
   /** customer website (links in emails: pay draft orders, recover carts, track orders) */
   WEB_URL: z.string().url().default("http://localhost:3000"),
+  /** admin app (absolute links in staff alert e-mails) */
+  ADMIN_URL: z.string().url().default("http://localhost:3001"),
   CORS_ORIGINS: z.string().default(""),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default(""),
@@ -16,8 +19,15 @@ const schema = z.object({
   STORAGE_DRIVER: z.enum(["local"]).default("local"),
   UPLOAD_DIR: z.string().default("./uploads"),
   PUBLIC_UPLOAD_URL: z.string().default("http://localhost:4000/uploads"),
-  PAYMENT_PROVIDER: z.enum(["mock"]).default("mock"),
+  PAYMENT_PROVIDER: z.enum(["mock", "paystack"]).default("mock"),
+  /** mock gateway webhook secret (Paystack signs webhooks with PAYSTACK_SECRET_KEY) */
   PAYMENT_WEBHOOK_SECRET: z.string().min(8).default("dev-webhook-secret"),
+  PAYSTACK_SECRET_KEY: z.string().regex(/^sk_(test|live)_\w+$/, "must look like sk_test_… or sk_live_…").optional(),
+  PAYSTACK_PUBLIC_KEY: z.string().regex(/^pk_(test|live)_\w+$/, "must look like pk_test_… or pk_live_…").optional(),
+  /** where Paystack sends the customer after paying (default: the dashboard setting) */
+  PAYSTACK_CALLBACK_URL: z.string().url().optional(),
+  /** production with the mock gateway (staging/demo only) */
+  ALLOW_MOCK_PAYMENTS: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
   MAIL_FROM: z.string().default("ASL ORIGINALS <no-reply@asloriginals.com>"),
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().default(1025),
@@ -26,9 +36,14 @@ const schema = z.object({
   SMS_PROVIDER: z.enum(["mock"]).default("mock"),
   PUSH_PROVIDER: z.enum(["mock", "expo"]).default("mock"),
   LOG_LEVEL: z.string().default("info"),
+}).superRefine((e, ctx) => {
+  if (e.PAYMENT_PROVIDER === "paystack" && !e.PAYSTACK_SECRET_KEY)
+    ctx.addIssue({ code: "custom", path: ["PAYSTACK_SECRET_KEY"], message: "required when PAYMENT_PROVIDER=paystack" });
+  if (e.PAYMENT_PROVIDER === "mock" && e.NODE_ENV === "production" && !e.ALLOW_MOCK_PAYMENTS)
+    ctx.addIssue({ code: "custom", path: ["PAYMENT_PROVIDER"], message: "the mock gateway takes no real money: set PAYMENT_PROVIDER=paystack (or ALLOW_MOCK_PAYMENTS=true for a demo)" });
 });
 
-const parsed = schema.safeParse(process.env);
+const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
   console.error("❌ Invalid environment configuration:");
   for (const issue of parsed.error.issues) console.error(`  - ${issue.path.join(".")}: ${issue.message}`);

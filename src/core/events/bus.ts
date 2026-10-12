@@ -30,6 +30,16 @@ export type DomainEvents = {
   "ticket.replied": { ticketId: string; by: "customer" | "agent" };
   "wallet.changed": { customerId: string };
   "coupon.minted": { customerId: string; code: string };
+  /** payouts sync created a settlement (status scheduled) */
+  "payout.pending": { payoutId: string };
+  /** admin created / edited / (un)published a product (bulk actions: one event per product) */
+  "catalog.updated": { productId: string; action: "created" | "updated" | "status_changed"; status?: string };
+  /** tier went UP (spend threshold, nightly recompute or set by hand); downgrades don't emit */
+  "club.tier_upgraded": { customerId: string; from: string; to: string; reason: "spend" | "nightly" | "admin" };
+  /** admin changed a customer's status (active / vip / flagged / blocked) */
+  "customer.status_changed": { customerId: string; from: string; to: string };
+  /** a team member's role / status changed, or a role's permission set was edited / reset */
+  "team.access_changed": { kind: "role" | "status" | "permissions"; adminId?: string; role: string; from?: string; to?: string; by?: string };
 };
 type Name = keyof DomainEvents;
 type Listener<N extends Name> = (payload: DomainEvents[N]) => Promise<void> | void;

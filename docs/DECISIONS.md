@@ -44,7 +44,7 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Unpaid order | Stock and coupon use are held for `checkout.unpaidOrderMinutes` (30), then the order is cancelled automatically (needs the worker + Redis running) |
 | Payment arrives after that cancellation, or a customer pays twice | Refunded automatically to the original payment — the money is never kept silently |
 | Customer cancels | Only while "Awaiting payment" or "Processing / unfulfilled". Full refund: wallet part back to wallet, card part back to the card. Stock goes back to the same warehouse |
-| Card refunds and wallet withdrawals with the mock provider | Always succeed instantly. With a real provider some are asynchronous — webhook handling for refunds/transfers is still to do when the provider is chosen |
+| Card refunds and wallet withdrawals | Mock provider: instant. Paystack: refunds/withdrawals stay pending until the webhook; a failed refund stays counted as owed, is flagged to finance and can be retried to card or moved to the wallet; a failed withdrawal returns the money to the wallet |
 | Prices and stock at checkout | Recomputed on the server at "Place order". If the app sends `expectedTotal` and the total changed, the order is refused with the new totals |
 | Points earning | 1 point per ₦100 of (subtotal − discount) × tier multiplier, usable immediately; refunds/cancels take back the same share. Expire after 24 months, oldest first |
 | Tiers | Upgrade the moment an order is paid; downgrade only in the nightly recompute (rolling 12-month spend) — the nightly run also overrides tiers set by hand |
@@ -69,6 +69,7 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 
 | CMS policy pages | Return window, delivery fees/times, free-shipping threshold, store hours, payment methods and concierge response times are filled from settings at request time, so the pages can't drift again |
 
+| Pick-up SMS | Follows the customer's SMS setting (off by default) — like every other push/SMS. Transactional emails always send |
 | Analytics days | All business days are Lagos days. A sale counts on the day it was paid; refunds on the day the money went back. Purchases are recorded by the server, never trusted from the app |
 | App download offer | Signed-in customers claim a personal 10 % code once (setting `app.downloadOffer`). The web currently hard-codes APP10, which only works in the mobile app |
 
@@ -85,10 +86,10 @@ Still hard-coded in **asl-web** and wrong until it reads the API: free shipping 
 | D11 | Drop deposit % | 20 % per drop (admin-editable). The web and admin UIs hard-code **50 %** — pick one; the apps must read it from the API |
 | D13 | Return policy text says sale / clearance / limited-edition items can't be returned | The backend does **not** block them yet — confirm the rule, then add those categories/flags |
 | D14 | Gift cards | Mentioned in an FAQ but no feature exists — FAQ seeded as draft |
-| D12 | Concierge refunds after payment | Not built yet — once money is in, a request can't be cancelled from the system; handle manually for now |
+| D12 | Concierge refunds after payment | **Built**: admin refund to card or wallet; partial refund = price reduction; full refund needs cancel, anything kept is a cancellation fee. Customers can't cancel a paid request themselves (pointed to support) |
 | D5 | Guest checkout | Off (setting exists: `checkout.guestCheckout`) |
 | D6 | Charge in foreign currencies? | No — display conversion only, settle in NGN |
-| D2 | Payment provider | Mock provider (Paystack-shaped) until a provider is chosen |
+| D2 | Payment provider | **Paystack adapter ready** (`PAYMENT_PROVIDER=paystack` + keys). Mock remains for dev |
 | D7 | FREESHIP (auto, all channels, ₦150k+) also makes **international** DHL delivery free | Kept as the admin mock defined it. Inside Nigeria delivery is already free above ₦150k, so today FREESHIP only changes international orders. Restrict it if that's not intended |
 | D9 | Messages templates | Seeding never overwrites templates staff may have edited. Databases seeded before phase 4 keep older email texts until reset or edited in Admin → Messaging |
 | D8 | Product weights | Not in the prototype data. International per-kg pricing assumes 1 kg per item until weights are entered (`weightGrams` on products) |

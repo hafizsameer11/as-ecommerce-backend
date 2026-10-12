@@ -11,8 +11,11 @@ import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
 import { events } from "@/core/events/bus";
 import { logger } from "@/core/utils/logger";
+import { formatNaira } from "@/core/utils/money";
 import { corsOrigins, isProd } from "@/config/env";
-import { paymentProvider, type PaymentMethodKind, type VerifyResult } from "@/providers/payment/payment";
+import { notifyStaff } from "@/modules/platform/notification-settings/notification-settings.service";
+import { ledgerService, SYSTEM_USER } from "@/modules/payments/ledger/ledger.service";
+import { paymentProvider, type PaymentMethodKind, type VerifyResult, type WebhookEvent } from "@/providers/payment/payment";
 
 type AfterCommit = () => void | Promise<void>;
 type Handler = {
@@ -21,6 +24,23 @@ type Handler = {
   failed?(tx: Tx, p: Payment): Promise<AfterCommit | void>;
 };
 const handlers = new Map<PaymentPurpose, Handler>();
+/** transfer.* webhooks (wallet withdrawals) — registered by the wallets module */
+let transferHandler: ((ev: WebhookEvent) => Promise<unknown>) | null = null;
+
+/** Refund.status values */
+export const REFUND_STATUS = {
+  pending: "pending", // sent to the gateway, waiting for refund.processed / refund.failed
+  processed: "processed",
+  failed: "failed", // gateway gave up: still owed to the customer (retry or move to wallet)
+  wallet: "wallet", // a failed refund paid to the ASL Wallet instead
+} as const;
+
+/** a gateway error never leaks its raw text to customers; staff see it in the message */
+function providerError(err: unknown, what: string): never {
+  if (err instanceof ApiError) throw err;
+  logger.error({ err: (err as Error)?.message, what }, "payment provider error");
+  throw new ApiError(502, "PAYMENT_FAILED", `The payment provider couldn't ${what}: ${(err as Error)?.message ?? "unknown error"}. Nothing was changed — try again.`);
+}
 
 export const newReference = (prefix = "ASL") => `${prefix}_${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
 
@@ -62,6 +82,9 @@ export const paymentsService = {
   register(purpose: PaymentPurpose, h: Handler) {
     handlers.set(purpose, h);
   },
+  onTransfer(fn: (ev: WebhookEvent) => Promise<unknown>) {
+    transferHandler = fn;
+  },
 
   /**
    * Step 1 (inside the caller's transaction): record the pending payment.
@@ -92,12 +115,16 @@ export const paymentsService = {
     const data = (p.providerData ?? {}) as { savedMethodId?: string | null };
     if (data.savedMethodId) {
       const saved = await prisma.savedPaymentMethod.findUniqueOrThrow({ where: { id: data.savedMethodId } });
-      await paymentProvider.chargeSaved({ reference, amount: p.amount, email: p.email, method: "saved_card", savedToken: saved.providerToken });
+      await paymentProvider.chargeSaved({ reference, amount: p.amount, email: p.email, method: "saved_card", savedToken: saved.providerToken, metadata: { purpose: p.purpose } })
+        .catch((err) => providerError(err, "charge the saved card"));
       const st = await this.settle(reference);
-      return { reference, amount: p.amount, status: st.status, authorizationUrl: null, accessCode: null };
+      return { reference, amount: p.amount, status: st.status, authorizationUrl: null, accessCode: null, provider: paymentProvider.name, publicKey: paymentProvider.publicKey ?? null };
     }
-    const intent = await paymentProvider.createIntent({ reference, amount: p.amount, email: p.email, method: p.method === "bank_transfer" ? "bank_transfer" : "card" });
-    return { reference, amount: p.amount, status: p.status, authorizationUrl: intent.authorizationUrl, accessCode: intent.accessCode };
+    const intent = await paymentProvider
+      .createIntent({ reference, amount: p.amount, email: p.email, method: p.method === "bank_transfer" ? "bank_transfer" : "card", metadata: { purpose: p.purpose } })
+      .catch((err) => providerError(err, "open the checkout"));
+    // publicKey + accessCode let the apps open the gateway's own SDK / inline popup instead of the web page
+    return { reference, amount: p.amount, status: p.status, authorizationUrl: intent.authorizationUrl, accessCode: intent.accessCode, provider: paymentProvider.name, publicKey: paymentProvider.publicKey ?? null };
   },
 
   /** both steps, for callers without their own transaction (wallet top-up, pay again) */
@@ -171,7 +198,25 @@ export const paymentsService = {
       throw e;
     }
     try {
-      if (ev.type === "charge.success" || ev.type === "charge.failed") await this.settle(ev.reference);
+      switch (ev.type) {
+        case "charge.success":
+        case "charge.failed":
+          if (await prisma.payment.findUnique({ where: { reference: ev.reference }, select: { id: true } })) await this.settle(ev.reference);
+          else logger.warn({ provider, reference: ev.reference }, "webhook for an unknown payment reference ignored");
+          break;
+        case "refund.processed":
+        case "refund.failed":
+          await this.applyRefundResult(ev);
+          break;
+        case "transfer.success":
+        case "transfer.failed":
+        case "transfer.reversed":
+          if (transferHandler) await transferHandler(ev);
+          else logger.error({ type: ev.type }, "no transfer handler registered");
+          break;
+        default:
+          break;
+      }
       await prisma.webhookLog.update({ where: { provider_eventId: { provider, eventId: ev.eventId } }, data: { processedAt: new Date() } });
     } catch (e) {
       await prisma.webhookLog.update({ where: { provider_eventId: { provider, eventId: ev.eventId } }, data: { error: String(e) } });
@@ -180,15 +225,117 @@ export const paymentsService = {
     return { received: true };
   },
 
-  /** refund (part of) a succeeded payment back to the card/bank */
+  /**
+   * Refund (part of) a succeeded payment back to the card/bank.
+   * `amountRefunded` (payment + the caller's order/quote) counts the refund as soon as it is requested — that is what
+   * we owe the customer. The Refund row tracks delivery: "processed" (mock: at once), or "pending" until the gateway's
+   * refund.processed / refund.failed webhook. A failed refund stays counted and is flagged to finance (retryRefund).
+   */
   async refund(tx: Tx, paymentId: string, amount: number, reason: string, actor: string) {
+    await tx.$queryRaw`SELECT id FROM \`Payment\` WHERE id = ${paymentId} FOR UPDATE`;
     const p = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
     const left = p.amount - p.amountRefunded;
     if (amount <= 0 || amount > left) throw ApiError.badRequest("VALIDATION_FAILED", `You can refund up to ₦${(left / 100).toLocaleString("en-NG")} on this payment.`);
-    const r = await paymentProvider.refund(p.reference, amount);
-    await tx.refund.create({ data: { paymentId, amount, reason, status: r.status, providerRef: r.refundRef, actor } });
+    let r: Awaited<ReturnType<typeof paymentProvider.refund>>;
+    try {
+      r = await paymentProvider.refund(p.reference, amount);
+    } catch (err) {
+      providerError(err, `refund ${p.reference}`);
+    }
+    const row = await tx.refund.create({ data: { paymentId, amount, reason, status: r.status, providerRef: r.refundRef, actor } });
     const refunded = p.amountRefunded + amount;
     await tx.payment.update({ where: { id: paymentId }, data: { amountRefunded: refunded, status: refunded >= p.amount ? "refunded" : "partially_refunded" } });
+    return row;
+  },
+
+  /** refund.processed / refund.failed webhook */
+  async applyRefundResult(ev: WebhookEvent) {
+    const outcome = ev.type === "refund.processed" ? REFUND_STATUS.processed : REFUND_STATUS.failed;
+    const found = await this.findRefund(ev);
+    if (!found) {
+      logger.warn({ type: ev.type, reference: ev.reference, refundRef: ev.refundRef }, "refund webhook: no matching refund");
+      return null;
+    }
+    const failed = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM \`Refund\` WHERE id = ${found.id} FOR UPDATE`;
+      const r = await tx.refund.findUniqueOrThrow({ where: { id: found.id }, include: { payment: true } });
+      if (r.status !== REFUND_STATUS.pending) {
+        if (r.status !== outcome) logger.warn({ refundId: r.id, status: r.status, outcome }, "refund webhook for a refund that is no longer pending — ignored");
+        return null;
+      }
+      await tx.refund.update({ where: { id: r.id }, data: { status: outcome, ...(ev.refundRef && !r.providerRef ? { providerRef: ev.refundRef } : {}) } });
+      if (outcome !== REFUND_STATUS.failed) return null;
+      if (r.payment.orderId)
+        await tx.orderEvent.create({
+          data: {
+            orderId: r.payment.orderId, type: "note", title: "Refund failed — finance to retry", internal: true, actor: "System",
+            detail: `${formatNaira(r.amount)} to ${r.payment.method} (${r.payment.reference})${ev.reason ? `: ${ev.reason}` : ""}`,
+          },
+        });
+      return r;
+    });
+    if (failed)
+      await notifyStaff("finance_failed", {
+        title: `Refund failed · ${failed.payment.reference}`,
+        body: `${formatNaira(failed.amount)} to ${failed.payment.email} could not be returned${ev.reason ? ` (${ev.reason})` : ""}. Retry it or move it to the customer's wallet.`,
+        link: `/payments?reference=${encodeURIComponent(failed.payment.reference)}`, entity: `refund:${failed.id}`,
+      });
+    return found.id;
+  },
+
+  /** by the gateway's refund id, else the oldest pending refund of that payment (and amount) */
+  async findRefund(ev: WebhookEvent) {
+    if (ev.refundRef) {
+      const r = await prisma.refund.findFirst({ where: { providerRef: ev.refundRef, payment: { provider: paymentProvider.name } } });
+      if (r) return r;
+    }
+    if (!ev.reference) return null;
+    const where = { status: REFUND_STATUS.pending, payment: { reference: ev.reference } };
+    return (
+      (ev.amount ? await prisma.refund.findFirst({ where: { ...where, amount: ev.amount }, orderBy: { createdAt: "asc" } }) : null) ??
+      (await prisma.refund.findFirst({ where, orderBy: { createdAt: "asc" } }))
+    );
+  },
+
+  /**
+   * Finance: a refund the gateway failed is still owed. `original` sends it to the gateway again;
+   * `wallet` pays it into the customer's ASL Wallet (Dr provider clearing / Cr 2000 wallet balances).
+   */
+  async retryRefund(refundId: string, to: "original" | "wallet", actor: string) {
+    const r0 = await prisma.refund.findUnique({ where: { id: refundId }, include: { payment: true } });
+    if (!r0) throw ApiError.notFound("Refund");
+    if (r0.status !== REFUND_STATUS.failed) throw ApiError.conflict("INVALID_STATE", "Only failed refunds can be retried.");
+    if (to === "original") {
+      let r: Awaited<ReturnType<typeof paymentProvider.refund>>;
+      try {
+        r = await paymentProvider.refund(r0.payment.reference, r0.amount);
+      } catch (err) {
+        providerError(err, `refund ${r0.payment.reference}`);
+      }
+      const n = await prisma.refund.updateMany({ where: { id: r0.id, status: REFUND_STATUS.failed }, data: { status: r.status, providerRef: r.refundRef, actor } });
+      if (!n.count) logger.error({ refundId }, "refund retried twice at the same time");
+    } else {
+      if (!r0.payment.customerId) throw ApiError.badRequest("VALIDATION_FAILED", "This payment has no customer account, so there is no wallet to refund to.");
+      // wallets.service imports this file → load it lazily
+      const { walletsService } = await import("@/modules/payments/wallets/wallets.service");
+      const customerId = r0.payment.customerId;
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM \`Refund\` WHERE id = ${r0.id} FOR UPDATE`;
+        const r = await tx.refund.findUniqueOrThrow({ where: { id: r0.id } });
+        if (r.status !== REFUND_STATUS.failed) throw ApiError.conflict("INVALID_STATE", "Only failed refunds can be retried.");
+        await walletsService.refund(tx, customerId, r.amount, `Refund for ${r0.payment.reference}`, { paymentRef: r0.payment.reference, refundId: r.id });
+        await tx.refund.update({ where: { id: r.id }, data: { status: REFUND_STATUS.wallet, actor } });
+        await ledgerService.postOnce("refund", `RF-${r.id}`, {
+          date: new Date(), description: `Failed card refund moved to wallet · ${r0.payment.reference}`, createdBy: SYSTEM_USER,
+          lines: [
+            { accountCode: r0.payment.provider === "manual" ? "1000" : "1010", debit: r.amount, credit: 0, memo: "Refund not returned by the provider" },
+            { accountCode: "2000", debit: 0, credit: r.amount, memo: "Refund to ASL Wallet" },
+          ],
+        }, tx);
+      });
+      events.emit("wallet.changed", { customerId });
+    }
+    return prisma.refund.findUniqueOrThrow({ where: { id: r0.id } });
   },
 
   // ── admin "Transactions" ──

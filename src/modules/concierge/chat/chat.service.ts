@@ -1,7 +1,8 @@
 /**
  * Concierge chat: one thread per request, customer ⇄ agent (+ system lines for quotes / status changes).
  * Unread counters live on the thread (unreadAgent / unreadCustomer); reading a thread clears your side.
- * Realtime (socket `thread:{id}`, typing) is not built: the apps poll GET …/messages and …/unread.
+ * Realtime: new messages are also pushed on the socket (`concierge.message` to `concierge:request:<id>`; typing via
+ * `concierge:typing`, see core/realtime/realtime.ts). Polling GET …/messages and …/unread keeps working.
  */
 import type { ChatMessage, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/core/db/prisma";
@@ -11,7 +12,9 @@ import { withMeta } from "@/core/http/router";
 import { logger } from "@/core/utils/logger";
 import { env } from "@/config/env";
 import { mediaService, type UploadInput } from "@/modules/content/media/media.service";
+import { realtime } from "@/core/realtime/realtime";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { preferred } from "@/modules/support/notifications/notifications.service";
 import { STATUS_LABELS } from "@/modules/platform/settings/status-labels";
 import { fullName } from "@/modules/identity/auth/customer.mapper";
 import { requestKey } from "../concierge.common";
@@ -41,6 +44,15 @@ async function page(threadId: string, q: MessagesQuery) {
   });
   const hasMore = rows.length > q.limit;
   return { messages: await toMessages(rows.slice(0, q.limit).reverse()), hasMore };
+}
+
+type OutMessage = Awaited<ReturnType<typeof toMessages>>[number];
+
+/** socket: the request room, the customer's own room (for messages to them) and every admin who can see concierge */
+function broadcast(r: { id: string; number: string; customerId: string | null }, message: OutMessage) {
+  const rooms = [`concierge:request:${r.id}`, "admin:perm:concierge.view"];
+  if (message.sender !== "customer" && r.customerId) rooms.push(`customer:${r.customerId}`);
+  realtime.emit(rooms, "concierge.message", { requestId: r.id, number: r.number, message });
 }
 
 async function uploads(files: UploadInput[], by: string): Promise<Attachment[]> {
@@ -82,7 +94,9 @@ export const chatService = {
       await tx.conciergeRequest.update({ where: { id: r.id }, data: { updatedAt: new Date() } });
       return msg;
     });
-    return (await toMessages([m]))[0];
+    const out = (await toMessages([m]))[0];
+    broadcast(r, out);
+    return out;
   },
 
   /** badge on the concierge entry points */
@@ -156,9 +170,14 @@ export const chatService = {
     });
     // app users get a push; guests (no account) get the message by e-mail
     const vars = { requestNumber: r.number, itemName: r.itemName, agent: admin.name, text: b.text || "Sent you a file.", requestUrl: `${env.WEB_URL}/track-request?id=${r.number}` };
-    const notify = r.customerId ? messaging.push(r.customerId, "concierge.message", vars, { requestId: r.id }) : messaging.email(r.contactEmail, "concierge.message", vars);
+    // push follows the customer's preferences (push + topic concierge)
+    const notify = r.customerId
+      ? preferred.push(r.customerId, "concierge", "concierge.message", vars, { requestId: r.id })
+      : messaging.email(r.contactEmail, "concierge.message", vars);
     void notify.catch((err) => logger.error({ err }, "concierge message notification failed"));
-    return (await toMessages([m]))[0];
+    const out = (await toMessages([m]))[0];
+    broadcast(r, out);
+    return out;
   },
 
   async pin(requestId: string, pinned: boolean) {

@@ -4,6 +4,7 @@ import { randomToken, sha256 } from "@/core/auth/tokens";
 import { PERMISSIONS, ROLE_LABELS, ROLE_PERMISSIONS, type Permission } from "@/core/auth/permissions";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
 import { env } from "@/config/env";
+import { events } from "@/core/events/bus";
 import type { AdminRole } from "@/generated/prisma/enums";
 import { clearPermissionCache, effectivePermissions } from "./team.permissions";
 
@@ -56,13 +57,17 @@ export const teamService = {
     return { resent: true };
   },
 
-  async update(id: string, patch: { name?: string; role?: AdminRole; status?: "active" | "suspended" }, actorId: string) {
+  async update(id: string, patch: { name?: string; role?: AdminRole; status?: "active" | "suspended" }, actorId: string, actorName?: string) {
     const before = await prisma.adminUser.findUniqueOrThrow({ where: { id } });
     if ((patch.role && patch.role !== "super_admin") || patch.status === "suspended") await assertNotLastSuperAdmin(id);
     if (id === actorId && patch.status === "suspended") throw ApiError.badRequest("INVALID_STATE", "You can't suspend yourself.");
     if (patch.status === "active" && before.status === "invited") throw ApiError.badRequest("INVALID_STATE", "Invited members activate by accepting their invite.");
     const m = await prisma.adminUser.update({ where: { id }, data: patch });
     if (patch.status === "suspended") await prisma.adminSession.updateMany({ where: { adminId: id, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (patch.role && patch.role !== before.role)
+      events.emit("team.access_changed", { kind: "role", adminId: id, role: m.role, from: before.role, to: m.role, by: actorName });
+    if (patch.status && patch.status !== before.status)
+      events.emit("team.access_changed", { kind: "status", adminId: id, role: m.role, from: before.status, to: m.status, by: actorName });
     return { before: dto(before), after: dto(m) };
   },
 
@@ -86,17 +91,19 @@ export const teamService = {
     }));
   },
 
-  async setRolePermissions(role: AdminRole, perms: Permission[]) {
+  async setRolePermissions(role: AdminRole, perms: Permission[], by?: string) {
     if (role === "super_admin") throw ApiError.badRequest("INVALID_STATE", "Super Admin always has every permission.");
     const clean = [...new Set(perms.filter((p) => (PERMISSIONS as readonly string[]).includes(p)))];
     await prisma.rolePermissionOverride.upsert({ where: { role }, create: { role, permissions: clean }, update: { permissions: clean } });
     clearPermissionCache();
+    events.emit("team.access_changed", { kind: "permissions", role, to: "custom", by });
     return { role, permissions: clean };
   },
 
-  async resetRolePermissions(role: AdminRole) {
-    await prisma.rolePermissionOverride.deleteMany({ where: { role } });
+  async resetRolePermissions(role: AdminRole, by?: string) {
+    const { count } = await prisma.rolePermissionOverride.deleteMany({ where: { role } });
     clearPermissionCache();
+    if (count) events.emit("team.access_changed", { kind: "permissions", role, to: "defaults", by });
     return { role, permissions: ROLE_PERMISSIONS[role] };
   },
 };

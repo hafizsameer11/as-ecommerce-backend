@@ -17512,6 +17512,65 @@
         }
       }
     },
+    "/admin/transactions/refunds/{id}/retry": {
+      "post": {
+        "summary": "Retry a failed refund: to the original payment again, or into the customer's ASL Wallet",
+        "description": "Refunds stay `pending` until the provider confirms (`refund.processed`); `failed` ones are still owed and flagged to finance.\n\n**Permission:** `finance.payouts`",
+        "tags": [
+          "Admin · Transactions"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
     "/store/me/wallet": {
       "get": {
         "summary": "Balance, total spent, limits, recent activity",
@@ -19768,6 +19827,34 @@
         }
       }
     },
+    "/admin/payouts/providers": {
+      "get": {
+        "summary": "Payment gateway in use (name, test mode, webhook URL) + checkout payment method settings",
+        "description": "**Permission:** `finance.view`",
+        "tags": [
+          "Admin · Payouts"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
     "/admin/payouts/sync": {
       "post": {
         "summary": "Build settlements from captured payments now (also runs daily)",
@@ -21566,6 +21653,82 @@
         },
         "responses": {
           "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/refund": {
+      "post": {
+        "summary": "Refund money received on a request (to the original payment or the ASL Wallet), optionally cancelling it",
+        "description": "Default amount = everything paid. Refunding everything requires `cancelRequest`. With `cancelRequest`, whatever is not refunded is kept as a cancellation fee. Not available after delivery.\n\n**Permission:** `concierge.quote`, `orders.refund`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000
+                  },
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet"
+                    ],
+                    "default": "original"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "cancelRequest": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
             "description": "Success — `{ data, meta? }`"
           },
           "400": {

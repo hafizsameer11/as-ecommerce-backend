@@ -1,6 +1,6 @@
 import type { Ctx } from "@/core/http/router";
 import { ApiError } from "@/core/http/errors";
-import { isProd } from "@/config/env";
+import { env, isProd } from "@/config/env";
 import { MockPaymentProvider, paymentProvider } from "@/providers/payment/payment";
 import { paymentsService as svc } from "./payments.service";
 import { mockCheckoutPage, mockResultPage } from "./mock-checkout.page";
@@ -8,7 +8,7 @@ import { mockCheckoutPage, mockResultPage } from "./mock-checkout.page";
 type Ref = { reference: string };
 
 function mock() {
-  if (isProd || !(paymentProvider instanceof MockPaymentProvider)) throw ApiError.notFound("Page");
+  if ((isProd && !env.ALLOW_MOCK_PAYMENTS) || !(paymentProvider instanceof MockPaymentProvider)) throw ApiError.notFound("Page");
   return paymentProvider;
 }
 
@@ -44,5 +44,10 @@ export const paymentsController = {
     res.type("html").send(mockResultPage(st));
   },
 
+  retryRefund: async ({ params, body, admin, res }: Ctx<{ to: "original" | "wallet" }, unknown, { id: string }>) => {
+    const r = await svc.retryRefund(params.id, body.to, admin.name);
+    res.locals.audit = { entityId: r.id, after: r, summary: `Retried failed refund ${r.id} to ${body.to === "wallet" ? "ASL Wallet" : "original payment"}` };
+    return r;
+  },
   adminList: ({ query }: Ctx<unknown, { page: number; pageSize: number; q?: string; status?: string; purpose?: string }>) => svc.adminList(query),
 };

@@ -163,6 +163,8 @@ describe("pick-up bookings", () => {
   it("paid pick-up order → booking; ready → SMS; collected → order delivered", async () => {
     const loc = await prisma.pickupLocation.findFirstOrThrow({ where: { active: true } });
     const c = await registerCustomer();
+    // SMS to account holders follows their preferences (off by default)
+    await api().put(`${S}/me/notification-preferences`).set(bearer(c.token)).send({ channels: { sms: true } });
     const phone = "+2348099990001";
     const o = await buy(c, { delivery: "pickup", pickupLocationId: loc.id }, phone);
     const b = await prisma.pickupBooking.findUniqueOrThrow({ where: { orderId: o.id } });

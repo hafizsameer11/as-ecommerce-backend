@@ -1,10 +1,11 @@
-import type { Prisma, Ticket } from "@/generated/prisma/client";
+import type { Prisma, Ticket, TicketMessage } from "@/generated/prisma/client";
 import type { TicketCategory, TicketChannel, TicketPriority, TicketStatus } from "@/generated/prisma/enums";
 import { prisma, type Tx } from "@/core/db/prisma";
 import { ApiError } from "@/core/http/errors";
 import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
 import { events } from "@/core/events/bus";
+import { realtime } from "@/core/realtime/realtime";
 import { defineJob } from "@/core/queue/queue";
 import { logger } from "@/core/utils/logger";
 import { formatters, nextSequence } from "@/core/utils/sequence";
@@ -28,6 +29,18 @@ const key = (id: string): Prisma.TicketWhereInput => {
   const n = id.trim().replace(/^#/, "");
   return /^\d+$/.test(n) ? { OR: [{ id }, { number: `#${n}` }] } : { id };
 };
+
+/** socket: public messages to the ticket room + the customer + support staff; internal notes to staff only */
+function broadcast(t: { id: string; number: string; customerId: string | null }, m: TicketMessage) {
+  const message = {
+    id: m.id, author: m.author, authorName: m.author === "system" && !m.internal ? "ASL ORIGINALS" : m.authorName, body: m.body, internal: m.internal,
+    attachments: (m.attachments as Attachment[] | null) ?? [], at: m.createdAt,
+  };
+  const rooms = m.internal
+    ? [`ticket:${t.id}:staff`, "admin:perm:support.tickets"]
+    : [`ticket:${t.id}`, "admin:perm:support.tickets", ...(t.customerId ? [`customer:${t.customerId}`] : [])];
+  realtime.emit(rooms, "ticket.message", { ticketId: t.id, number: t.number, message });
+}
 
 async function uploads(files: UploadInput[], by: string): Promise<Attachment[]> {
   const out: Attachment[] = [];
@@ -168,23 +181,26 @@ export const ticketsService = {
     const t = await findMine(customerId, id);
     if (t.status === "closed") throw ApiError.conflict("INVALID_STATE", "This ticket is closed. Please start a new one.");
     const atts = await uploads(files, `customer:${customerId}`);
-    await prisma.$transaction(async (tx) => {
-      await tx.ticketMessage.create({ data: { ticketId: t.id, author: "customer", authorName: t.customerName, body, attachments: atts.length ? atts : undefined } });
+    const msg = await prisma.$transaction(async (tx) => {
+      const m = await tx.ticketMessage.create({ data: { ticketId: t.id, author: "customer", authorName: t.customerName, body, attachments: atts.length ? atts : undefined } });
       // the customer answered → back in the team's queue
       await tx.ticket.update({ where: { id: t.id }, data: { status: "open", resolvedAt: null } });
+      return m;
     });
     events.emit("ticket.replied", { ticketId: t.id, by: "customer" });
+    broadcast(t, msg);
     return this.myGet(customerId, t.id);
   },
 
   async reopen(customerId: string, id: string) {
     const t = await findMine(customerId, id);
     if (!CLOSED_STATUSES.includes(t.status)) throw ApiError.conflict("INVALID_STATE", "This ticket is still open.");
-    await prisma.$transaction(async (tx) => {
+    const msg = await prisma.$transaction(async (tx) => {
       await tx.ticket.update({ where: { id: t.id }, data: { status: "open", resolvedAt: null } });
-      await tx.ticketMessage.create({ data: { ticketId: t.id, author: "system", authorName: "System", body: "Ticket reopened by the customer." } });
+      return tx.ticketMessage.create({ data: { ticketId: t.id, author: "system", authorName: "System", body: "Ticket reopened by the customer." } });
     });
     events.emit("ticket.replied", { ticketId: t.id, by: "customer" });
+    broadcast(t, msg);
     return this.myGet(customerId, t.id);
   },
 
@@ -240,9 +256,12 @@ export const ticketsService = {
     const t = await findAny(id);
     const atts = await uploads(files, `admin:${actor.id}`);
     const now = new Date();
-    await prisma.$transaction(async (tx) => {
-      await tx.ticketMessage.create({ data: { ticketId: t.id, author: "agent", authorName: actor.name, body: b.body, internal: b.internal, attachments: atts.length ? atts : undefined } });
-      if (b.internal) return void (await tx.ticket.update({ where: { id: t.id }, data: { updatedAt: now } }));
+    const msg = await prisma.$transaction(async (tx) => {
+      const m = await tx.ticketMessage.create({ data: { ticketId: t.id, author: "agent", authorName: actor.name, body: b.body, internal: b.internal, attachments: atts.length ? atts : undefined } });
+      if (b.internal) {
+        await tx.ticket.update({ where: { id: t.id }, data: { updatedAt: now } });
+        return m;
+      }
       await tx.ticket.update({
         where: { id: t.id },
         data: {
@@ -253,8 +272,10 @@ export const ticketsService = {
           assigneeId: t.assigneeId ?? actor.id,
         },
       });
+      return m;
     });
     if (!b.internal) events.emit("ticket.replied", { ticketId: t.id, by: "agent" });
+    broadcast(t, msg);
     return this.adminGet(t.id);
   },
 
@@ -302,7 +323,7 @@ export const ticketsService = {
     if (adminId && adminId !== actor.id)
       await prisma.adminNotification.create({
         data: { adminId, ruleId: null, title: `Ticket ${t.number} assigned to you`, body: `${actor.name} assigned "${t.subject}" to you.`, link: `/tickets?id=${t.id}`, priority: t.priority === "urgent" ? "high" : "normal" },
-      }).catch((err) => logger.error({ err }, "ticket assignment notification failed"));
+      }).then((n) => realtime.bell(n)).catch((err) => logger.error({ err }, "ticket assignment notification failed"));
     return this.adminGet(t.id);
   },
 

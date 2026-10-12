@@ -126,6 +126,42 @@ export function registerActivityListeners() {
     if (p) await activity.record({ type: "payout.paid", title: `Payout ${p.number} paid`, meta: `${p.provider} settlement · ${p.bankName}`, amount: p.net, link: `/payouts?id=${p.id}` });
   });
 
+  events.on("payout.pending", async ({ payoutId }) => {
+    const p = await prisma.payout.findUnique({ where: { id: payoutId }, select: { id: true, number: true, provider: true, net: true, scheduledAt: true } });
+    if (p)
+      await activity.record({
+        type: "payout.pending", title: `Payout ${p.number} scheduled`, meta: `${p.provider} settlement · due ${p.scheduledAt.toISOString().slice(0, 10)}`, amount: p.net, link: `/payouts?id=${p.id}`,
+      });
+  });
+
+  events.on("catalog.updated", async ({ productId, action, status }) => {
+    const p = await prisma.product.findUnique({ where: { id: productId }, select: { id: true, name: true, brand: { select: { name: true } } } });
+    if (!p) return;
+    const verb = action === "created" ? "added" : action === "updated" ? "updated" : status === "active" ? "published" : status === "deleted" ? "deleted" : `set to ${status}`;
+    const title = `Product ${verb} · ${p.name}`;
+    const link = `/products/${p.id}`;
+    // repeated saves of the same product collapse into one "updated" row per 15 minutes
+    if (action === "updated" && (await prisma.activityEntry.findFirst({ where: { type: "catalog.updated", link, title, createdAt: { gte: new Date(Date.now() - 15 * 60_000) } }, select: { id: true } })))
+      return;
+    await activity.record({ type: "catalog.updated", title, meta: p.brand.name, link });
+  });
+
+  events.on("club.tier_upgraded", async ({ customerId, from, to, reason }) => {
+    const c = await prisma.customer.findUnique({ where: { id: customerId }, select: { firstName: true, lastName: true, email: true } });
+    if (!c) return;
+    const who = fullName(c) || c.email;
+    await activity.record({
+      type: "customer.tier_upgraded", title: `${who} reached ${to}`, meta: `${from} → ${to}${reason === "admin" ? " · set by staff" : ""}`, link: `/customers?id=${customerId}`,
+    });
+    if (to === "Signature") await activity.record({ type: "customer.vip", title: `New VIP · ${who}`, meta: "Reached Signature tier", link: `/customers?id=${customerId}` }, { dedupeHours: 24 });
+  });
+
+  events.on("customer.status_changed", async ({ customerId, to }) => {
+    if (to !== "vip") return;
+    const c = await prisma.customer.findUnique({ where: { id: customerId }, select: { firstName: true, lastName: true, email: true } });
+    if (c) await activity.record({ type: "customer.vip", title: `New VIP · ${fullName(c) || c.email}`, meta: "Marked VIP by staff", link: `/customers?id=${customerId}` }, { dedupeHours: 24 });
+  });
+
   events.on("ticket.created", async ({ ticketId }) => {
     const t = await prisma.ticket.findUnique({ where: { id: ticketId }, select: { id: true, number: true, subject: true, customerName: true } });
     if (t) await activity.record({ type: "ticket.created", title: `Ticket ${t.number} opened`, meta: `${t.customerName} · ${t.subject}`, link: `/tickets?id=${t.id}` });

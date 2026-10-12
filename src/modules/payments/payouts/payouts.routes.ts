@@ -9,6 +9,7 @@ const read = { permission: "finance.view" as const };
 export const payoutsAdminRoutes = new ModuleRouter({ surface: "admin", prefix: "/payouts", tag: "Payouts", defaultAuth: "admin", defaultPermission: "finance.payouts" })
   .get("/", { summary: "Payouts (tabs by status, KPIs: next payout, paid last 30 days, pending)", ...read, query: payoutListQuery }, c.list)
   .get("/export", { summary: "Export payouts (CSV)", ...read, query: payoutListQuery }, c.exportCsv)
+  .get("/providers", { summary: "Payment gateway in use (name, test mode, webhook URL) + checkout payment method settings", ...read }, c.providers)
   .post("/sync", { summary: "Build settlements from captured payments now (also runs daily)", audit: audit("payout.synced") }, c.sync)
   .get("/:id", { summary: "Payout with its transactions (id or PO- number)", ...read, params: idParam }, c.get)
   .post("/", { summary: "Create payout manually", body: payoutBody, status: 201, audit: audit("payout.created") }, c.create)

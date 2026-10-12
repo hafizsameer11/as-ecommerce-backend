@@ -8,6 +8,7 @@ import { prisma } from "@/core/db/prisma";
 import { pageMeta, paging } from "@/core/http/pagination";
 import { defineJob } from "@/core/queue/queue";
 import { logger } from "@/core/utils/logger";
+import { realtime } from "@/core/realtime/realtime";
 import type { Permission } from "@/core/auth/permissions";
 import type { ActivityFilters } from "./activity.schemas";
 
@@ -26,6 +27,8 @@ export const ACTIVITY_TYPES = {
   "review.submitted": "catalog.view",
   "stock.low": "catalog.view",
   "coupon.minted": "marketing.manage",
+  "customer.tier_upgraded": "customers.view",
+  "customer.vip": "customers.view",
   "payout.pending": "finance.view",
   "payout.paid": "finance.view",
   "ticket.created": "support.tickets",
@@ -75,9 +78,13 @@ async function record(e: ActivityInput, opts: { dedupeHours?: number } = {}) {
     });
     if (recent) return null;
   }
-  return prisma.activityEntry.create({
+  const row = await prisma.activityEntry.create({
     data: { type: e.type, title: e.title.slice(0, 190), meta: e.meta?.slice(0, 190) ?? null, amount: e.amount ?? null, link: e.link ?? null },
   });
+  // live feed: only sockets holding the type's view permission (they joined admin:activity:<perm>)
+  const perm: Permission | null = ACTIVITY_TYPES[e.type];
+  realtime.emit(perm ? `admin:activity:${perm}` : "admin:activity", "activity.new", toRow(row));
+  return row;
 }
 
 async function list(q: ActivityFilters, perms: Set<Permission>) {

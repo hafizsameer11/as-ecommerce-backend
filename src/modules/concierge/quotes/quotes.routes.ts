@@ -1,6 +1,6 @@
 import { ModuleRouter, idParam } from "@/core/http/router";
 import { quotesController as c } from "./quotes.controller";
-import { acceptBody, adminQuotesQuery, createQuoteBody, declineBody, payBalanceBody, reviseQuoteBody, withdrawBody } from "./quotes.schemas";
+import { acceptBody, adminQuotesQuery, createQuoteBody, declineBody, payBalanceBody, refundBody, reviseQuoteBody, withdrawBody } from "./quotes.schemas";
 
 /** quote review → /concierge/payment → /concierge/success */
 export const conciergeQuotesStoreRoutes = new ModuleRouter({ surface: "store", prefix: "/concierge/requests", tag: "Concierge", defaultAuth: "customer" })
@@ -26,6 +26,14 @@ export const conciergeQuotesAdminRoutes = new ModuleRouter({ surface: "admin", p
     status: 201,
     audit: audit("concierge.quote_sent"),
   }, c.create)
+  .post("/requests/:id/refund", {
+    summary: "Refund money received on a request (to the original payment or the ASL Wallet), optionally cancelling it",
+    description: "Default amount = everything paid. Refunding everything requires `cancelRequest`. With `cancelRequest`, whatever is not refunded is kept as a cancellation fee. Not available after delivery.",
+    permission: ["concierge.quote", "orders.refund"],
+    params: idParam,
+    body: refundBody,
+    audit: { category: "concierge", action: "concierge.refunded", entity: "concierge_request" },
+  }, c.refund)
   .get("/quotes", { summary: "Quotes (tabs: pending / accepted / paid / expired / declined, KPIs)", permission: "concierge.view", query: adminQuotesQuery }, c.list)
   .get("/quotes/export", { summary: "Quotes CSV", permission: "concierge.view", query: adminQuotesQuery }, c.exportCsv)
   .get("/quotes/:id", { summary: "Quote (id or QT- number)", permission: "concierge.view", params: idParam }, c.get)

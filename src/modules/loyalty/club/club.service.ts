@@ -20,7 +20,7 @@ import { env } from "@/config/env";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import { walletsService } from "@/modules/payments/wallets/wallets.service";
 import { ledgerService, SYSTEM_USER } from "@/modules/payments/ledger/ledger.service";
-import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { preferred } from "@/modules/support/notifications/notifications.service";
 import { customerBrief } from "@/modules/identity/auth/customer.mapper";
 import { POINTS_ACC, pointsService as points } from "./points.service";
 import { tierList, toAdminRedemption, toAdminReward, toHistoryRow, toLedgerRow, toRedemption, toTier } from "./club.mapper";
@@ -53,7 +53,7 @@ const rank = (tiers: ClubTier[], id: CustomerTier) => {
 
 const tierNames = (ids: CustomerTier[]) => (ids.length <= 1 ? ids.join("") : `${ids.slice(0, -1).join(", ")} and ${ids[ids.length - 1]}`);
 
-async function changeTier(customerId: string, from: CustomerTier, to: CustomerTier, why: string) {
+async function changeTier(customerId: string, from: CustomerTier, to: CustomerTier, why: string, reason: "spend" | "nightly" = "spend") {
   await prisma.customer.update({ where: { id: customerId }, data: { tier: to } });
   await auditDirect({
     actorName: "ASL Club", actorEmail: "system", actorRole: "system", action: "club.tier_changed", category: "marketing",
@@ -65,8 +65,10 @@ async function changeTier(customerId: string, from: CustomerTier, to: CustomerTi
   const c = await prisma.customer.findUnique({ where: { id: customerId }, select: { email: true, firstName: true, deletedAt: true } });
   if (!c || c.deletedAt) return;
   const vars = { firstName: c.firstName || "there", tier: to, url: `${env.WEB_URL}/account/benefits` };
-  await messaging.push(customerId, "club.tier_upgraded", vars, { type: "club", tier: to });
-  await messaging.email(c.email, "club.tier_upgraded", vars);
+  // club notice: push and e-mail follow the customer's channel switches (no topic); inbox row + activity come from the event
+  await preferred.push(customerId, null, "club.tier_upgraded", vars, { type: "club", tier: to });
+  await preferred.promoEmail(customerId, c.email, null, "club.tier_upgraded", vars);
+  events.emit("club.tier_upgraded", { customerId, from, to, reason });
 }
 
 /** after an order is paid: move up straight away if the rolling spend crossed a threshold */
@@ -115,7 +117,7 @@ async function recomputeTiers(now = new Date()) {
         await prisma.customerStats.upsert({ where: { customerId: c.id }, create: { customerId: c.id, spend12m: BigInt(s) }, update: { spend12m: BigInt(s) } });
       const target = tierFor(tiers, s);
       if (target !== c.tier) {
-        await changeTier(c.id, c.tier, target, "nightly review of 12-month spend");
+        await changeTier(c.id, c.tier, target, "nightly review of 12-month spend", "nightly");
         changed++;
       }
     }

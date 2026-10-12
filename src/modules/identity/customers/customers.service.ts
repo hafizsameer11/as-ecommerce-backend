@@ -3,8 +3,9 @@
  * notes, tags, wallet adjustments and "Delete customer" (anonymise, orders are kept).
  * Spend / orders / AOV come from CustomerStats (kept up to date by the orders module).
  */
-import type { Prisma } from "@/generated/prisma/client";
+import type { CustomerTier, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/core/db/prisma";
+import { events } from "@/core/events/bus";
 import { ApiError } from "@/core/http/errors";
 import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
@@ -17,6 +18,8 @@ import { listInclude, toAdminOrderRow } from "@/modules/commerce/orders/orders.m
 import { CUSTOMER_TABS, type CustomerListQuery, type StatusBody, type TierBody, type WalletAdjustBody } from "./customers.schemas";
 import { customerRowInclude, toAdminCustomerRow, toAdminNote } from "./customers.mapper";
 import { pointsService } from "@/modules/loyalty/club/points.service";
+
+const TIER_ORDER: CustomerTier[] = ["Standard", "Silver", "Gold", "Signature"];
 
 const SORTS: Record<string, (d: "asc" | "desc") => Prisma.CustomerOrderByWithRelationInput> = {
   spend: (d) => ({ stats: { totalSpend: d } }),
@@ -120,12 +123,16 @@ export const customersService = {
       await tx.customer.update({ where: { id }, data: { status: b.status } });
       if (b.status === "blocked") await tx.customerSession.updateMany({ where: { customerId: id, revokedAt: null }, data: { revokedAt: new Date() } });
     });
+    if (before.status !== b.status) events.emit("customer.status_changed", { customerId: id, from: before.status, to: b.status });
     return { before, after: await row(id) };
   },
 
   async setTier(id: string, b: TierBody) {
     const before = await row(id);
     await prisma.customer.update({ where: { id }, data: { tier: b.tier } });
+    // set by hand: tiers rank in enum order (Standard < Silver < Gold < Signature)
+    if (TIER_ORDER.indexOf(b.tier) > TIER_ORDER.indexOf(before.tier as CustomerTier))
+      events.emit("club.tier_upgraded", { customerId: id, from: before.tier, to: b.tier, reason: "admin" });
     return { before, after: await row(id) };
   },
 

@@ -15,6 +15,8 @@ import { toCsv } from "@/core/utils/csv";
 import { logger } from "@/core/utils/logger";
 import { formatters, nextSequence } from "@/core/utils/sequence";
 import { settingsService } from "@/modules/platform/settings/settings.service";
+import { env } from "@/config/env";
+import { paymentProvider } from "@/providers/payment/payment";
 import { PAYOUT_STATUS_LABEL, providerLabel, toPayout } from "./payouts.mapper";
 import type { PayoutBody, PayoutListQuery, PayoutPatch } from "./payouts.schemas";
 
@@ -181,7 +183,8 @@ export const payoutsService = {
         await nextSequence(tx, "lock:payouts.sync", 0);
         const pays = await tx.payment.findMany({
           where: { provider: { not: "manual" }, status: { in: ["succeeded", "partially_refunded", "refunded"] }, paidAt: { not: null, lt: cutoff } },
-          include: { refunds: { where: { status: { not: "failed" } } }, order: { select: { number: true } } },
+          // refunds the provider returns out of the settlement (failed ones and ones moved to the wallet never left it)
+          include: { refunds: { where: { status: { in: ["pending", "processed"] } } }, order: { select: { number: true } } },
           orderBy: { paidAt: "asc" },
           take: 20_000,
         });
@@ -222,8 +225,35 @@ export const payoutsService = {
       { timeout: 60_000 },
     );
     if (created.length) logger.info({ count: created.length }, "payouts synced");
+    for (const payoutId of created) events.emit("payout.pending", { payoutId });
     const rows = await prisma.payout.findMany({ where: { id: { in: created } }, include: count, orderBy: { scheduledAt: "asc" } });
     return { created: rows.length, payouts: rows.map(toPayout) };
+  },
+
+  /** admin → payouts / settings: the live gateway + the checkout methods (PaymentMethodSetting) */
+  async providers() {
+    const methods = await prisma.paymentMethodSetting.findMany({ orderBy: { position: "asc" } });
+    const gw = paymentProvider;
+    const GATEWAYS = ["paystack", "flutterwave", "stripe"];
+    // card methods run through the live gateway (the mock stands in for Paystack); wallet / bank transfer / COD are ours
+    const connected = (id: string) => !GATEWAYS.includes(id) || id === gw.name || (gw.name === "mock" && id === "paystack");
+    return {
+      active: {
+        name: gw.name,
+        label: providerLabel(gw.name),
+        testMode: gw.testMode,
+        publicKey: gw.publicKey ?? null,
+        webhookUrl: `${env.APP_URL}/api/v1/webhooks/payments/${gw.name}`,
+        asyncRefunds: gw.name !== "mock",
+        asyncTransfers: gw.name !== "mock",
+      },
+      methods: methods.map((m) => ({
+        id: m.id, label: m.label, provider: m.provider, providerLabel: providerLabel(m.provider), enabled: m.enabled, testMode: m.testMode,
+        fee: m.feeLabel, position: m.position, gateway: GATEWAYS.includes(m.id), connected: connected(m.id),
+        // shown as test mode when the setting says so or the gateway runs on test keys
+        testModeEffective: GATEWAYS.includes(m.id) && connected(m.id) ? m.testMode || gw.testMode : m.testMode,
+      })),
+    };
   },
 };
 

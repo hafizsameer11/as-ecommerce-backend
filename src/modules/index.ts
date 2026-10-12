@@ -81,6 +81,7 @@ import { registerAnalyticsListeners } from "./platform/analytics/analytics.liste
 import { dashboardAdminRoutes } from "./platform/dashboard/dashboard.routes";
 import { reportsAdminRoutes } from "./platform/reports/reports.routes";
 import { registerReportJobs } from "./platform/reports/reports.service";
+import { registerRealtimeListeners } from "@/core/realtime/realtime.listeners";
 
 export const moduleRouters: ModuleRouter[] = [
   // identity
@@ -232,4 +233,5 @@ export async function registerListeners() {
   registerContentJobs();
   registerAnalyticsListeners(); registerReportJobs();
   registerActivityListeners();
+  registerRealtimeListeners();
 }

@@ -340,7 +340,7 @@ describe("notification settings (staff rules)", () => {
   it("lists the seeded rules and edits them", async () => {
     const g = await api().get(`${A}/notification-settings`).set(bearer(superAdmin.token));
     expect(g.status).toBe(200);
-    expect(g.body.data.rules).toHaveLength(12);
+    expect(g.body.data.rules).toHaveLength(17); // 12 + order_risk, customer_vip, finance_payout, system_role, system_backup
     expect(g.body.data.rules[0].category).toBe("orders");
     expect(g.body.data.quietHours.enabled).toBe(false);
     const bad = await api().patch(`${A}/notification-settings/rules/order_new`).set(bearer(superAdmin.token)).send({ recipients: ["not a role"] });

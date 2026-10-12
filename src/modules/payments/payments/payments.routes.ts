@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ModuleRouter } from "@/core/http/router";
+import { ModuleRouter, idParam } from "@/core/http/router";
 import { pageQuery } from "@/core/http/pagination";
 import { paymentsController as c } from "./payments.controller";
 
@@ -25,4 +25,12 @@ export const paymentsAdminRoutes = new ModuleRouter({ surface: "admin", prefix: 
       status: z.enum(["pending", "succeeded", "failed", "abandoned", "refunded", "partially_refunded"]).optional(),
       purpose: z.enum(["order", "order_balance", "reservation_deposit", "wallet_topup", "concierge", "draft_order", "card_authorization"]).optional(),
     }),
-  }, c.adminList);
+  }, c.adminList)
+  .post("/refunds/:id/retry", {
+    summary: "Retry a failed refund: to the original payment again, or into the customer's ASL Wallet",
+    description: "Refunds stay `pending` until the provider confirms (`refund.processed`); `failed` ones are still owed and flagged to finance.",
+    permission: "finance.payouts",
+    params: idParam,
+    body: z.object({ to: z.enum(["original", "wallet"]).default("original") }),
+    audit: { category: "finance", action: "refund.retried", entity: "refund" },
+  }, c.retryRefund);

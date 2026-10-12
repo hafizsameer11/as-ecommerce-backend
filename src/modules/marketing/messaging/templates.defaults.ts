@@ -49,6 +49,8 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "Request {{requestNumber}}: {{status}}", body: "Hi {{firstName}},\n\nYour concierge request {{requestNumber}} ({{itemName}}) is now: {{status}}.", ctaLabel: "Track request", linkTo: "{{requestUrl}}" },
   { code: "concierge.status", name: "Concierge request update (push)", channel: "push", category: "concierge", trigger: "concierge.status_changed",
     subject: "Request {{requestNumber}}", body: "{{itemName}}: {{status}}." },
+  { code: "concierge.refunded", name: "Concierge refund", channel: "email", category: "concierge", trigger: "concierge.refunded",
+    subject: "Refund for request {{requestNumber}}", body: "Hi {{firstName}},\n\nWe've refunded {{amount}} for your concierge request {{requestNumber}} ({{itemName}}) to {{destination}}.\n\nReason: {{reason}}\n\nCard and bank refunds can take a few working days to appear.", ctaLabel: "View request", linkTo: "{{requestUrl}}" },
   { code: "concierge.message", name: "Concierge message", channel: "email", category: "concierge", trigger: "concierge.message",
     subject: "New message about {{requestNumber}}", body: "{{agent}} wrote:\n\n{{text}}", ctaLabel: "View request", linkTo: "{{requestUrl}}" },
   { code: "concierge.message", name: "Concierge message (push)", channel: "push", category: "concierge", trigger: "concierge.message",

@@ -6,6 +6,7 @@
  */
 import { prisma } from "@/core/db/prisma";
 import { events } from "@/core/events/bus";
+import { realtime } from "@/core/realtime/realtime";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
 import { notifyStaff } from "@/modules/platform/notification-settings/notification-settings.service";
 import { notify } from "@/modules/support/notifications/notifications.service";
@@ -50,11 +51,11 @@ export function registerTicketListeners() {
       return;
     }
     if (t.assigneeId)
-      await prisma.adminNotification.create({
+      realtime.bell(await prisma.adminNotification.create({
         data: {
           adminId: t.assigneeId, title: `${t.customerName} replied · ${t.number}`, body: m.body.slice(0, 300),
           link: `/tickets?id=${t.id}`, priority: t.priority === "urgent" ? "high" : "normal",
         },
-      });
+      }));
   });
 }

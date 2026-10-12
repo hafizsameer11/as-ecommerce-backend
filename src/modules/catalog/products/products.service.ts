@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma, type Tx } from "@/core/db/prisma";
+import { events } from "@/core/events/bus";
 import { ApiError } from "@/core/http/errors";
 import { pageMeta } from "@/core/http/pagination";
 import { slugify } from "@/core/utils/slug";
@@ -233,6 +234,7 @@ export const productsService = {
       return p.id;
     });
     await mediaService.syncUsage("product", id, input.images?.map((i) => i.url) ?? []);
+    events.emit("catalog.updated", { productId: id, action: "created", status: input.status });
     return this.adminGet(id);
   },
 
@@ -248,12 +250,16 @@ export const productsService = {
       await ensureStockRows(tx, before.productId);
     });
     if (patch.images) await mediaService.syncUsage("product", before.productId, patch.images.map((i) => i.url));
-    return { before, after: await this.adminGet(before.productId) };
+    const after = await this.adminGet(before.productId);
+    const statusChanged = after.status !== before.status;
+    events.emit("catalog.updated", { productId: before.productId, action: statusChanged ? "status_changed" : "updated", status: statusChanged ? String(after.status) : undefined });
+    return { before, after };
   },
 
   async setStatus(id: string, status: "active" | "draft" | "archived") {
     const p = await this.adminGet(id);
     await prisma.product.update({ where: { id: p.productId }, data: { status, publishedAt: status === "active" && !p.publishedAt ? new Date() : undefined } });
+    if (String(p.status) !== status) events.emit("catalog.updated", { productId: p.productId, action: "status_changed", status });
     return this.adminGet(p.productId);
   },
 
@@ -274,6 +280,7 @@ export const productsService = {
     // soft delete keeps order history intact
     await prisma.product.update({ where: { id: p.productId }, data: { deletedAt: new Date(), status: "archived", handle: `${p.id}--deleted-${Date.now().toString(36)}` } });
     await prisma.mediaUsage.deleteMany({ where: { entityType: "product", entityId: p.productId } });
+    events.emit("catalog.updated", { productId: p.productId, action: "status_changed", status: "deleted" });
     return p;
   },
 
@@ -296,6 +303,9 @@ export const productsService = {
         for (const id of ids) await this.remove(id);
         break;
     }
+    const bulkStatus = ({ publish: "active", draft: "draft", archive: "archived" } as Record<string, string>)[b.action];
+    if (b.action !== "delete")
+      for (const productId of ids) events.emit("catalog.updated", { productId, action: bulkStatus ? "status_changed" : "updated", status: bulkStatus });
     return { updated: ids.length };
   },
 };

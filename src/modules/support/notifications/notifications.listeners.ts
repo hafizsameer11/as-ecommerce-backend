@@ -99,6 +99,14 @@ export function registerNotificationListeners() {
     });
   });
 
+  // the club already pushed / e-mailed the upgrade (when allowed) → inbox row only
+  events.on("club.tier_upgraded", async ({ customerId, to }) => {
+    await inboxOnly(customerId, {
+      category: "ASL Club", tag: "NEW", title: `Welcome to ${to}`, icon: "Crown",
+      message: `Congratulations! You've reached ${to} tier in the ASL Club. Enjoy your new benefits.`, ctaLabel: "View Benefits", ctaLink: "/account/benefits",
+    });
+  });
+
   // wallet top-up: nothing else tells the customer, so this one also pushes (template wallet.topup)
   events.on("payment.succeeded", async ({ paymentId }) => {
     const p = await prisma.payment.findUnique({ where: { id: paymentId }, select: { purpose: true, customerId: true, amount: true } });

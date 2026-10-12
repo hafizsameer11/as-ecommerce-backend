@@ -1,10 +1,14 @@
 /**
  * Domain events → staff alerts (NotificationRule). Concierge rules are fired by the concierge module;
  * `customer_ticket` by support/tickets.
+ * `order_risk` and `system_backup` are seeded (the admin lists them) but nothing fires them yet:
+ * there is no fraud engine and backups run outside the API.
  */
 import { prisma } from "@/core/db/prisma";
 import { events } from "@/core/events/bus";
 import { formatNaira } from "@/core/utils/money";
+import { ROLE_LABELS } from "@/core/auth/permissions";
+import { fullName } from "@/modules/identity/auth/customer.mapper";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import { notifyStaff } from "./notification-settings.service";
 
@@ -58,6 +62,50 @@ export function registerStaffAlertListeners() {
     await notifyStaff("catalog_review", {
       title: `Review pending · ${r.product.name}`, body: `${r.authorName} rated it ${r.rating}/5: "${r.title}"`, link: `/reviews?id=${r.id}`, entity: `review:${r.id}`,
     });
+  });
+
+  // payouts: one alert when the sync schedules a settlement, one when it is paid
+  const payoutAlert = async (payoutId: string, paid: boolean) => {
+    const p = await prisma.payout.findUnique({ where: { id: payoutId }, select: { id: true, number: true, provider: true, net: true, scheduledAt: true, bankName: true } });
+    if (!p) return;
+    await notifyStaff("finance_payout", {
+      title: paid ? `Payout ${p.number} settled · ${formatNaira(p.net)}` : `Payout ${p.number} scheduled · ${formatNaira(p.net)}`,
+      body: paid
+        ? `${p.provider} settlement of ${formatNaira(p.net)} was paid to ${p.bankName}.`
+        : `${p.provider} settlement of ${formatNaira(p.net)} is due ${p.scheduledAt.toISOString().slice(0, 10)} (${p.bankName}).`,
+      link: `/payouts?id=${p.id}`, entity: `payout:${p.id}`,
+    });
+  };
+  events.on("payout.pending", ({ payoutId }) => payoutAlert(payoutId, false));
+  events.on("payout.paid", ({ payoutId }) => payoutAlert(payoutId, true));
+
+  // VIP: reaching Signature (spend or set by staff) or being marked VIP — one alert per customer per day
+  const vipAlert = async (customerId: string, why: string) => {
+    const c = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, email: true, firstName: true, lastName: true } });
+    if (!c) return;
+    await notifyStaff("customer_vip", {
+      title: `New VIP customer · ${fullName(c) || c.email}`, body: `${fullName(c) || c.email} (${c.email}) ${why}.`,
+      link: `/customers?id=${c.id}`, entity: `customer:${c.id}`, dedupeHours: 24,
+    });
+  };
+  events.on("club.tier_upgraded", async ({ customerId, to }) => {
+    if (to === "Signature") await vipAlert(customerId, "reached the Signature tier");
+  });
+  events.on("customer.status_changed", async ({ customerId, to }) => {
+    if (to === "vip") await vipAlert(customerId, "was marked VIP");
+  });
+
+  events.on("team.access_changed", async ({ kind, adminId, role, from, to, by }) => {
+    const label = (r?: string) => (r && r in ROLE_LABELS ? ROLE_LABELS[r as keyof typeof ROLE_LABELS] : (r ?? ""));
+    const who = adminId ? await prisma.adminUser.findUnique({ where: { id: adminId }, select: { name: true, email: true } }) : null;
+    const actor = by ? ` by ${by}` : "";
+    const n =
+      kind === "role"
+        ? { title: `Role changed · ${who?.name ?? "team member"}`, body: `${who?.name ?? "A team member"} (${who?.email ?? "?"}) moved from ${label(from)} to ${label(to)}${actor}.` }
+        : kind === "status"
+          ? { title: `Access ${to === "suspended" ? "suspended" : "restored"} · ${who?.name ?? "team member"}`, body: `${who?.name ?? "A team member"} (${who?.email ?? "?"}) is now ${to}${actor}.` }
+          : { title: `Permissions changed · ${label(role)}`, body: `The ${label(role)} role's permissions were ${to === "defaults" ? "reset to the defaults" : "edited"}${actor}.` };
+    await notifyStaff("system_role", { ...n, link: "/team", entity: adminId ? `admin:${adminId}` : `role:${role}` });
   });
 
   events.on("payment.failed", async ({ paymentId }) => {

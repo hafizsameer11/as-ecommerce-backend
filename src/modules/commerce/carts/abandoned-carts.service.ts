@@ -19,7 +19,7 @@ import { defineJob } from "@/core/queue/queue";
 import { formatNaira } from "@/core/utils/money";
 import { logger } from "@/core/utils/logger";
 import { settingsService } from "@/modules/platform/settings/settings.service";
-import { messaging } from "@/modules/marketing/messaging/messaging.service";
+import { preferred } from "@/modules/support/notifications/notifications.service";
 import { fullName } from "@/modules/identity/auth/customer.mapper";
 import type { AbandonedListQuery, RecoveryRulesBody, ReminderChannel } from "./abandoned-carts.schemas";
 
@@ -106,8 +106,10 @@ async function deliver(c: AdminCart, stage: number, channel: ReminderChannel, te
     total: formatNaira(cartValue(c)),
     recoverUrl: recoverUrl(c),
   };
-  if (channel === "push" && c.customerId) await messaging.push(c.customerId, templateCode, vars, { url: "/cart" });
-  else await messaging.email(recipient(c)!, templateCode, vars);
+  // reminders are promotional: account holders get them only on channels they allow (topic "wishlist" =
+  // saved items + bag reminders, on by default); guests (no preferences) get the e-mail. The stage still advances.
+  if (channel === "push" && c.customerId) await preferred.push(c.customerId, "wishlist", templateCode, vars, { url: "/cart" });
+  else await preferred.promoEmail(c.customerId, recipient(c), "wishlist", templateCode, vars);
   return true;
 }
 
