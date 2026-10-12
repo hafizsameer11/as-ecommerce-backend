@@ -52,6 +52,10 @@ model ConciergeRequest {
   supplierId  String?
   supplier    Supplier?         @relation(fields: [supplierId], references: [id])
   slaDueAt    DateTime?
+  /// ok | at_risk | breached — last SLA level staff were notified about (concierge.sla-check)
+  slaState    String            @default("ok") @db.VarChar(16)
+  /// delivery address snapshot given when the customer accepts a quote
+  deliveryAddress Json?
   cancelledAt DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
@@ -101,11 +105,17 @@ model ConciergeQuote {
   itemsTotal  Int
   serviceFee  Int
   shippingEstimate Int
+  /// VAT added on top (exclusive rates)
   tax         Int              @default(0)
+  /// VAT already inside the prices (inclusive rates) — reported, not added
+  taxIncluded Int              @default(0)
   total       Int
   depositPct  Int              @default(100)
   deposit     Int
+  /// deposit + balance received so far
+  amountPaid  Int              @default(0)
   status      QuoteStatus      @default(sent)
+  declineReason String?        @db.VarChar(500)
   expiresAt   DateTime
   note        String?          @db.Text
   createdBy   String

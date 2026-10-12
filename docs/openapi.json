@@ -1914,7 +1914,8 @@
                 "finance",
                 "legal",
                 "maintenance",
-                "app"
+                "app",
+                "drops"
               ]
             },
             "required": true,
@@ -6213,11 +6214,16 @@
     },
     "/store/drops/{id}": {
       "get": {
-        "summary": "One drop",
+        "summary": "One drop (+ my reservation when signed in)",
         "tags": [
           "Store · Drops"
         ],
-        "security": [],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
         "parameters": [
           {
             "schema": {
@@ -6236,6 +6242,320 @@
           },
           "400": {
             "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/drops/{id}/reserve": {
+      "post": {
+        "summary": "Reserve: pay the deposit (returns the reservation + payment to open)",
+        "description": "One active reservation per customer per drop (`ALREADY_RESERVED`); a full allocation answers `OUT_OF_STOCK`. Calling again while the deposit is unpaid opens a new payment for the same reservation.\n\n**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Drops"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "size": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 20
+                  },
+                  "color": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 60
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/reservations": {
+      "get": {
+        "summary": "My drop reservations (tabs: active / past)",
+        "tags": [
+          "Store · Drops"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "past"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/reservations/{id}": {
+      "get": {
+        "summary": "One reservation (id or RSV- number): deposit, balance due, pay-balance window",
+        "tags": [
+          "Store · Drops"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/reservations/{id}/cancel": {
+      "post": {
+        "summary": "Cancel before the drop (deposit refunded per settings)",
+        "tags": [
+          "Store · Drops"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/reservations/{id}/pay-balance": {
+      "post": {
+        "summary": "Pay the balance once the piece has dropped → a paid order",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Drops"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "addressId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 64
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 500,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
           }
         }
       }
@@ -6329,6 +6649,571 @@
           },
           "401": {
             "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/drops": {
+      "get": {
+        "summary": "Drops with KPIs (allocation, reserved, deposits, conversion)",
+        "description": "**Permission:** `catalog.view`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "upcoming",
+                "live",
+                "sold_out",
+                "ended"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a drop for a product",
+        "description": "**Permission:** `catalog.edit`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "productId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 190
+                  },
+                  "releaseAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "allocation": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "depositPct": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "teaser": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "productId",
+                  "releaseAt",
+                  "allocation"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/drops/{id}": {
+      "get": {
+        "summary": "One drop + reservation stats",
+        "description": "**Permission:** `catalog.view`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update release date, allocation, deposit %, teaser",
+        "description": "**Permission:** `catalog.edit`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "releaseAt": {
+                    "type": "string",
+                    "nullable": true,
+                    "format": "date-time"
+                  },
+                  "allocation": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "depositPct": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "teaser": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/drops/{id}/go-live": {
+      "post": {
+        "summary": "Release now (holds stock for reservations, notifies holders)",
+        "description": "**Permission:** `catalog.edit`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/drops/{id}/end": {
+      "post": {
+        "summary": "End the drop (outstanding reservations cancelled, deposits refunded)",
+        "description": "**Permission:** `catalog.edit`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/drops/{id}/reservations": {
+      "get": {
+        "summary": "Reservations for a drop (tabs by status)",
+        "description": "**Permission:** `catalog.view`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pending_deposit",
+                "reserved",
+                "balance_paid",
+                "cancelled",
+                "expired"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/drops/{id}/reservations/{rid}": {
+      "get": {
+        "summary": "One reservation",
+        "description": "**Permission:** `catalog.view`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "rid",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/drops/{id}/reservations/{rid}/cancel": {
+      "post": {
+        "summary": "Cancel a reservation (deposit refunded to card / wallet, or kept)",
+        "description": "**Permission:** `catalog.edit`",
+        "tags": [
+          "Admin · Drops"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "rid",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  },
+                  "refundTo": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "wallet",
+                      "none"
+                    ],
+                    "default": "original"
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
           }
         }
       }
@@ -18887,6 +19772,5150 @@
             "in": "path"
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests": {
+      "post": {
+        "summary": "Submit a request (multipart: fields + up to 6 `images`) — from the form or a concierge-shop product",
+        "description": "Guests may submit: send `contactName` + `contactEmail` (they track it with the number + e-mail and get updates by e-mail). Quotes can only be accepted and paid from an account; guest requests are linked to the account once its e-mail is verified.",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "form",
+                      "catalog"
+                    ],
+                    "default": "form"
+                  },
+                  "productId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "itemName": {
+                    "type": "string",
+                    "maxLength": 190
+                  },
+                  "category": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "brand": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "reference": {
+                    "type": "string",
+                    "maxLength": 1024
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "size": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "color": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "condition": {
+                    "type": "string",
+                    "maxLength": 40
+                  },
+                  "budget": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0,
+                    "maximum": 100000000000
+                  },
+                  "preferredSource": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "qty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "default": 1
+                  },
+                  "contactName": {
+                    "type": "string",
+                    "maxLength": 120
+                  },
+                  "contactEmail": {
+                    "type": "string",
+                    "maxLength": 190,
+                    "format": "email"
+                  },
+                  "contactPhone": {
+                    "type": "string",
+                    "maxLength": 30
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      },
+      "get": {
+        "summary": "My requests (tabs: all / progress / completed / cancelled)",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "progress",
+                "completed",
+                "cancelled"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}": {
+      "get": {
+        "summary": "Request detail (id or ASL number): timeline, current quote, labels",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}/cancel": {
+      "post": {
+        "summary": "Cancel (before anything is paid)",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/cart": {
+      "get": {
+        "summary": "Concierge cart: open requests with their cart label + estimated summary",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/track/{number}": {
+      "get": {
+        "summary": "Track a request by number + e-mail (/track-request). Signed-in owners can omit the e-mail.",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 32
+            },
+            "required": true,
+            "name": "number",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 190,
+              "format": "email"
+            },
+            "required": false,
+            "name": "email",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/concierge/kpis": {
+      "get": {
+        "summary": "Concierge KPIs: open, SLA at risk / breached, quoted value, conversion",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests": {
+      "get": {
+        "summary": "Inbox (tabs by status + open / unassigned / SLA / VIP, priority, assignee, search, KPIs)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sla",
+                "createdAt",
+                "-createdAt",
+                "-updatedAt"
+              ],
+              "default": "-createdAt"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "unassigned",
+                "sla_breached",
+                "sla_at_risk",
+                "vip",
+                "new",
+                "sourcing",
+                "quoted",
+                "approved",
+                "payment_pending",
+                "ordered",
+                "in_transit",
+                "delivered",
+                "cancelled",
+                "unavailable"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "priority",
+                "vip"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "assignee",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "supplierId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/board": {
+      "get": {
+        "summary": "Sourcing board: columns by status",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sla",
+                "createdAt",
+                "-createdAt",
+                "-updatedAt"
+              ],
+              "default": "-createdAt"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "open",
+                "unassigned",
+                "sla_breached",
+                "sla_at_risk",
+                "vip",
+                "new",
+                "sourcing",
+                "quoted",
+                "approved",
+                "payment_pending",
+                "ordered",
+                "in_transit",
+                "delivered",
+                "cancelled",
+                "unavailable"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "priority",
+                "vip"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "assignee",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "supplierId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}": {
+      "get": {
+        "summary": "Request (id or ASL number) with full timeline, quotes, thread",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/status": {
+      "patch": {
+        "summary": "Move status (validated transitions)",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "sourcing",
+                      "quoted",
+                      "approved",
+                      "payment_pending",
+                      "ordered",
+                      "in_transit",
+                      "delivered",
+                      "cancelled",
+                      "unavailable"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/assign": {
+      "post": {
+        "summary": "Assign to a team member (null = unassign)",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "adminId": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "adminId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/priority": {
+      "patch": {
+        "summary": "Priority (re-times the SLA)",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "standard",
+                      "priority",
+                      "vip"
+                    ]
+                  }
+                },
+                "required": [
+                  "priority"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/supplier": {
+      "patch": {
+        "summary": "Link a supplier (null = remove)",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "supplierId": {
+                    "type": "string",
+                    "nullable": true,
+                    "minLength": 1,
+                    "maxLength": 64
+                  }
+                },
+                "required": [
+                  "supplierId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/notes": {
+      "post": {
+        "summary": "Add a timeline note (internal by default)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "internal": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}/quote": {
+      "get": {
+        "summary": "Current quote (lines, fees, deposit, expiry, amount due now)",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}/quote/accept": {
+      "post": {
+        "summary": "Accept the quote and pay the deposit → `{ quote, payment }` (open payment.authorizationUrl)",
+        "description": "Delivery address: `addressId` (saved), `address` (typed) or the default shipping address. 409 `QUOTE_EXPIRED` once the quote has expired.\n\n**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "addressId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "address": {
+                    "type": "object",
+                    "properties": {
+                      "fullName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 120
+                      },
+                      "phone": {
+                        "type": "string",
+                        "minLength": 7,
+                        "maxLength": 30
+                      },
+                      "address": {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 190
+                      },
+                      "apartment": {
+                        "type": "string",
+                        "maxLength": 190
+                      },
+                      "city": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 80
+                      },
+                      "state": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 80
+                      },
+                      "postal": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "country": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 56,
+                        "default": "Nigeria"
+                      }
+                    },
+                    "required": [
+                      "fullName",
+                      "phone",
+                      "address",
+                      "city",
+                      "state"
+                    ]
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "saveCard": {
+                    "type": "boolean"
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}/quote/decline": {
+      "post": {
+        "summary": "Decline the quote (optionally close the request)",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 500
+                  },
+                  "cancelRequest": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}/pay-balance": {
+      "post": {
+        "summary": "Pay the remaining balance (quotes with a deposit below 100 %)",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · Concierge"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "card",
+                      "bank_transfer"
+                    ],
+                    "default": "card"
+                  },
+                  "savedMethodId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "returnUrl": {
+                    "type": "string",
+                    "maxLength": 1024,
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/concierge/requests/{id}/quotes": {
+      "post": {
+        "summary": "Send quote: lines + fees (defaults from settings `concierge`), tax from Admin → Tax, expiry `quoteValidityHours`",
+        "description": "**Permission:** `concierge.quote`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 190
+                        },
+                        "source": {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100,
+                          "default": 1
+                        },
+                        "price": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100000000000
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "price"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  },
+                  "serviceFee": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000
+                  },
+                  "shippingEstimate": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000
+                  },
+                  "depositPct": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "validityHours": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 720
+                  }
+                },
+                "required": [
+                  "lines"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/quotes": {
+      "get": {
+        "summary": "Quotes (tabs: pending / accepted / paid / expired / declined, KPIs)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pending",
+                "accepted",
+                "paid",
+                "expired",
+                "declined"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "requestId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/quotes/export": {
+      "get": {
+        "summary": "Quotes CSV",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pending",
+                "accepted",
+                "paid",
+                "expired",
+                "declined"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "requestId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/quotes/{id}": {
+      "get": {
+        "summary": "Quote (id or QT- number)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Revise an unpaid quote (validity restarts, customer notified)",
+        "description": "**Permission:** `concierge.quote`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 190
+                        },
+                        "source": {
+                          "type": "string",
+                          "maxLength": 120
+                        },
+                        "qty": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 100,
+                          "default": 1
+                        },
+                        "price": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 100000000000
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "price"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 20
+                  },
+                  "serviceFee": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000
+                  },
+                  "shippingEstimate": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000000000
+                  },
+                  "depositPct": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 2000
+                  },
+                  "validityHours": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 720
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/quotes/{id}/withdraw": {
+      "post": {
+        "summary": "Withdraw an unpaid quote (request back to sourcing)",
+        "description": "**Permission:** `concierge.quote`",
+        "tags": [
+          "Admin · Concierge"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/concierge/unread": {
+      "get": {
+        "summary": "Unread concierge messages (badge)",
+        "tags": [
+          "Store · Concierge chat"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/concierge/requests/{id}/messages": {
+      "get": {
+        "summary": "Messages, oldest first (marks agent + system messages read). Older pages: `before`",
+        "tags": [
+          "Store · Concierge chat"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "before",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      },
+      "post": {
+        "summary": "Send a message (multipart: `text` + up to 5 `attachments`, images / PDF)",
+        "tags": [
+          "Store · Concierge chat"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "default": ""
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/concierge/threads": {
+      "get": {
+        "summary": "Threads (all / unread / pinned / VIP, search) + total unread",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge chat"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "unread",
+                "pinned",
+                "vip"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "filter",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "assignee",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/threads/{id}/messages": {
+      "get": {
+        "summary": "Messages (marks the customer's messages read)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge chat"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "before",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Send as agent (multipart: `text`, optional `quoteId` card, `channel`, up to 5 `attachments`)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge chat"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "default": ""
+                  },
+                  "quoteId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "app",
+                      "email",
+                      "whatsapp",
+                      "sms"
+                    ],
+                    "default": "app"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/threads/{id}/pin": {
+      "post": {
+        "summary": "Pin / unpin",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Concierge chat"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pinned": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "pinned"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/suppliers": {
+      "get": {
+        "summary": "Suppliers (status tabs, tier / country / VIP filters, KPIs)",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "pending",
+                "paused",
+                "blocked"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "diamond",
+                "platinum",
+                "gold",
+                "silver"
+              ]
+            },
+            "required": false,
+            "name": "tier",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "country",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "vip",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add supplier",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 190
+                  },
+                  "contact": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 190,
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 40
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "categories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "brands": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "maxItems": 50,
+                    "default": []
+                  },
+                  "tier": {
+                    "type": "string",
+                    "enum": [
+                      "diamond",
+                      "platinum",
+                      "gold",
+                      "silver"
+                    ],
+                    "default": "silver"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "paused",
+                      "blocked",
+                      "pending"
+                    ],
+                    "default": "pending"
+                  },
+                  "leadTimeDays": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365,
+                    "default": 7
+                  },
+                  "rating": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 5,
+                    "default": 0
+                  },
+                  "paymentTerms": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "default": "Prepaid"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "USD",
+                      "EUR",
+                      "GBP",
+                      "NGN"
+                    ],
+                    "default": "USD"
+                  },
+                  "vip": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 4000
+                  },
+                  "onTimeRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "fulfillmentRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                },
+                "required": [
+                  "name",
+                  "contact",
+                  "email",
+                  "phone",
+                  "country",
+                  "city"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/suppliers/export": {
+      "get": {
+        "summary": "Suppliers CSV",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "pending",
+                "paused",
+                "blocked"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "tab",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "diamond",
+                "platinum",
+                "gold",
+                "silver"
+              ]
+            },
+            "required": false,
+            "name": "tier",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "required": false,
+            "name": "country",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "vip",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/suppliers/{id}": {
+      "get": {
+        "summary": "Supplier + stats from linked requests",
+        "description": "**Permission:** `concierge.view`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update supplier (notes, status, tier …)",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 190
+                  },
+                  "contact": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 190,
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 40
+                  },
+                  "country": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "city": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 80
+                  },
+                  "categories": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "maxItems": 50
+                  },
+                  "brands": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 80
+                    },
+                    "maxItems": 50
+                  },
+                  "tier": {
+                    "type": "string",
+                    "enum": [
+                      "diamond",
+                      "platinum",
+                      "gold",
+                      "silver"
+                    ]
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "paused",
+                      "blocked",
+                      "pending"
+                    ]
+                  },
+                  "leadTimeDays": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 365
+                  },
+                  "rating": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 5
+                  },
+                  "paymentTerms": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "USD",
+                      "EUR",
+                      "GBP",
+                      "NGN"
+                    ]
+                  },
+                  "vip": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 4000
+                  },
+                  "onTimeRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "fulfillmentRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete (refused while open requests use it)",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/concierge/suppliers/{id}/vip": {
+      "post": {
+        "summary": "Toggle VIP partner",
+        "description": "**Permission:** `concierge.assign`",
+        "tags": [
+          "Admin · Suppliers"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/club": {
+      "get": {
+        "summary": "Points, value, tier + next tier (spend needed), perks, expiring soon, store credit",
+        "tags": [
+          "Store · ASL Club"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/club/history": {
+      "get": {
+        "summary": "Points activity",
+        "tags": [
+          "Store · ASL Club"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "earned",
+                "spent"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/club/rewards": {
+      "get": {
+        "summary": "Rewards catalogue (canRedeem / lockedReason per reward)",
+        "tags": [
+          "Store · ASL Club"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/club/rewards/{id}/redeem": {
+      "post": {
+        "summary": "Redeem a reward → coupon code, wallet credit or a request our team fulfils",
+        "description": "**Requires** `Idempotency-Key` header.",
+        "tags": [
+          "Store · ASL Club"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/me/club/redemptions": {
+      "get": {
+        "summary": "My redemptions",
+        "tags": [
+          "Store · ASL Club"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/admin/club": {
+      "get": {
+        "summary": "KPIs, tiers (members, spend), rules",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/tiers": {
+      "get": {
+        "summary": "Tiers",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/tiers/{id}": {
+      "patch": {
+        "summary": "Edit tier (min 12-month spend, multiplier, perks, active)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Standard",
+                "Silver",
+                "Gold",
+                "Signature"
+              ]
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40
+                  },
+                  "color": {
+                    "type": "string",
+                    "maxLength": 20
+                  },
+                  "minSpend": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "multiplier": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 10
+                  },
+                  "perks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "maxItems": 20
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/rules": {
+      "get": {
+        "summary": "Points rules",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update points rules",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "nairaPerPoint": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "pointValueKobo": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "expiryMonths": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 120
+                  },
+                  "expiringSoonDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
+                  },
+                  "signupBonus": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "reviewBonus": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "birthdayBonus": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "rewardCouponDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 730
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/rewards": {
+      "get": {
+        "summary": "Reward catalogue (category tabs)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shipping",
+                "credit",
+                "experience",
+                "product",
+                "concierge",
+                "coupon"
+              ]
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "required": false,
+            "name": "active",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create reward",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "default": ""
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "shipping",
+                      "credit",
+                      "experience",
+                      "product",
+                      "concierge",
+                      "coupon"
+                    ]
+                  },
+                  "value": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "icon": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 40
+                  },
+                  "eligibleTiers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "Standard",
+                        "Silver",
+                        "Gold",
+                        "Signature"
+                      ]
+                    },
+                    "minItems": 1,
+                    "default": [
+                      "Standard",
+                      "Silver",
+                      "Gold",
+                      "Signature"
+                    ]
+                  },
+                  "stock": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                },
+                "required": [
+                  "title",
+                  "cost",
+                  "category"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/rewards/reorder": {
+      "post": {
+        "summary": "Reorder rewards (ids in display order)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/rewards/{id}": {
+      "get": {
+        "summary": "Reward",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update reward",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "default": ""
+                  },
+                  "cost": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "shipping",
+                      "credit",
+                      "experience",
+                      "product",
+                      "concierge",
+                      "coupon"
+                    ]
+                  },
+                  "value": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "icon": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 40
+                  },
+                  "eligibleTiers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "Standard",
+                        "Silver",
+                        "Gold",
+                        "Signature"
+                      ]
+                    },
+                    "minItems": 1,
+                    "default": [
+                      "Standard",
+                      "Silver",
+                      "Gold",
+                      "Signature"
+                    ]
+                  },
+                  "stock": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete reward (only if never redeemed)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/rewards/{id}/duplicate": {
+      "post": {
+        "summary": "Duplicate reward (switched off)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/rewards/{id}/toggle": {
+      "post": {
+        "summary": "Switch reward on / off",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/points/adjust": {
+      "post": {
+        "summary": "Add or remove points for a customer",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  "delta": {
+                    "type": "integer"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 200
+                  }
+                },
+                "required": [
+                  "customerId",
+                  "delta",
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/ledger": {
+      "get": {
+        "summary": "Points activity (all customers or one)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "earned",
+                "spent"
+              ]
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/customers/{customerId}": {
+      "get": {
+        "summary": "A customer's club summary",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "customerId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/redemptions": {
+      "get": {
+        "summary": "Redemptions (status tabs)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pending",
+                "fulfilled",
+                "cancelled"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shipping",
+                "credit",
+                "experience",
+                "product",
+                "concierge",
+                "coupon"
+              ]
+            },
+            "required": false,
+            "name": "category",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "customerId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/redemptions/{id}/fulfil": {
+      "post": {
+        "summary": "Mark a pending reward as fulfilled",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/club/redemptions/{id}/cancel": {
+      "post": {
+        "summary": "Cancel a redemption (points go back)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · ASL Club"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/store/me/referrals": {
+      "get": {
+        "summary": "My code, share link, stats (clicks / invited / joined / earned) and friends",
+        "tags": [
+          "Store · Referrals"
+        ],
+        "security": [
+          {
+            "customerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          }
+        }
+      }
+    },
+    "/store/referrals/click/{code}": {
+      "post": {
+        "summary": "Count a share-link visit; returns what the friend gets",
+        "tags": [
+          "Store · Referrals"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "enum": [
+                      "link",
+                      "whatsapp",
+                      "email",
+                      "sms",
+                      "instagram"
+                    ]
+                  }
+                },
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/store/referrals/{code}": {
+      "get": {
+        "summary": "Check a referral code (no click counted)",
+        "tags": [
+          "Store · Referrals"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 40
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          }
+        }
+      }
+    },
+    "/admin/referrals/overview": {
+      "get": {
+        "summary": "KPIs, funnel, channels, leaderboard",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/config": {
+      "get": {
+        "summary": "Programme settings",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update programme settings",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "advocateReward": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "credit",
+                          "points",
+                          "percent",
+                          "fixed"
+                        ]
+                      },
+                      "value": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "value"
+                    ]
+                  },
+                  "friendReward": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "credit",
+                          "points",
+                          "percent",
+                          "fixed"
+                        ]
+                      },
+                      "value": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "value"
+                    ]
+                  },
+                  "qualifyingSpend": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "qualifyDelayDays": {
+                    "type": "integer",
+                    "nullable": true,
+                    "minimum": 0,
+                    "maximum": 90
+                  },
+                  "cookieWindowDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
+                  },
+                  "pendingExpiryDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 730
+                  },
+                  "friendCouponDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365
+                  },
+                  "maxRewardsPerAdvocate": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "requireFirstOrder": {
+                    "type": "boolean"
+                  },
+                  "autoApproveWithinLimit": {
+                    "type": "boolean"
+                  },
+                  "fraudScoreThreshold": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  },
+                  "landingHeadline": {
+                    "type": "string"
+                  },
+                  "landingSubhead": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/advocates": {
+      "get": {
+        "summary": "Advocates with clicks, sign-ups, rewards, revenue driven",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "revenue",
+                "qualified",
+                "clicks",
+                "recent"
+              ],
+              "default": "revenue"
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "active",
+                "paused",
+                "banned"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Standard",
+                "Silver",
+                "Gold",
+                "Signature"
+              ]
+            },
+            "required": false,
+            "name": "tier",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ],
+              "default": "true"
+            },
+            "required": false,
+            "name": "activeOnly",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/advocates/{id}/status": {
+      "patch": {
+        "summary": "Pause / ban / reactivate an advocate",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "paused",
+                      "banned"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals": {
+      "get": {
+        "summary": "Referrals (status tabs: pending / qualified / rewarded / flagged / expired / rejected)",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "page",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 25
+            },
+            "required": false,
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "required": false,
+            "name": "sort",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "pending",
+                "qualified",
+                "rewarded",
+                "expired",
+                "flagged",
+                "rejected"
+              ],
+              "default": "all"
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "link",
+                "whatsapp",
+                "email",
+                "sms",
+                "instagram"
+              ]
+            },
+            "required": false,
+            "name": "channel",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": false,
+            "name": "advocateId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/{id}": {
+      "get": {
+        "summary": "Referral",
+        "description": "**Permission:** `customers.view`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/{id}/approve": {
+      "post": {
+        "summary": "Approve → reward the advocate now (and the friend if not yet)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/{id}/reject": {
+      "post": {
+        "summary": "Reject (no reward)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/{id}/flag": {
+      "post": {
+        "summary": "Flag for review (auto-reward stops)",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "default": {}
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success — `{ data, meta? }`"
+          },
+          "400": {
+            "description": "VALIDATION_FAILED / business rule error"
+          },
+          "401": {
+            "description": "UNAUTHENTICATED"
+          },
+          "403": {
+            "description": "FORBIDDEN"
+          }
+        }
+      }
+    },
+    "/admin/referrals/{id}/reopen": {
+      "post": {
+        "summary": "Move back to pending",
+        "description": "**Permission:** `marketing.manage`",
+        "tags": [
+          "Admin · Referrals"
+        ],
+        "security": [
+          {
+            "adminAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                },
+                "default": {}
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success — `{ data, meta? }`"

@@ -102,6 +102,45 @@ export const settingsSchemas = {
     vatNumber: z.string(), rcNumber: z.string(),
   }),
   maintenance: z.object({ enabled: z.boolean(), message: z.string() }),
+  /** ASL Club points (loyalty/club). Tiers + multipliers live in the ClubTier table. */
+  club: z.object({
+    enabled: z.boolean(),
+    /** base earn: 1 point per this many naira of (subtotal − discount), then × tier multiplier */
+    nairaPerPoint: z.number().int().min(1),
+    /** what one point is worth (kobo) — "≈ ₦ value" on the rewards page and the 2300 liability */
+    pointValueKobo: z.number().int().min(0),
+    /** points expire this many months after they were earned (0 = never) */
+    expiryMonths: z.number().int().min(0).max(120),
+    /** "expiring soon" window on the rewards page */
+    expiringSoonDays: z.number().int().min(1).max(365),
+    signupBonus: z.number().int().min(0),
+    reviewBonus: z.number().int().min(0),
+    birthdayBonus: z.number().int().min(0),
+    /** personal codes minted by coupon / shipping rewards stay valid this long */
+    rewardCouponDays: z.number().int().min(1).max(730),
+  }),
+  /** Referral programme (loyalty/referrals) — admin /referrals → Program */
+  referrals: z.object({
+    enabled: z.boolean(),
+    /** credit / fixed: kobo · percent: 1–100 · points: number of points */
+    advocateReward: z.object({ type: z.enum(["credit", "points", "percent", "fixed"]), value: z.number().int().min(0) }),
+    friendReward: z.object({ type: z.enum(["credit", "points", "percent", "fixed"]), value: z.number().int().min(0) }),
+    /** friend's first paid order (subtotal − discount, kobo) must reach this */
+    qualifyingSpend: money,
+    /** days after delivery before a referral qualifies (null = returns.windowDays) */
+    qualifyDelayDays: z.number().int().min(0).max(90).nullable(),
+    cookieWindowDays: z.number().int().min(1).max(365),
+    /** pending referrals with no qualifying order expire after this many days */
+    pendingExpiryDays: z.number().int().min(1).max(730),
+    friendCouponDays: z.number().int().min(1).max(365),
+    maxRewardsPerAdvocate: z.number().int().min(0),
+    requireFirstOrder: z.boolean(),
+    autoApproveWithinLimit: z.boolean(),
+    /** 0–100: referrals scoring at or above this are flagged for review */
+    fraudScoreThreshold: z.number().int().min(0).max(100),
+    landingHeadline: z.string(),
+    landingSubhead: z.string(),
+  }),
   app: z.object({
     minSupportedVersion: z.string(),
     latestVersion: z.string(),
@@ -109,6 +148,21 @@ export const settingsSchemas = {
     androidStoreUrl: z.string(),
     onboarding: z.array(z.object({ title: z.string(), body: z.string(), image: z.string().optional() })),
     features: z.record(z.string(), z.boolean()),
+  }),
+  /** coming-soon drop reservations (catalog/drops) */
+  drops: z.object({
+    /** hours after release to pay the balance before the reservation expires */
+    balanceWindowHours: z.number().int().min(1).max(24 * 30),
+    /** deposit % for new drops when admin doesn't set one */
+    depositPctDefault: z.number().int().min(1).max(100),
+    /** D4: expired (balance never paid) → true: deposit refunded to the original payment · false: forfeited */
+    depositRefundable: z.boolean(),
+    /** an unpaid deposit holds the allocation this long */
+    reservationHoldMinutes: z.number().int().min(5).max(24 * 60),
+    /** customers can cancel (deposit back) until this many hours before release */
+    cancelCutoffHours: z.number().int().min(0).max(24 * 30),
+    /** where a customer cancellation refunds the deposit */
+    cancelRefundTo: z.enum(["wallet", "original"]),
   }),
 } as const;
 
@@ -188,6 +242,33 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
   finance: { payoutBankName: "GTBank", payoutAccountMasked: "****4021", payoutAccountName: "ASL Originals Ltd", payoutDelayDays: 1 },
   legal: { vatNumber: "", rcNumber: "" },
   maintenance: { enabled: false, message: "We're making improvements and will be back shortly." },
+  club: {
+    enabled: true,
+    nairaPerPoint: 100,
+    pointValueKobo: 500,
+    expiryMonths: 24,
+    expiringSoonDays: 30,
+    signupBonus: 250,
+    reviewBonus: 50,
+    birthdayBonus: 500,
+    rewardCouponDays: 90,
+  },
+  referrals: {
+    enabled: true,
+    advocateReward: { type: "credit", value: N(15_000) },
+    friendReward: { type: "percent", value: 10 },
+    qualifyingSpend: N(50_000),
+    qualifyDelayDays: null,
+    cookieWindowDays: 30,
+    pendingExpiryDays: 90,
+    friendCouponDays: 30,
+    maxRewardsPerAdvocate: 20,
+    requireFirstOrder: true,
+    autoApproveWithinLimit: true,
+    fraudScoreThreshold: 65,
+    landingHeadline: "Share ASL. Earn credits.",
+    landingSubhead: "Give friends 10% off their first order. Earn ₦15,000 in wallet credit for every qualifying purchase.",
+  },
   app: {
     minSupportedVersion: "1.0.0",
     latestVersion: "1.0.0",
@@ -200,9 +281,11 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
     ],
     features: { concierge: true, drops: true, wallet: true, referrals: true },
   },
+  // D4 default: an unpaid balance forfeits the deposit; cancelling before release refunds it (wallet = instant)
+  drops: { balanceWindowHours: 72, depositPctDefault: 20, depositRefundable: false, reservationHoldMinutes: 30, cancelCutoffHours: 48, cancelRefundTo: "wallet" },
 };
 
 /** Groups readable by anyone (no secrets in here). */
 export const PUBLIC_GROUPS: SettingsGroup[] = [
-  "profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "account", "tax", "maintenance", "app",
+  "profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "account", "tax", "maintenance", "app", "drops",
 ];

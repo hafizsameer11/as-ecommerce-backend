@@ -16,7 +16,7 @@ import { sizeGuidesAdminRoutes, sizeGuidesStoreRoutes } from "./catalog/size-gui
 import { reviewsAdminRoutes, reviewsStoreRoutes } from "./catalog/reviews/reviews.routes";
 import { searchStoreRoutes } from "./catalog/search/search.routes";
 import { homeStoreRoutes } from "./catalog/search/home.routes";
-import { dropsStoreRoutes, stockAlertsStoreRoutes } from "./catalog/drops/drops.routes";
+import { dropsAdminRoutes, dropsStoreRoutes, myReservationsStoreRoutes, stockAlertsStoreRoutes } from "./catalog/drops/drops.routes";
 import { inventoryAdminRoutes, warehousesAdminRoutes } from "./inventory/inventory.routes";
 import { addressesAdminRoutes, addressesStoreRoutes } from "./platform/addresses/addresses.routes";
 import { cartsStoreRoutes } from "./commerce/carts/carts.routes";
@@ -43,6 +43,15 @@ import { paymentMethodsStoreRoutes } from "./payments/payment-methods/payment-me
 import { ledgerAdminRoutes } from "./payments/ledger/ledger.routes";
 import { registerLedgerListeners } from "./payments/ledger/ledger.listeners";
 import { payoutsAdminRoutes } from "./payments/payouts/payouts.routes";
+import { conciergeRequestsAdminRoutes, conciergeRequestsStoreRoutes } from "./concierge/requests/requests.routes";
+import { conciergeQuotesAdminRoutes, conciergeQuotesStoreRoutes } from "./concierge/quotes/quotes.routes";
+import { conciergeChatAdminRoutes, conciergeChatStoreRoutes } from "./concierge/chat/chat.routes";
+import { suppliersAdminRoutes } from "./concierge/suppliers/suppliers.routes";
+import { registerConciergeListeners } from "./concierge/requests/requests.listeners";
+import { clubAdminRoutes, clubStoreRoutes } from "./loyalty/club/club.routes";
+import { registerClubListeners } from "./loyalty/club/club.listeners";
+import { myReferralsStoreRoutes, referralsAdminRoutes, referralsStoreRoutes } from "./loyalty/referrals/referrals.routes";
+import { registerReferralListeners } from "./loyalty/referrals/referrals.listeners";
 
 export const moduleRouters: ModuleRouter[] = [
   // identity
@@ -74,6 +83,8 @@ export const moduleRouters: ModuleRouter[] = [
   sizeGuidesAdminRoutes,
   searchStoreRoutes,
   dropsStoreRoutes,
+  myReservationsStoreRoutes,
+  dropsAdminRoutes,
   // inventory
   inventoryAdminRoutes,
   warehousesAdminRoutes,
@@ -119,6 +130,20 @@ export const moduleRouters: ModuleRouter[] = [
   paymentMethodsStoreRoutes,
   ledgerAdminRoutes,
   payoutsAdminRoutes,
+  // concierge (store: /concierge/brands is registered with the catalogue above)
+  conciergeRequestsStoreRoutes,
+  conciergeQuotesStoreRoutes,
+  conciergeChatStoreRoutes,
+  conciergeRequestsAdminRoutes,
+  conciergeQuotesAdminRoutes,
+  conciergeChatAdminRoutes,
+  suppliersAdminRoutes,
+  // loyalty
+  clubStoreRoutes,
+  clubAdminRoutes,
+  myReferralsStoreRoutes,
+  referralsStoreRoutes,
+  referralsAdminRoutes,
 ];
 
 /** side-effect imports: event listeners + job processors */
@@ -127,4 +152,6 @@ export async function registerListeners() {
   registerReturnListeners();
   registerOrderListeners(); registerPickupListeners(); registerShipmentListeners();
   registerLedgerListeners();
+  registerConciergeListeners();
+  registerClubListeners(); registerReferralListeners();
 }

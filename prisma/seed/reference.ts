@@ -52,6 +52,23 @@ export async function seedReferenceData(prisma: PrismaClient) {
       update: {},
     });
 
+  // ── ASL Club rewards (the customer /account/rewards/redeem list; value: credit = kobo, coupon = %) ──
+  const allTiers = ["Standard", "Silver", "Gold", "Signature"];
+  const rewards = [
+    ["rw_credit_2500", "₦2,500 Store Credit", "Use on any purchase", 500, "credit", N(2_500), "ShoppingBag", allTiers],
+    ["rw_free_shipping", "Free Standard Shipping", "On your next order", 800, "shipping", 100, "Truck", allTiers],
+    ["rw_coupon_10", "10% Off Coupon", "One-time use, any category", 1200, "coupon", 10, "Percent", allTiers],
+    ["rw_gift_box", "Signature Gift Box", "Curated ASL ORIGINALS gift", 2000, "product", null, "Gift", allTiers],
+    ["rw_concierge_boost", "Concierge Priority Boost", "Skip the queue on next request", 3500, "concierge", null, "Sparkles", ["Silver", "Gold", "Signature"]],
+    ["rw_vip_event", "VIP Preview Event Access", "Invitation to next launch event", 5000, "experience", null, "Coffee", ["Gold", "Signature"]],
+  ] as const;
+  for (const [i, [id, title, description, cost, category, value, icon, eligible]] of rewards.entries())
+    await prisma.clubReward.upsert({
+      where: { id },
+      create: { id, title, description, cost, category, value, icon, eligibleTiers: [...eligible], position: i },
+      update: {},
+    });
+
   // ── shipping zones (U1: one delivery-fee table for checkout AND the shipping-policy page) ──
   if ((await prisma.shippingZone.count()) === 0) {
     const free = N(150_000);
@@ -99,6 +116,7 @@ export async function seedReferenceData(prisma: PrismaClient) {
     ["4000", "Product sales", "revenue"], ["4100", "Shipping income", "revenue"], ["4200", "Concierge service fees", "revenue"],
     ["4900", "Discounts & refunds (contra revenue)", "revenue"], ["5000", "Cost of goods sold", "expense"], ["5100", "Payment processing fees", "expense"],
     ["5200", "Shipping costs", "expense"], ["5300", "Marketing & rewards", "expense"],
+    ["4800", "Other income (forfeited deposits)", "revenue"],
   ] as const;
   for (const [code, name, type] of accounts)
     await prisma.ledgerAccount.upsert({ where: { code }, create: { code, name, type }, update: {} });

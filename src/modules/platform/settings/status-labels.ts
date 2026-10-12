@@ -58,5 +58,11 @@ export const STATUS_LABELS = {
       under_investigation: "Under investigation", refunded: "Refunded", rejected: "Rejected",
     },
   },
+  /** drop reservations (asl-web reservation panel / admin drops) */
+  reservation: {
+    customer: { pending_deposit: "Awaiting deposit", reserved: "Reserved", balance_paid: "Balance Paid", cancelled: "Cancelled", expired: "Expired" },
+    admin: { pending_deposit: "Awaiting deposit", reserved: "Deposit paid", balance_paid: "Converted to order", cancelled: "Cancelled", expired: "Expired (balance unpaid)" },
+  },
+  drop: { upcoming: "Coming soon", live: "Live", sold_out: "Sold out", ended: "Ended" },
   tier: { Standard: "Standard", Silver: "Silver", Gold: "Gold", Signature: "Signature" },
 } as const;

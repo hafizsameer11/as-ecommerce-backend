@@ -16,6 +16,7 @@ import { toAddress } from "@/modules/platform/addresses/addresses.service";
 import { listInclude, toAdminOrderRow } from "@/modules/commerce/orders/orders.mapper";
 import { CUSTOMER_TABS, type CustomerListQuery, type StatusBody, type TierBody, type WalletAdjustBody } from "./customers.schemas";
 import { customerRowInclude, toAdminCustomerRow, toAdminNote } from "./customers.mapper";
+import { pointsService } from "@/modules/loyalty/club/points.service";
 
 const SORTS: Record<string, (d: "asc" | "desc") => Prisma.CustomerOrderByWithRelationInput> = {
   spend: (d) => ({ stats: { totalSpend: d } }),
@@ -56,7 +57,7 @@ async function live(id: string) {
   return c;
 }
 
-const row = async (id: string) => toAdminCustomerRow(await live(id));
+const row = async (id: string) => toAdminCustomerRow(await live(id), await pointsService.available(prisma, id));
 
 export const customersService = {
   async list(q: CustomerListQuery) {
@@ -71,7 +72,8 @@ export const customersService = {
       tabs[g.status] = g._count._all;
       tabs.all += g._count._all;
     }
-    return withMeta(rows.map(toAdminCustomerRow), { ...pageMeta(q, total), tabs });
+    const points = await pointsService.availableMany(rows.map((r) => r.id));
+    return withMeta(rows.map((r) => toAdminCustomerRow(r, points.get(r.id) ?? 0)), { ...pageMeta(q, total), tabs });
   },
 
   async get(id: string) {
@@ -87,7 +89,7 @@ export const customersService = {
     if (!c) throw ApiError.notFound("Customer");
     const orders = await prisma.order.findMany({ where: { customerId: id }, include: listInclude, orderBy: { placedAt: "desc" }, take: 10 });
     return {
-      ...toAdminCustomerRow(c),
+      ...toAdminCustomerRow(c, await pointsService.available(prisma, id)),
       emailVerified: !!c.emailVerifiedAt,
       phoneVerified: !!c.phoneVerifiedAt,
       dateOfBirth: c.dateOfBirth ? c.dateOfBirth.toISOString().slice(0, 10) : null,

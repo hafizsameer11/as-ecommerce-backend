@@ -382,11 +382,25 @@ model Reservation {
   order       Order?            @relation(fields: [orderId], references: [id])
   balancePaidAt DateTime?
   cancelledAt DateTime?
+  /// chosen variant (size × first colour), resolved when reserving
+  variantId   String?
+  color       String?
+  /// unpaid deposit: the allocation is held until then (`drops.reservationHoldMinutes`)
+  holdExpiresAt DateTime?
+  depositPaidAt DateTime?
+  /// deposit given back to the customer (kobo) and how: refunded_original | refunded_wallet | forfeited
+  depositRefunded Int             @default(0)
+  depositOutcome String?          @db.VarChar(20)
+  /// delivery address for the order created when the balance is paid (checkout address shape)
+  shippingAddress Json?
+  cancelReason String?            @db.VarChar(500)
+  expiredAt   DateTime?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@index([customerId])
   @@index([dropId, status])
+  @@index([status, holdExpiresAt])
 }
 
 model BackInStockAlert {

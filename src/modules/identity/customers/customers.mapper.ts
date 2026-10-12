@@ -19,7 +19,7 @@ export const countryName = (code: string | null) => {
 };
 
 /** one row of asl-admin /customers (the UI `Customer` type, money in kobo) */
-export function toAdminCustomerRow(c: CustomerListRow) {
+export function toAdminCustomerRow(c: CustomerListRow, loyaltyPoints = 0) {
   return {
     id: c.id,
     name: fullName(c),
@@ -37,8 +37,8 @@ export function toAdminCustomerRow(c: CustomerListRow) {
     spend: Number(c.stats?.totalSpend ?? 0),
     aov: c.stats?.aov ?? 0,
     walletBalance: c.wallet?.balance ?? 0,
-    // points balance arrives with the club module (loyalty); until then always 0
-    loyaltyPoints: 0,
+    // available ASL Club points (loyalty/club points.service)
+    loyaltyPoints,
     lastOrderAt: c.stats?.lastOrderAt ?? null,
     createdAt: c.createdAt,
     marketingOptIn: c.marketingOptIn,

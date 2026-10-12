@@ -64,7 +64,7 @@ describe("admin customers", () => {
     const row = r.body.data[0];
     expect(row).toMatchObject({
       name: `Adaeze ${tag}`, email: big.email, phone: "+2348031112222", city: "Lagos", country: "Nigeria", tier: "Gold", status: "vip",
-      orders: 4, spend: N(2_000_000), aov: N(500_000), walletBalance: 0, loyaltyPoints: 0, marketingOptIn: false, tags: [],
+      orders: 4, spend: N(2_000_000), aov: N(500_000), walletBalance: 0, loyaltyPoints: 250, marketingOptIn: false, tags: [], // 250 = sign-up bonus (club.signupBonus)
     });
 
     const asc = await api().get(`${A}/customers`).query({ q: tag, sort: "spend" }).set(bearer(admin));

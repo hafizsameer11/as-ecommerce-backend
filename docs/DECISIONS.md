@@ -46,7 +46,13 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Customer cancels | Only while "Awaiting payment" or "Processing / unfulfilled". Full refund: wallet part back to wallet, card part back to the card. Stock goes back to the same warehouse |
 | Card refunds and wallet withdrawals with the mock provider | Always succeed instantly. With a real provider some are asynchronous — webhook handling for refunds/transfers is still to do when the provider is chosen |
 | Prices and stock at checkout | Recomputed on the server at "Place order". If the app sends `expectedTotal` and the total changed, the order is refused with the new totals |
-| Cancelled / refunded order and loyalty points | Points don't exist yet (phase 5) |
+| Points earning | 1 point per ₦100 of (subtotal − discount) × tier multiplier, usable immediately; refunds/cancels take back the same share. Expire after 24 months, oldest first |
+| Tiers | Upgrade the moment an order is paid; downgrade only in the nightly recompute (rolling 12-month spend) — the nightly run also overrides tiers set by hand |
+| Club bonuses | Sign-up 250 pts, review 50 pts (admin UI values), birthday 500 pts |
+| Referrals | Advocate gets ₦15,000 wallet credit, friend gets 10 % off a first order of ₦50,000+ (admin UI values; the customer page said ₦5,000). Qualifies after delivery + 7-day return window with no refund. Self-referrals blocked; suspicious ones flagged |
+| Drop reservations | Deposit = the drop's `depositPct` (20 %). Hold 30 min to pay the deposit. Customer can cancel up to 48 h before release → deposit back to wallet. Balance window 72 h after release; stock is held for reserved sizes at release |
+| Concierge | Guests can submit and track requests (number + email); paying a quote needs an account. Priority from tier (Signature = VIP, Gold = Priority). One live quote per request. Money arriving for a declined/expired quote is refunded automatically |
+| Ledger | Sales, VAT, shipping, wallet, fees, refunds, payouts, drop deposits, concierge deposits/fees and points liability post automatically |
 | Return windows | 7 days from delivery for normal returns. "Damaged or defective" must be reported within 48 h with at least one photo. Fragrances, underwear, swimwear, personal care can't be returned for any reason (setting `returns.nonReturnableCategories`) — *confirm whether damaged fragrances should be accepted* |
 | Customer cancels a return request | Stored as "Rejected" with a "you cancelled" note (there is no separate cancelled status) |
 | Return refunds | Item price minus its share of the order discount; shipping is never refunded |
@@ -55,13 +61,15 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 | Deleting a customer (admin) | Personal data is wiped; orders, wallet history and invoices are kept. Refused while the wallet still holds money |
 | Self-deleted accounts | Personal data removed automatically after `account.deletionGraceDays` (30) |
 | Draft-order pay links | Valid 7 days; sending again makes the old link stop working. Orders from drafts have no delivery address yet (drafts have no address field) |
-| Ledger | Sales, VAT, shipping, wallet, fees, refunds and payouts post automatically. Concierge, drop deposits and points are not journaled yet |
 
 ## Open business decisions (defaults in place until decided)
 
 | # | Question | Current default |
 |---|---|---|
-| D4 | Drop deposit when the balance is never paid | Not decided — reservation expires, deposit handling needs a policy |
+| D4 | Drop deposit when the balance is never paid | **Kept (forfeited)** by default; setting `drops.depositRefundable = true` refunds it instead |
+| D10 | Value of 1 point | ₦5 (from the redeem page: 500 pts = ₦2,500). The UIs disagree — confirm |
+| D11 | Drop deposit % | 20 % per drop (admin-editable). The web and admin UIs hard-code **50 %** — pick one; the apps must read it from the API |
+| D12 | Concierge refunds after payment | Not built yet — once money is in, a request can't be cancelled from the system; handle manually for now |
 | D5 | Guest checkout | Off (setting exists: `checkout.guestCheckout`) |
 | D6 | Charge in foreign currencies? | No — display conversion only, settle in NGN |
 | D2 | Payment provider | Mock provider (Paystack-shaped) until a provider is chosen |
