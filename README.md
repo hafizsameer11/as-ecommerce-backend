@@ -96,6 +96,6 @@ Money is always integer **kobo** (₦1 = 100). Actions that create money movemen
 | 7 | Activity feed, app config, global search, analytics, dashboard, reports | Done |
 | 8 | Hardening for launch (real payment provider, websockets, backups, monitoring) — list in docs/PROGRESS.md | Next |
 
-**Where things stand right now, module by module: [`docs/PROGRESS.md`](docs/PROGRESS.md).** How code is written: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
+**What is left: [`docs/REMAINING.md`](docs/REMAINING.md).** Where things stand, module by module: [`docs/PROGRESS.md`](docs/PROGRESS.md). How code is written: [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md).
 
 Background jobs (need `npm run dev:worker` + Redis): unpaid-order expiry (5 min), drop release + reservation expiry (5 min), abandoned-cart scan (15 min), concierge SLA check + quote expiry (15 min), referral qualification (6 h), payouts sync, deleted-account purge, tier recompute, points expiry, birthday bonus (daily).

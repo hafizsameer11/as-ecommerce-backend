@@ -2,6 +2,8 @@ import { scheduleRepeating } from "@/core/queue/queue";
 
 /** Repeating jobs (BullMQ job schedulers). Only run by the worker process (needs Redis). */
 export async function registerSchedules() {
+  // refund outbox: card refunds still queued (Redis was down at commit, gateway retry backoff) + stale sends
+  await scheduleRepeating("payments.send-refunds", 60_000);
   // unpaid orders give their stock back after `checkout.unpaidOrderMinutes`
   await scheduleRepeating("orders.expire-unpaid", 5 * 60_000);
   // idle bags → abandoned, recovery reminders (RecoveryRule), lost after 7 days

@@ -217,6 +217,7 @@ export const ordersService = {
     if (!CUSTOMER_CANCELLABLE.includes(o.status))
       throw ApiError.conflict("INVALID_STATE", "This order is already being prepared and can't be cancelled. You can return it after delivery.");
     await prisma.$transaction((tx) => cancelInTx(tx, o, reason || "Cancelled by customer", "customer"));
+    await paymentsService.flushRefunds(); // card refunds go to the gateway only after commit (outbox)
     events.emit("order.cancelled", { orderId: o.id });
     return this.myOrder(customerId, o.id);
   },
@@ -335,6 +336,7 @@ export const ordersService = {
     if (!["pending_payment", "paid", "processing"].includes(o.status))
       throw ApiError.conflict("INVALID_STATE", "Shipped orders can't be cancelled. Use a return instead.");
     await prisma.$transaction((tx) => cancelInTx(tx, o, b.reason, actor, b.refundTo));
+    await paymentsService.flushRefunds();
     events.emit("order.cancelled", { orderId: id });
     return this.adminGet(id);
   },
@@ -404,6 +406,7 @@ export const ordersService = {
       await addEvent(tx, id, "refunded", "Refund issued", { detail: `${formatNaira(amount)} to ${b.to === "wallet" ? "ASL Wallet" : "original payment"} — ${b.reason}`, actor });
       if (opts.inTx) await opts.inTx(tx);
     });
+    if (b.to !== "wallet") await paymentsService.flushRefunds();
     events.emit("order.refunded", { orderId: id, amount });
     return this.adminGet(id);
   },
@@ -433,6 +436,7 @@ export const ordersService = {
       const fresh = await prisma.order.findUniqueOrThrow({ where: { id: o.id } });
       if (fresh.status !== "pending_payment") continue;
       await prisma.$transaction((tx) => cancelInTx(tx, fresh, "Payment was not completed in time", "system"));
+      if (fresh.amountPaid > fresh.walletApplied) await paymentsService.flushRefunds();
       events.emit("order.cancelled", { orderId: o.id });
       cancelled++;
     }

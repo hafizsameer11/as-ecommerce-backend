@@ -88,7 +88,13 @@ export class ModuleRouter {
     handler: Handler<B, Q, P>,
   ) {
     const auth = def.auth ?? this.opts.defaultAuth ?? "public";
-    const chain: RequestHandler[] = [];
+    const chain: RequestHandler[] = [
+      // route template for metrics (req.baseUrl is gone again once an error reaches the app-level handler)
+      (req, res, next) => {
+        res.locals.routeTemplate = `${req.baseUrl}${path}`;
+        next();
+      },
+    ];
     if (auth === "customer") chain.push(requireCustomer);
     if (auth === "optionalCustomer") chain.push(optionalCustomer);
     if (auth === "admin") {

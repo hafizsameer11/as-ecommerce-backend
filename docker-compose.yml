@@ -46,6 +46,15 @@ services:
       mysql: { condition: service_healthy }
       redis: { condition: service_started }
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
+    # /ready = database + Redis + storage usable (GET /health is the no-DB liveness probe)
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    # graceful shutdown: finish in-flight requests, close sockets / queue / DB (server.ts)
+    stop_grace_period: 30s
 
   worker:
     build: .
@@ -56,8 +65,11 @@ services:
       REDIS_URL: redis://redis:6379
       SMTP_HOST: mailpit
     volumes: [uploads:/app/uploads, reports:/app/uploads-private]
-    depends_on: [api]
+    depends_on:
+      api: { condition: service_healthy }
     command: node dist/worker.js
+    # running jobs finish before the worker exits
+    stop_grace_period: 60s
 
 volumes:
   mysql-data:

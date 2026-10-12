@@ -151,7 +151,10 @@ async function settleDeposit(tx: Tx, r: Reservation, to: RefundTo, reason: strin
   }
   await paymentsService.refund(tx, pay.id, amount, reason, actor);
   return {
-    after: () => dropsLedger.refunded(r.number, amount, "original", provider),
+    after: async () => {
+      await paymentsService.flushRefunds(); // the card refund goes to the gateway only after commit (outbox)
+      await dropsLedger.refunded(r.number, amount, "original", provider);
+    },
     text: `Your ${formatNaira(amount)} deposit is being refunded to your original payment method.`, outcome: "refunded_original", refunded: amount,
   };
 }
