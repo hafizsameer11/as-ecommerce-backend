@@ -2,19 +2,17 @@
 
 Seeds reference data, admin user, **~65 products with real images**, merchandising slots, and CMS content.
 
-## Images
+## Images (tracked in git)
 
-Product / category / hero WebPs live in:
+Product / category / hero WebPs:
 
-- `prisma/seed/assets/` (this package)
-- `../../../demo/seed-assets/` (monorepo root — commit this for GitHub)
+- **`prisma/seed/assets/`** — primary (required for `npm run db:seed`)
+- **`demo/seed-assets/`** — same files at repo root of this package
 
 `catalog.json` references them as `asset:p-….webp`. On seed they are uploaded through the media library.
 
 ```bash
 npm run db:seed
-npm run db:seed:sync-assets        # push assets → ../../demo/seed-assets
-npm run db:seed:sync-assets -- --pull  # pull demo → local assets
+npm run db:seed:sync-assets           # seed → demo/seed-assets
+npm run db:seed:sync-assets -- --pull # demo → seed
 ```
-
-See [`demo/README.md`](../../../demo/README.md) at the repo root.

@@ -1,7 +1,7 @@
 /**
- * Keep prisma/seed/assets ↔ repo-root demo/seed-assets in sync (WebP product/merch images).
+ * Keep prisma/seed/assets ↔ demo/seed-assets in sync (WebP product/merch images).
  *
- *   npm run db:seed:sync-assets           # seed → demo (default, for GitHub)
+ *   npm run db:seed:sync-assets           # seed → demo (default)
  *   npm run db:seed:sync-assets -- --pull # demo → seed
  */
 import fs from "node:fs";
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const seedDir = path.dirname(fileURLToPath(import.meta.url));
 const seedAssets = path.join(seedDir, "assets");
-const demoAssets = path.join(seedDir, "../../../demo/seed-assets");
+const demoAssets = path.join(seedDir, "../../demo/seed-assets");
 const pull = process.argv.includes("--pull");
 
 function copyTree(from: string, to: string) {
