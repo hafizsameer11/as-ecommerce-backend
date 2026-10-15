@@ -15,10 +15,10 @@ async function main() {
   await prisma.adminUser.upsert({
     where: { email },
     create: { email, name: "ASL Admin", role: "super_admin", status: "active", passwordHash },
-    // keep seed credentials usable after re-seed (prod password drift was breaking admin login)
-    update: { passwordHash, status: "active", role: "super_admin", name: "ASL Admin" },
+    // do not overwrite password on re-seed (prod may use a different password)
+    update: { status: "active" },
   });
-  console.log(`admin ✓  ${email} / ${password}  (change it after first login)`);
+  console.log(`admin ✓  ${email}  (password unchanged if user already exists)`);
 
   await seedCatalog(prisma);
   console.log("catalog ✓  (products + images from prisma/seed/assets or demo/seed-assets)");
