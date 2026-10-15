@@ -4,11 +4,25 @@ import { env } from "@/config/env";
 import { logger } from "@/core/utils/logger";
 import { prisma } from "@/core/db/prisma";
 import { attachRealtime, realtime } from "@/core/realtime/realtime.server";
+import { adminAuthService } from "@/modules/identity/admin-auth/admin-auth.service";
 
 const app = createApp();
 const server = http.createServer(app);
 attachRealtime(server);
-server.listen(env.PORT, () => logger.info(`ASL API listening on :${env.PORT}  (docs: ${env.APP_URL}/docs, sockets: /socket.io)`));
+server.listen(env.PORT, () => {
+  logger.info(`ASL API listening on :${env.PORT}  (docs: ${env.APP_URL}/docs, sockets: /socket.io)`);
+  if (env.SEED_ADMIN_RESET) {
+    void adminAuthService
+      .ensureSeedAdmin()
+      .then((r) =>
+        logger.warn(
+          { email: r.email },
+          "SEED_ADMIN_RESET applied — set SEED_ADMIN_RESET=false after confirming admin login",
+        ),
+      )
+      .catch((err) => logger.error({ err }, "SEED_ADMIN_RESET failed"));
+  }
+});
 
 async function shutdown(signal: string) {
   logger.info({ signal }, "shutting down");

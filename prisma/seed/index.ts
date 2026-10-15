@@ -11,10 +11,12 @@ async function main() {
 
   const email = (process.env.SEED_ADMIN_EMAIL ?? "admin@asloriginals.com").toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
+  const passwordHash = await hashPassword(password);
   await prisma.adminUser.upsert({
     where: { email },
-    create: { email, name: "ASL Admin", role: "super_admin", status: "active", passwordHash: await hashPassword(password) },
-    update: {},
+    create: { email, name: "ASL Admin", role: "super_admin", status: "active", passwordHash },
+    // keep seed credentials usable after re-seed (prod password drift was breaking admin login)
+    update: { passwordHash, status: "active", role: "super_admin", name: "ASL Admin" },
   });
   console.log(`admin ✓  ${email} / ${password}  (change it after first login)`);
 

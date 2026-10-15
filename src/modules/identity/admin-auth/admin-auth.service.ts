@@ -129,4 +129,25 @@ export const adminAuthService = {
     await prisma.adminUser.update({ where: { id }, data: { twoFactorEnabled: true } });
     return { enabled: true };
   },
+
+  /** Upsert seed super-admin (used by boot flag + bootstrap endpoint). */
+  async ensureSeedAdmin(email = env.SEED_ADMIN_EMAIL, password = env.SEED_ADMIN_PASSWORD) {
+    const passwordHash = await hashPassword(password);
+    const a = await prisma.adminUser.upsert({
+      where: { email: email.toLowerCase() },
+      create: {
+        email: email.toLowerCase(),
+        name: "ASL Admin",
+        role: "super_admin",
+        status: "active",
+        passwordHash,
+      },
+      update: { passwordHash, status: "active", role: "super_admin" },
+    });
+    await prisma.adminSession.updateMany({
+      where: { adminId: a.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    return { email: a.email, role: a.role };
+  },
 };

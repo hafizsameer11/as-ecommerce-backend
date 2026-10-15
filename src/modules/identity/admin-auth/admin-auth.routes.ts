@@ -9,7 +9,8 @@ export const adminAuthRoutes = new ModuleRouter({ surface: "admin", prefix: "/au
   .post("/login/2fa", { summary: "Complete sign-in with TOTP", body: s.adminTwoFactorLoginSchema, middleware: [authLimiter] }, c.loginTwoFactor)
   .post("/refresh", { summary: "Rotate refresh token", body: s.adminRefreshSchema }, c.refresh)
   .post("/logout", { summary: "Sign out", auth: "admin" }, c.logout)
-  .post("/invite/accept", { summary: "Accept a team invite and set a password", body: s.acceptInviteSchema, middleware: [authLimiter] }, c.acceptInvite);
+  .post("/invite/accept", { summary: "Accept a team invite and set a password", body: s.acceptInviteSchema, middleware: [authLimiter] }, c.acceptInvite)
+  .post("/bootstrap", { summary: "One-shot seed admin reset (requires ADMIN_BOOTSTRAP_SECRET)", body: s.adminBootstrapSchema, middleware: [authLimiter] }, c.bootstrap);
 
 /** Top bar profile, density, sidebar state */
 export const adminMeRoutes = new ModuleRouter({ surface: "admin", prefix: "/me", tag: "Me", defaultAuth: "admin" })

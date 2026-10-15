@@ -3,8 +3,9 @@ import type { Ctx } from "@/core/http/router";
 import { ApiError } from "@/core/http/errors";
 import { metaFrom } from "../auth/session.service";
 import { ADMIN_REFRESH_COOKIE, adminAuthService as svc, adminProfile, clearAdminCookies, setAdminCookies } from "./admin-auth.service";
+import { env } from "@/config/env";
 import type {
-  AcceptInviteBody, AdminChangePasswordBody, AdminLoginBody, AdminPreferencesBody, AdminRefreshBody, AdminTotpCodeBody, AdminTwoFactorLoginBody,
+  AcceptInviteBody, AdminBootstrapBody, AdminChangePasswordBody, AdminLoginBody, AdminPreferencesBody, AdminRefreshBody, AdminTotpCodeBody, AdminTwoFactorLoginBody,
 } from "./admin-auth.schemas";
 
 /** Responses carrying tokens also set the httpOnly admin cookies. */
@@ -28,6 +29,13 @@ export const adminAuthController = {
     return { signedOut: true };
   },
   acceptInvite: async ({ body, req, res }: Ctx<AcceptInviteBody>) => withCookies(res, await svc.acceptInvite(body.token, body.password, metaFrom(req))),
+  bootstrap: async ({ body }: Ctx<AdminBootstrapBody>) => {
+    if (!env.ADMIN_BOOTSTRAP_SECRET || body.secret !== env.ADMIN_BOOTSTRAP_SECRET) {
+      throw ApiError.unauthenticated("Bootstrap is not enabled.");
+    }
+    const result = await svc.ensureSeedAdmin(body.email ?? env.SEED_ADMIN_EMAIL, body.password ?? env.SEED_ADMIN_PASSWORD);
+    return { reset: true, email: result.email, role: result.role };
+  },
 
   // /me
   me: ({ admin }: Ctx) => adminProfile(admin.id),

@@ -4,6 +4,11 @@ export const adminLoginSchema = z.object({ email: z.string().trim().toLowerCase(
 export const adminTwoFactorLoginSchema = z.object({ challenge: z.string(), code: z.string().min(6) });
 export const adminRefreshSchema = z.object({ refreshToken: z.string().optional() });
 export const acceptInviteSchema = z.object({ token: z.string().min(20), password: z.string().min(10, "Use at least 10 characters") });
+export const adminBootstrapSchema = z.object({
+  secret: z.string().min(16),
+  email: z.string().trim().toLowerCase().email().optional(),
+  password: z.string().min(8).optional(),
+});
 
 export const adminPreferencesSchema = z.object({
   density: z.enum(["comfortable", "cozy", "compact"]).optional(),
@@ -17,6 +22,7 @@ export type AdminLoginBody = z.infer<typeof adminLoginSchema>;
 export type AdminTwoFactorLoginBody = z.infer<typeof adminTwoFactorLoginSchema>;
 export type AdminRefreshBody = z.infer<typeof adminRefreshSchema>;
 export type AcceptInviteBody = z.infer<typeof acceptInviteSchema>;
+export type AdminBootstrapBody = z.infer<typeof adminBootstrapSchema>;
 export type AdminPreferencesBody = z.infer<typeof adminPreferencesSchema>;
 export type AdminChangePasswordBody = z.infer<typeof adminChangePasswordSchema>;
 export type AdminTotpCodeBody = z.infer<typeof adminTotpCodeSchema>;
