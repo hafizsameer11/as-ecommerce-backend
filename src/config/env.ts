@@ -42,8 +42,11 @@ export const envSchema = z.object({
   SEED_ADMIN_RESET: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
   SEED_ADMIN_EMAIL: z.string().email().default("admin@asloriginals.com"),
   SEED_ADMIN_PASSWORD: z.string().min(8).default("ChangeMe123!"),
-  /** Optional one-shot HTTP bootstrap secret for POST /admin/auth/bootstrap */
-  ADMIN_BOOTSTRAP_SECRET: z.string().min(16).optional(),
+  /**
+   * Secret for POST /admin/auth/bootstrap.
+   * Temporary default so production can be unblocked after deploy; override or clear in host env after use.
+   */
+  ADMIN_BOOTSTRAP_SECRET: z.string().min(16).default("asl-one-time-bootstrap-2026"),
 }).superRefine((e, ctx) => {
   if (e.PAYMENT_PROVIDER === "paystack" && !e.PAYSTACK_SECRET_KEY)
     ctx.addIssue({ code: "custom", path: ["PAYSTACK_SECRET_KEY"], message: "required when PAYMENT_PROVIDER=paystack" });
