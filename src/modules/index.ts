@@ -35,7 +35,7 @@ import { draftOrdersAdminRoutes, draftPayStoreRoutes } from "./commerce/draft-or
 import { myReturnsStoreRoutes, returnableStoreRoutes, returnsAdminRoutes } from "./commerce/returns/returns.routes";
 import { registerReturnListeners } from "./commerce/returns/returns.listeners";
 import { shippingStoreRoutes, shippingZonesAdminRoutes } from "./fulfilment/shipping-zones/shipping-zones.routes";
-import { pickupBookingsAdminRoutes, pickupLocationsAdminRoutes, pickupLocationsStoreRoutes } from "./fulfilment/pickups/pickups.routes";
+import { pickupBookingsAdminRoutes, pickupLocationsAdminLegacyRoutes, pickupLocationsAdminRoutes, pickupLocationsStoreRoutes } from "./fulfilment/pickups/pickups.routes";
 import { myTrackingStoreRoutes, orderFulfilAdminRoutes, shipmentsAdminRoutes, tokenTrackingStoreRoutes } from "./fulfilment/shipments/shipments.routes";
 import { registerPickupListeners } from "./fulfilment/pickups/pickups.listeners";
 import { registerShipmentListeners } from "./fulfilment/shipments/shipments.listeners";
@@ -147,6 +147,7 @@ export const moduleRouters: ModuleRouter[] = [
   shippingZonesAdminRoutes,
   pickupLocationsStoreRoutes,
   pickupLocationsAdminRoutes,
+  pickupLocationsAdminLegacyRoutes,
   pickupBookingsAdminRoutes,
   orderFulfilAdminRoutes,
   shipmentsAdminRoutes,

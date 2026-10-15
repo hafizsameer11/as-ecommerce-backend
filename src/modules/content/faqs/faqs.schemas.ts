@@ -12,7 +12,18 @@ export const categoryCreate = z.object({
   icon: z.string().max(60).optional(),
 });
 export const categoryPatch = patchOf(categoryCreate);
-export const moveBody = z.object({ dir: z.union([z.literal(-1), z.literal(1)]) });
+/** `{ dir: -1|1 }` (existing) or `{ direction: "up"|"down" }` (admin banners-style clients) */
+export const moveBody = z
+  .object({
+    dir: z.union([z.literal(-1), z.literal(1)]).optional(),
+    direction: z.enum(["up", "down"]).optional(),
+  })
+  .superRefine((b, ctx) => {
+    if (b.dir === undefined && b.direction === undefined) {
+      ctx.addIssue({ code: "custom", message: "Provide dir (-1|1) or direction (up|down)", path: ["dir"] });
+    }
+  })
+  .transform((b) => ({ dir: (b.dir ?? (b.direction === "up" ? -1 : 1)) as -1 | 1 }));
 
 export const itemCreate = z.object({
   categoryId: z.string().min(1).max(64),

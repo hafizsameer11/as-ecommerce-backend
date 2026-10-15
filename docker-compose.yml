@@ -8,7 +8,7 @@ services:
       MYSQL_DATABASE: asl
       MYSQL_USER: asl
       MYSQL_PASSWORD: asl
-    ports: ["3306:3306"]
+    ports: ["3307:3306"]
     volumes:
       - mysql-data:/var/lib/mysql
       - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
@@ -19,7 +19,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ["6380:6379"]
     volumes: [redis-data:/data]
 
   mailpit:
@@ -63,5 +63,5 @@ volumes:
   mysql-data:
   redis-data:
   uploads:
-  # private report files (finance / customer exports) — never served publicly
+  # private report files (finance / customer exports) Ã¢â‚¬â€ never served publicly
   reports:

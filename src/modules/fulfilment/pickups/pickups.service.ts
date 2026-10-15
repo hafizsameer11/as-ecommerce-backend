@@ -95,12 +95,40 @@ export const pickupsService = {
   },
 
   // ── admin /pickups → locations tab ──
-  listLocations: () => prisma.pickupLocation.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { bookings: true } } } }),
-  createLocation: (b: LocationBody) => prisma.pickupLocation.create({ data: b }),
+  async listLocations() {
+    const since = new Date(Date.now() - 30 * DAY);
+    const rows = await prisma.pickupLocation.findMany({
+      orderBy: { name: "asc" },
+      include: { _count: { select: { bookings: { where: { scheduledAt: { gte: since } } } } } },
+    });
+    return rows.map((l) => ({
+      id: l.id, name: l.name, address: l.address, city: l.city, state: l.state, country: l.country,
+      phone: l.phone, hours: l.hours, active: l.active, concierge: l.concierge, capacityPerDay: l.capacityPerDay,
+      bookingsLast30: l._count.bookings, createdAt: l.createdAt, updatedAt: l.updatedAt,
+    }));
+  },
+  async createLocation(b: LocationBody) {
+    const row = await prisma.pickupLocation.create({
+      data: {
+        name: b.name,
+        address: b.address || "Address TBD",
+        city: b.city || "Lagos",
+        state: b.state || "Lagos",
+        country: b.country,
+        phone: b.phone || "+234",
+        hours: b.hours || "Mon - Sat 10:00 - 19:00",
+        active: b.active,
+        concierge: b.concierge,
+        capacityPerDay: b.capacityPerDay,
+      },
+    });
+    return { ...row, bookingsLast30: 0 };
+  },
   async updateLocation(id: string, b: Partial<LocationBody>) {
     const before = await prisma.pickupLocation.findUnique({ where: { id } });
     if (!before) throw ApiError.notFound("Pick-up location");
-    return { before, after: await prisma.pickupLocation.update({ where: { id }, data: b }) };
+    const after = await prisma.pickupLocation.update({ where: { id }, data: b });
+    return { before, after };
   },
   async removeLocation(id: string) {
     const used = await prisma.order.count({ where: { pickupLocationId: id } });
@@ -207,7 +235,12 @@ export const pickupsService = {
         where: { id: b.id },
         data: {
           status: body.status,
-          ...(body.status === "collected" ? { collectedAt: now, collectedBy: body.collectedBy || b.collectedBy || "Customer" } : body.collectedBy ? { collectedBy: body.collectedBy } : {}),
+          ...(body.note !== undefined && body.status !== "collected" ? { notes: body.note || null } : {}),
+          ...(body.status === "collected"
+            ? { collectedAt: now, collectedBy: body.collectedBy || b.collectedBy || "Customer", ...(body.note !== undefined ? { notes: body.note || null } : {}) }
+            : body.collectedBy
+              ? { collectedBy: body.collectedBy }
+              : {}),
         },
       });
       if (body.status === "ready") {

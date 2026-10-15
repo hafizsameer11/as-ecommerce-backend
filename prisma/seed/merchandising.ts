@@ -8,13 +8,10 @@
  * The free-shipping amount is never hard-coded: texts use {{freeShippingThreshold}} (filled from settings.shipping).
  * Idempotent: rows have fixed ids and are only created when missing, so admin edits survive a re-seed.
  */
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import type { PrismaClient, Prisma } from "../../src/generated/prisma/client";
 import { mediaService } from "../../src/modules/content/media/media.service";
+import { readSeedAsset } from "./assets-path";
 
-const dir = path.dirname(fileURLToPath(import.meta.url));
 const days = (d: number) => new Date(Date.now() + d * 86_400_000);
 
 const announcements = (): Prisma.AnnouncementCreateManyInput[] => [
@@ -163,8 +160,13 @@ export async function seedMerchandising(prisma: PrismaClient, log = console.log)
   async function image(name?: string) {
     if (!name) return null;
     if (!urls.has(name)) {
-      const buffer = fs.readFileSync(path.join(dir, "assets/merch", `${name}.webp`));
-      const asset = await mediaService.upload({ buffer, originalname: `${name}.webp`, mimetype: "image/webp", size: buffer.length }, "hero", "seed");
+      const file = `merch/${name}.webp`;
+      const buffer = readSeedAsset(file);
+      const asset = await mediaService.upload(
+        { buffer, originalname: `${name}.webp`, mimetype: "image/webp", size: buffer.length },
+        "hero",
+        "seed",
+      );
       urls.set(name, asset.url);
     }
     return urls.get(name)!;

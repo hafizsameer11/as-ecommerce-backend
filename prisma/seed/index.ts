@@ -19,8 +19,11 @@ async function main() {
   console.log(`admin ✓  ${email} / ${password}  (change it after first login)`);
 
   await seedCatalog(prisma);
+  console.log("catalog ✓  (products + images from prisma/seed/assets or demo/seed-assets)");
   await seedMerchandising(prisma);
+  console.log("merchandising ✓");
   await seedContent(prisma);
+  console.log("content ✓");
 
   // demo customer used across the prototype screens
   const demo = "john.doe@example.com";

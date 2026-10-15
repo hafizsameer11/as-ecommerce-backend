@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import type { PrismaClient } from "../../src/generated/prisma/client";
 import { mediaService } from "../../src/modules/content/media/media.service";
 import { slugify } from "../../src/core/utils/slug";
+import { readSeedAsset } from "./assets-path";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(fs.readFileSync(path.join(dir, "data/catalog.json"), "utf8"));
@@ -31,13 +32,18 @@ export async function seedCatalog(prisma: PrismaClient, log = console.log) {
   if ((await prisma.product.count()) > 0) return log("catalog: already seeded, skipping");
 
   // ── images: upload each asset once into the media library ──
+  // Files live in prisma/seed/assets (and mirrored at repo-root demo/seed-assets for GitHub).
   const urls = new Map<string, string>();
   async function asset(ref?: string | null, folder = "products") {
     if (!ref?.startsWith("asset:")) return ref ?? null;
     const name = ref.slice(6);
     if (urls.has(name)) return urls.get(name)!;
-    const buffer = fs.readFileSync(path.join(dir, "assets", name));
-    const a = await mediaService.upload({ buffer, originalname: name, mimetype: "image/webp", size: buffer.length }, folder, "seed");
+    const buffer = readSeedAsset(name);
+    const a = await mediaService.upload(
+      { buffer, originalname: path.basename(name), mimetype: "image/webp", size: buffer.length },
+      folder,
+      "seed",
+    );
     urls.set(name, a.url);
     return a.url;
   }

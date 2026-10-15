@@ -198,10 +198,17 @@ describe("pick-up bookings", () => {
     expect((await api().post(`${A}/pickups/bookings/${b.id}/advance`).set(bearer(admin)).send({ status: "collected" })).status).toBe(409);
     expect((await api().post(`${A}/pickups/bookings/${b.id}/notes`).set(bearer(admin)).send({ note: "Gift wrap requested." })).body.data.notes).toBe("Gift wrap requested.");
 
+    // asl-admin paths: /pickups/locations + advance { action, note }
+    const locs = await api().get(`${A}/pickups/locations`).set(bearer(admin));
+    expect(locs.status).toBe(200);
+    expect(locs.body.data.find((x: any) => x.id === loc.id)?.bookingsLast30).toBeGreaterThanOrEqual(1);
+    expect((await api().get(`${A}/pickup-locations`).set(bearer(admin))).status).toBe(200);
+
     const before = sms.outbox.length;
-    const ready = await api().post(`${A}/pickups/bookings/${b.number}/advance`).set(bearer(admin)).send({ status: "ready" });
+    const ready = await api().post(`${A}/pickups/bookings/${b.number}/advance`).set(bearer(admin)).send({ action: "ready", note: "Counter 2" });
     expect(ready.status).toBe(200);
     expect(ready.body.data.status).toBe("ready");
+    expect(ready.body.data.notes).toBe("Counter 2");
     await settle();
     const text = sms.outbox.slice(before).find((m) => m.to === phone);
     expect(text?.body).toContain(o.number);

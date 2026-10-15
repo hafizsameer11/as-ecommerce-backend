@@ -21,6 +21,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx --env-file=.env prisma/seed/index.ts",
+    "db:seed:sync-assets": "tsx prisma/seed/sync-assets.ts",
     "db:reset": "tsx --env-file=.env scripts/dev-db-reset.ts",
     "openapi": "tsx --env-file=.env scripts/openapi.ts"
   },
