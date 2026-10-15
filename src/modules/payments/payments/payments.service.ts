@@ -12,7 +12,6 @@ import { withMeta } from "@/core/http/router";
 import { events } from "@/core/events/bus";
 import { logger } from "@/core/utils/logger";
 import { formatNaira } from "@/core/utils/money";
-import { corsOrigins, isProd } from "@/config/env";
 import { notifyStaff } from "@/modules/platform/notification-settings/notification-settings.service";
 import { ledgerService, SYSTEM_USER } from "@/modules/payments/ledger/ledger.service";
 import { paymentProvider, type PaymentMethodKind, type VerifyResult, type WebhookEvent } from "@/providers/payment/payment";
@@ -44,14 +43,14 @@ function providerError(err: unknown, what: string): never {
 
 export const newReference = (prefix = "ASL") => `${prefix}_${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
 
-/** only send customers back to our own apps after paying */
+/** Allow http(s) and native app schemes as post-payment return URLs (no origin allowlist). */
 export function safeReturnUrl(url?: string | null) {
   if (!url) return null;
   try {
     const u = new URL(url);
-    const appScheme = ["asloriginals:", ...(isProd ? [] : ["exp:"])].includes(u.protocol);
-    const ownSite = corsOrigins.includes(u.origin) || (!isProd && /^(localhost|127\.0\.0\.1)$/.test(u.hostname));
-    return appScheme || ownSite ? url : null;
+    const appScheme = ["asloriginals:", "exp:"].includes(u.protocol);
+    const http = u.protocol === "http:" || u.protocol === "https:";
+    return appScheme || http ? url : null;
   } catch {
     return null;
   }

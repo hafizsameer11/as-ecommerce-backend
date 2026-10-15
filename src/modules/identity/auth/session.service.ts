@@ -68,7 +68,8 @@ export async function rotateCustomerSession(refreshToken: string, meta: SessionM
 
 /** Web (asl-web) uses httpOnly cookies; the mobile app reads tokens from the body. */
 export function setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
-  const base = { httpOnly: true, secure: isProd, sameSite: "lax" as const };
+  // sameSite none + secure in prod so storefronts on other origins can use cookie auth
+  const base = { httpOnly: true, secure: isProd, sameSite: (isProd ? "none" : "lax") as "none" | "lax" };
   res.cookie(CUSTOMER_COOKIE, tokens.accessToken, { ...base, maxAge: 15 * 60_000, path: "/" });
   res.cookie(CUSTOMER_REFRESH_COOKIE, tokens.refreshToken, { ...base, maxAge: env.JWT_REFRESH_TTL_DAYS * 86_400_000, path: "/api/v1/store/auth" });
 }

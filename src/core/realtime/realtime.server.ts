@@ -8,7 +8,7 @@ import { Server, type Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import IORedis from "ioredis";
 import jwt from "jsonwebtoken";
-import { corsOrigins, env, isProd, isTest } from "@/config/env";
+import { env, isTest } from "@/config/env";
 import { prisma } from "@/core/db/prisma";
 import { verifyAccessToken, type Audience } from "@/core/auth/tokens";
 import { ADMIN_COOKIE, CUSTOMER_COOKIE } from "@/core/middleware/auth";
@@ -202,7 +202,7 @@ export function attachRealtime(httpServer: HttpServer) {
   const io = new Server(httpServer, {
     path: "/socket.io",
     serveClient: false,
-    cors: { origin: (origin, cb) => cb(null, !origin || !isProd || corsOrigins.includes(origin)), credentials: true },
+    cors: { origin: true, credentials: true },
   });
 
   let cleanup: (() => Promise<unknown>) | undefined;

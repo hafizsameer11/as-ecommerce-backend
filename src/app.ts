@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import swaggerUi from "swagger-ui-express";
 import "@/core/http/openapi"; // zod openapi extension first
-import { corsOrigins, env, isProd } from "@/config/env";
+import { env } from "@/config/env";
 import { logger } from "@/core/utils/logger";
 import { errorHandler, notFoundHandler } from "@/core/middleware/error-handler";
 import { ApiError } from "@/core/http/errors";
@@ -44,9 +44,10 @@ export function createApp() {
     }),
   );
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+  // No origin allowlist — reflect any Origin so browser clients can call the API.
   app.use(
     cors({
-      origin: (origin, cb) => cb(null, !origin || !isProd || corsOrigins.includes(origin)),
+      origin: true,
       credentials: true,
       exposedHeaders: ["X-Request-Id", "Idempotent-Replay"],
     }),

@@ -9,7 +9,6 @@ export const envSchema = z.object({
   WEB_URL: z.string().url().default("http://localhost:3000"),
   /** admin app (absolute links in staff alert e-mails) */
   ADMIN_URL: z.string().url().default("http://localhost:3001"),
-  CORS_ORIGINS: z.string().default(""),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default(""),
   JWT_ACCESS_SECRET: z.string().min(32),
@@ -53,4 +52,3 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isTest = env.NODE_ENV === "test";
 export const isProd = env.NODE_ENV === "production";
-export const corsOrigins = env.CORS_ORIGINS.split(",").map((s) => s.trim()).filter(Boolean);

@@ -32,7 +32,8 @@ export async function adminProfile(id: string) {
 }
 
 export function setAdminCookies(res: Response, t: { accessToken: string; refreshToken: string }) {
-  const base = { httpOnly: true, secure: isProd, sameSite: "strict" as const };
+  // sameSite none + secure so admin frontends on other origins can use cookie auth
+  const base = { httpOnly: true, secure: isProd, sameSite: (isProd ? "none" : "lax") as "none" | "lax" };
   res.cookie(ADMIN_COOKIE, t.accessToken, { ...base, maxAge: 15 * 60_000, path: "/" });
   res.cookie(ADMIN_REFRESH_COOKIE, t.refreshToken, { ...base, maxAge: env.JWT_REFRESH_TTL_DAYS * 86_400_000, path: "/api/v1/admin/auth" });
 }
