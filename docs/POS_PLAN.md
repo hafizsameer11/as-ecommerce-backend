@@ -56,7 +56,7 @@ Money remains **kobo** on the API (same as the rest of the backend).
 
 - `/api/v1/admin/pos/*`: overview, transactions, reports, registers, sessions, stock moves, audit, promotions, gift cards, POS settings
 - Seed boutiques as warehouses linked to pickup locations (Phase 1 `prisma/seed/pos.ts`)
-- Till UI wire map: `asl-originals-pos/docs/INTEGRATION.md` §6 (replace Zustand `useDb` in a follow-up UI ticket)
+- Till UI live mode: `asl-originals-pos` with `VITE_POS_LIVE=1` — PIN, sessions, catalog, customers, sales, returns, pickups, receipts (see INTEGRATION.md §6)
 
 ---
 
