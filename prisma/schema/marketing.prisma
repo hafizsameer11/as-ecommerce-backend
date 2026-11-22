@@ -1,3 +1,10 @@
+/// Footer / guest newsletter sign-ups without an account yet
+model NewsletterLead {
+  id        String   @id @default(cuid())
+  email     String   @unique @db.VarChar(190)
+  createdAt DateTime @default(now())
+}
+
 model Segment {
   id          String   @id @default(cuid())
   name        String

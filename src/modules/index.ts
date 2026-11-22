@@ -70,6 +70,7 @@ import { bannersAdminRoutes, bannersStoreRoutes } from "./marketing/banners/bann
 import { announcementsAdminRoutes, announcementsStoreRoutes } from "./marketing/announcements/announcements.routes";
 import { slotsAdminRoutes, slotsStoreRoutes } from "./marketing/slots/slots.routes";
 import { impressionsStoreRoutes } from "./marketing/impressions/impressions.routes";
+import { newsletterStoreRoutes } from "./marketing/newsletter/newsletter.routes";
 import { pagesAdminRoutes, pagesStoreRoutes } from "./content/pages/pages.routes";
 import { faqsAdminRoutes, faqsStoreRoutes } from "./content/faqs/faqs.routes";
 import { blogAdminRoutes, blogStoreRoutes } from "./content/blog/blog.routes";
@@ -204,6 +205,7 @@ export const moduleRouters: ModuleRouter[] = [
   slotsStoreRoutes,
   slotsAdminRoutes,
   impressionsStoreRoutes,
+  newsletterStoreRoutes,
   // content: CMS pages + navigation, FAQs, blog, SEO (+ robots.txt / sitemap.xml), media library
   pagesStoreRoutes,
   pagesAdminRoutes,
