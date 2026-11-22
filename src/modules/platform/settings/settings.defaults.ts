@@ -99,7 +99,14 @@ export const settingsSchemas = {
     payoutDelayDays: z.number().int().min(0).max(30),
   }),
   legal: z.object({
-    vatNumber: z.string(), rcNumber: z.string(),
+    vatNumber: z.string(),
+    rcNumber: z.string(),
+    /** Policy copy edited in admin Settings → Legal (also mirrored on CMS pages when published). */
+    terms: z.string().max(50000).default(""),
+    privacy: z.string().max(50000).default(""),
+    refund: z.string().max(50000).default(""),
+    shipping: z.string().max(50000).default(""),
+    cookies: z.string().max(50000).default(""),
   }),
   maintenance: z.object({ enabled: z.boolean(), message: z.string() }),
   /** ASL Club points (loyalty/club). Tiers + multipliers live in the ClubTier table. */
@@ -261,7 +268,7 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
     autoRounding: "subtotal",
   },
   finance: { payoutBankName: "GTBank", payoutAccountMasked: "****4021", payoutAccountName: "ASL Originals Ltd", payoutDelayDays: 1 },
-  legal: { vatNumber: "", rcNumber: "" },
+  legal: { vatNumber: "", rcNumber: "", terms: "", privacy: "", refund: "", shipping: "", cookies: "" },
   maintenance: { enabled: false, message: "We're making improvements and will be back shortly." },
   club: {
     enabled: true,
