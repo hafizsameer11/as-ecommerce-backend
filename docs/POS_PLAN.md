@@ -52,11 +52,11 @@ Money remains **kobo** on the API (same as the rest of the backend).
 
 ---
 
-## Phase 4 — Admin POS APIs + till wire-up
+## Phase 4 — Admin POS APIs + till wire-up ✅ (API + map)
 
-- `/api/v1/admin/pos/*`: overview, transactions, reports, registers, stock moves, audit, promotions, gift cards, POS settings
-- Seed boutiques as warehouses linked to pickup locations
-- Point `asl-originals-pos` prototype at real APIs (replace Zustand `useDb`)
+- `/api/v1/admin/pos/*`: overview, transactions, reports, registers, sessions, stock moves, audit, promotions, gift cards, POS settings
+- Seed boutiques as warehouses linked to pickup locations (Phase 1 `prisma/seed/pos.ts`)
+- Till UI wire map: `asl-originals-pos/docs/INTEGRATION.md` §6 (replace Zustand `useDb` in a follow-up UI ticket)
 
 ---
 

@@ -84,11 +84,13 @@ import { reportsAdminRoutes } from "./platform/reports/reports.routes";
 import { registerReportJobs } from "./platform/reports/reports.service";
 import { registerRealtimeListeners } from "@/core/realtime/realtime.listeners";
 import { posAuthRoutes, posRoutes } from "./pos/pos.routes";
+import { posAdminRoutes } from "./pos/pos.admin.routes";
 
 export const moduleRouters: ModuleRouter[] = [
   // POS till (separate surface /api/v1/pos)
   posAuthRoutes,
   posRoutes,
+  posAdminRoutes,
   // identity
   authStoreRoutes,
   accountStoreRoutes,
