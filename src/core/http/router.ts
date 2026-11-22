@@ -18,7 +18,7 @@ import { audit, type AuditSpec } from "@/core/middleware/audit";
 import { idempotent } from "@/core/middleware/idempotency";
 import type { Permission } from "@/core/auth/permissions";
 
-export type Surface = "store" | "admin" | "webhooks" | "public";
+export type Surface = "store" | "admin" | "pos" | "webhooks" | "public";
 export type AuthMode = "public" | "customer" | "optionalCustomer" | "admin";
 
 export type Ctx<B = any, Q = any, P = any> = {
@@ -136,7 +136,7 @@ export class ModuleRouter {
       path: full || "/",
       summary: def.summary,
       description: desc || undefined,
-      tags: def.tags ?? [`${this.opts.surface === "admin" ? "Admin" : this.opts.surface === "store" ? "Store" : "Other"} · ${this.opts.tag}`],
+      tags: def.tags ?? [`${this.opts.surface === "admin" ? "Admin" : this.opts.surface === "store" ? "Store" : this.opts.surface === "pos" ? "POS" : "Other"} · ${this.opts.tag}`],
       security,
       request: {
         params: def.params as any,

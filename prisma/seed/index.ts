@@ -4,6 +4,7 @@ import { seedReferenceData } from "./reference";
 import { seedCatalog } from "./catalog";
 import { seedMerchandising } from "./merchandising";
 import { seedContent } from "./content";
+import { seedPos } from "./pos";
 
 async function main() {
   await seedReferenceData(prisma);
@@ -41,6 +42,8 @@ async function main() {
     await prisma.advocate.create({ data: { customerId: c.id, code: "JOHN-ASL10" } });
     console.log(`demo customer ✓  ${demo} / Password123!`);
   }
+
+  await seedPos(prisma);
 }
 
 main()

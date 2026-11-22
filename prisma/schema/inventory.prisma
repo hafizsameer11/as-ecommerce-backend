@@ -1,13 +1,16 @@
 model Warehouse {
-  id        String          @id @default(cuid())
-  name      String
-  code      String          @unique
-  city      String
-  active    Boolean         @default(true)
-  isDefault Boolean         @default(false)
-  createdAt DateTime        @default(now())
-  stock     StockLevel[]
-  movements StockMovement[]
+  id               String          @id @default(cuid())
+  name             String
+  code             String          @unique
+  city             String
+  active           Boolean         @default(true)
+  isDefault        Boolean         @default(false)
+  /// when set, this warehouse is the stock room for that boutique / pickup location
+  pickupLocationId String?         @unique
+  createdAt        DateTime        @default(now())
+  stock            StockLevel[]
+  movements        StockMovement[]
+  registers        PosRegister[]
 }
 
 model StockLevel {

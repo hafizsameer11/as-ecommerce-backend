@@ -213,6 +213,9 @@ enum AdminRole {
   finance
   content_editor
   analyst
+  store_manager
+  store_supervisor
+  store_cashier
 }
 
 enum AdminStatus {
@@ -232,6 +235,10 @@ model AdminUser {
   email            String      @unique
   name             String
   passwordHash     String?
+  /// 4-digit till PIN (hashed). Unique among active staff when set.
+  pinHash          String?
+  /// PickupLocation ids this person may work at (JSON string[])
+  locationIds      Json?
   role             AdminRole
   status           AdminStatus @default(invited)
   avatarColor      String      @default("#0f0f0f")

@@ -192,6 +192,25 @@ export const settingsSchemas = {
     quietHours: z.object({ enabled: z.boolean(), start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/), timezone: z.string(), exceptCritical: z.boolean() }),
     digest: z.object({ enabled: z.boolean(), frequency: z.enum(["daily", "weekly"]), time: z.string().regex(/^\d{2}:\d{2}$/), day: z.string() }),
   }),
+  /** In-store POS (/api/v1/pos). Messaging providers are deferred. */
+  pos: z.object({
+    enabled: z.boolean(),
+    defaultFloat: money,
+    blindClose: z.boolean(),
+    cashTolerance: money,
+    requireCustomerOver: money,
+    couponsAtPos: z.boolean(),
+    earnLoyaltyAtPos: z.boolean(),
+    redeemLoyaltyAtPos: z.boolean(),
+    minRedeemPoints: z.number().int().min(0),
+    offlineAllowed: z.boolean(),
+    offlineMaxSale: money,
+    oversell: z.enum(["allow", "warn", "block"]),
+    returnWindowDays: z.number().int().min(0).max(90),
+    refundApprovalOver: money,
+    finalSaleCategories: z.array(z.string()),
+    receiptFooter: z.string().max(2000),
+  }),
 } as const;
 
 export type SettingsGroup = keyof typeof settingsSchemas;
@@ -327,6 +346,24 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
     },
     quietHours: { enabled: true, start: "22:00", end: "07:00", timezone: "Africa/Lagos", exceptCritical: true },
     digest: { enabled: true, frequency: "daily", time: "08:00", day: "monday" },
+  },
+  pos: {
+    enabled: true,
+    defaultFloat: N(50_000),
+    blindClose: false,
+    cashTolerance: N(500),
+    requireCustomerOver: N(500_000),
+    couponsAtPos: true,
+    earnLoyaltyAtPos: true,
+    redeemLoyaltyAtPos: true,
+    minRedeemPoints: 0,
+    offlineAllowed: true,
+    offlineMaxSale: N(1_500_000),
+    oversell: "warn",
+    returnWindowDays: 7,
+    refundApprovalOver: N(100_000),
+    finalSaleCategories: ["fragrances", "underwear", "swimwear"],
+    receiptFooter: "Thank you for shopping at ASL ORIGINALS.",
   },
 };
 

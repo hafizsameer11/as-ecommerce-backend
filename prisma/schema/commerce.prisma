@@ -4,6 +4,8 @@ enum SalesChannel {
   pwa
   concierge
   draft
+  /// in-store till (ASL POS)
+  store
 }
 
 enum CartStatus {
@@ -70,6 +72,8 @@ model WishlistItem {
 enum DeliveryMethod {
   ship
   pickup
+  /// handed over at the till
+  instore
 }
 
 enum CheckoutPaymentMethod {
@@ -155,6 +159,16 @@ model Order {
   giftMessage      String?        @db.VarChar(500)
   expectedDeliveryAt DateTime?
   cancelReason     String?
+  /// POS: till that took the sale
+  registerId       String?
+  /// POS: open cash session
+  registerSessionId String?
+  /// POS: cashier (AdminUser id)
+  cashierId        String?
+  /// POS: cash change given back (kobo)
+  changeGiven      Int            @default(0)
+  /// client idempotency key for offline sync
+  posClientKey     String?        @unique
   placedAt         DateTime       @default(now())
   paidAt           DateTime?
   deliveredAt      DateTime?
@@ -175,6 +189,9 @@ model Order {
   @@index([customerId, placedAt])
   @@index([status, placedAt])
   @@index([paymentStatus])
+  @@index([channel, placedAt])
+  @@index([registerSessionId])
+  @@index([cashierId])
 }
 
 model OrderItem {
@@ -193,6 +210,10 @@ model OrderItem {
   qty         Int
   unitPrice   Int
   lineTotal   Int
+  /// POS / discounts taken off this line (kobo)
+  lineDiscount Int    @default(0)
+  /// POS sales associate credited for this line (AdminUser id)
+  soldById    String?
   qtyReturned Int     @default(0)
 }
 
@@ -363,7 +384,7 @@ model Coupon {
   stackable        Boolean           @default(false)
   autoApply        Boolean           @default(false)
   oncePerCustomer  Boolean           @default(false)
-  /// ["web","mobile","concierge"]
+  /// ["web","mobile","concierge","store"]
   channels         Json
   pinned           Boolean           @default(false)
   notes            String?           @db.Text

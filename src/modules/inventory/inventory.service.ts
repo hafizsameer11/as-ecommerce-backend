@@ -73,6 +73,38 @@ export const inventoryService = {
     }
   },
 
+  /**
+   * POS / direct sale: decrement onHand at a specific warehouse (no prior reserve).
+   * Used when stock is handed over at the till from that boutique's stock room.
+   */
+  async sellAt(tx: Tx, warehouseId: string, lines: Line[], ref: { type: string; id: string }, actor?: string) {
+    const short: { variantId: string; requested: number; available: number }[] = [];
+    for (const line of lines) {
+      const level = await tx.stockLevel.findUnique({ where: { variantId_warehouseId: { variantId: line.variantId, warehouseId } } });
+      const available = level ? level.onHand - level.reserved : 0;
+      if (!level || available < line.qty) {
+        short.push({ variantId: line.variantId, requested: line.qty, available: Math.max(0, available) });
+        continue;
+      }
+      await tx.stockLevel.update({
+        where: { variantId_warehouseId: { variantId: line.variantId, warehouseId } },
+        data: { onHand: { decrement: line.qty } },
+      });
+      await move(tx, {
+        variantId: line.variantId,
+        warehouseId,
+        type: "sale",
+        qty: -line.qty,
+        note: `POS sale ${line.qty}`,
+        refType: ref.type,
+        refId: ref.id,
+        actor,
+      });
+    }
+    if (short.length) throw ApiError.conflict("OUT_OF_STOCK", "Not enough stock at this boutique for one or more items.", short);
+    for (const id of new Set(lines.map((l) => l.variantId))) void checkLow(id);
+  },
+
   /** Paid → reserved units leave the shelf */
   async commitSale(tx: Tx, ref: { type: string; id: string }) {
     const res = await tx.stockMovement.findMany({ where: { refType: ref.type, refId: ref.id, type: "reserve" } });

@@ -1,0 +1,78 @@
+/// In-store POS: registers, cash sessions, and till audit. Orders/customers/stock stay in commerce/inventory.
+
+model PosRegister {
+  id           String   @id @default(cuid())
+  /// PickupLocation id (boutique)
+  locationId   String
+  warehouseId  String
+  warehouse    Warehouse @relation(fields: [warehouseId], references: [id])
+  name         String
+  device       String?  @db.VarChar(120)
+  printer      String?  @db.VarChar(120)
+  terminalId   String?  @db.VarChar(80)
+  drawer       Boolean  @default(true)
+  scanner      String?  @db.VarChar(120)
+  active       Boolean  @default(true)
+  online       Boolean  @default(true)
+  lastSeenAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sessions     PosRegisterSession[]
+
+  @@index([locationId, active])
+  @@index([warehouseId])
+}
+
+model PosRegisterSession {
+  id              String    @id @default(cuid())
+  registerId      String
+  register        PosRegister @relation(fields: [registerId], references: [id])
+  openedById      String
+  openedAt        DateTime  @default(now())
+  /// opening float in kobo
+  float           Int
+  closedAt        DateTime?
+  closedById      String?
+  /// counted cash at close (kobo)
+  counted         Int?
+  /// system expected cash at close (kobo)
+  expected        Int?
+  note            String?   @db.VarChar(500)
+  moves           PosCashMove[]
+
+  @@index([registerId, openedAt])
+  @@index([openedById])
+}
+
+model PosCashMove {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   PosRegisterSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  type      String   @db.VarChar(8) // in | out
+  amount    Int
+  reason    String   @db.VarChar(200)
+  staffId   String
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+/// Till actions that need a supervisor/manager trail (also mirrored to platform AuditLog where useful).
+model PosAuditEvent {
+  id           String   @id @default(cuid())
+  at           DateTime @default(now())
+  locationId   String?
+  registerId   String?
+  sessionId    String?
+  staffId      String
+  approvedById String?
+  /// discount | price | refund | void | cash | drawer | stock | sale | sync
+  action       String   @db.VarChar(32)
+  text         String   @db.Text
+  amount       Int?
+  ref          String?  @db.VarChar(64)
+
+  @@index([at])
+  @@index([registerId, at])
+  @@index([staffId, at])
+}
