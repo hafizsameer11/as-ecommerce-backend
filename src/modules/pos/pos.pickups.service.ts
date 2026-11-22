@@ -184,6 +184,17 @@ export const posPickupsService = {
     const updated = await prisma.pickupBooking.findUniqueOrThrow({ where: { id: b.id }, include });
     const mapped = mapBooking(updated);
 
+    if (mapped.customerEmail) {
+      await posOutboundService.enqueue({
+        channel: "email",
+        template: "pickup.collected",
+        to: mapped.customerEmail,
+        orderId: b.orderId,
+        bookingId: b.id,
+        staffId: staff.id,
+        payload: { orderNumber: mapped.orderNumber, store: mapped.locationName, customerName: mapped.customerName },
+      });
+    }
     await posOutboundService.enqueue({
       channel: "push",
       template: "pickup.collected",

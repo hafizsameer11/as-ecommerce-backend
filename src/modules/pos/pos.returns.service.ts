@@ -227,15 +227,24 @@ export const posReturnsService = {
 
     events.emit("return.updated", { returnId: ret.id, status: "refunded" });
 
-    await posOutboundService.enqueue({
-      channel: "email",
-      template: "pos.return_slip",
-      to: o.guestEmail ?? (o.customerId ? (await prisma.customer.findUnique({ where: { id: o.customerId } }))?.email : null) ?? "unknown",
-      orderId: o.id,
-      returnId: ret.id,
-      staffId: staff.id,
-      payload: { orderNumber: o.number, returnNumber: ret.number, amount, refundTo: body.refundTo },
-    });
+    {
+      const cust = o.customerId ? await prisma.customer.findUnique({ where: { id: o.customerId } }) : null;
+      await posOutboundService.enqueue({
+        channel: "email",
+        template: "pos.return_slip",
+        to: o.guestEmail ?? cust?.email ?? "unknown",
+        orderId: o.id,
+        returnId: ret.id,
+        staffId: staff.id,
+        payload: {
+          orderNumber: o.number,
+          returnNumber: ret.number,
+          amount,
+          refundTo: body.refundTo,
+          customerName: cust ? [cust.firstName, cust.lastName].filter(Boolean).join(" ") : "Customer",
+        },
+      });
+    }
 
     return {
       id: ret.id,

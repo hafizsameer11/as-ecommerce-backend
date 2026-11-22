@@ -97,4 +97,13 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
     subject: "{{reportName}} · {{period}}", body: "Hello,\n\nYour {{schedule}} report \"{{reportName}}\" for {{period}} is attached ({{files}}, {{rows}} rows).\n\nGenerated {{generatedAt}} UTC by ASL ORIGINALS Admin. Change the schedule or recipients in Admin → Reports." },
   { code: "reservation.cancelled", name: "Drop reservation cancelled", channel: "email", category: "transactional", trigger: "reservation.cancelled",
     subject: "Reservation {{reservationNumber}} cancelled", body: "Hi {{firstName}},\n\nYour reservation for {{productName}} has been cancelled. {{depositText}}", ctaLabel: "View reservation", linkTo: "{{reservationUrl}}" },
+  // ── POS till ──
+  { code: "pos.receipt", name: "In-store receipt", channel: "email", category: "transactional", trigger: "pos.receipt",
+    subject: "Your ASL ORIGINALS receipt · {{orderNumber}}", body: "Hi {{customerName}},\n\nThanks for shopping with us. Here's your receipt for {{orderNumber}}.\n\n{{itemLines}}\n\nTotal: {{total}}\nPaid: {{paymentLines}}\n\n{{footer}}" },
+  { code: "pos.gift_receipt", name: "In-store gift receipt", channel: "email", category: "transactional", trigger: "pos.receipt",
+    subject: "Gift receipt · {{orderNumber}}", body: "Hi {{customerName}},\n\nHere's a gift receipt for {{orderNumber}} (no prices).\n\n{{itemLines}}\n\n{{footer}}" },
+  { code: "pos.return_slip", name: "In-store return confirmation", channel: "email", category: "transactional", trigger: "pos.return",
+    subject: "Return {{returnNumber}} for {{orderNumber}}", body: "Hi {{customerName}},\n\nWe've processed return {{returnNumber}} for order {{orderNumber}}.\n\nRefund: {{amount}} to {{refundTo}}.\n\nThank you for shopping with ASL ORIGINALS." },
+  { code: "pickup.collected", name: "Pickup collected", channel: "email", category: "transactional", trigger: "pickup.collected",
+    subject: "Order {{orderNumber}} collected", body: "Hi {{customerName}},\n\nYour order {{orderNumber}} was collected at {{store}}. Enjoy!" },
 ];

@@ -60,11 +60,11 @@ Money remains **kobo** on the API (same as the rest of the backend).
 
 ---
 
-## Phase 5 — Messaging providers (LATER)
+## Phase 5 — Messaging providers
 
-- WhatsApp / SMS / email / push provider settings
-- Template approval + send queue workers
-- Wire Phase 2–3 `pending` outbounds to real providers
+- **Email (now):** POS outbounds with `channel: email` send immediately via SMTP/`mail` (`pos.receipt`, `pos.gift_receipt`, `pos.return_slip`, `pickup.ready`, `pickup.collected`)
+- WhatsApp / SMS / push — still deferred; those rows stay `pending`
+- Optional: `flushPendingEmails` for stuck email rows after SMTP recovery
 
 ---
 

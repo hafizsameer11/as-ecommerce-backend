@@ -95,7 +95,7 @@ export const posRoutes = new ModuleRouter({
   }, c.syncSales)
   .get("/sales/:id", { summary: "Sale / receipt payload", params: idParam }, c.getSale)
   .post("/sales/:id/send-receipt", {
-    summary: "Queue receipt by email / SMS / WhatsApp (pending until providers are wired)",
+    summary: "Send receipt by email (SMS/WhatsApp still queue as pending)",
     params: idParam,
     body: sendReceiptBody,
     audit: audit("pos.receipt_queued"),
