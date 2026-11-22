@@ -29,6 +29,7 @@ import { customersAdminRoutes } from "./identity/customers/customers.routes";
 import { wishlistStoreRoutes } from "./commerce/wishlist/wishlist.routes";
 import { couponsAdminRoutes, myCouponsStoreRoutes } from "./commerce/coupons/coupons.routes";
 import { checkoutStoreRoutes } from "./commerce/checkout/checkout.routes";
+import { giftCardsStoreRoutes } from "./commerce/gift-cards/gift-cards.routes";
 import { myOrdersStoreRoutes, ordersAdminRoutes, ordersStoreRoutes } from "./commerce/orders/orders.routes";
 import { myOrderDocumentsStoreRoutes, orderDocumentsAdminRoutes, orderDocumentsStoreRoutes, shipmentDocumentsAdminRoutes } from "./commerce/documents/documents.routes";
 import { draftOrdersAdminRoutes, draftPayStoreRoutes } from "./commerce/draft-orders/draft-orders.routes";
@@ -47,6 +48,7 @@ import { paymentMethodsStoreRoutes } from "./payments/payment-methods/payment-me
 import { ledgerAdminRoutes } from "./payments/ledger/ledger.routes";
 import { registerLedgerListeners } from "./payments/ledger/ledger.listeners";
 import { payoutsAdminRoutes } from "./payments/payouts/payouts.routes";
+import { conciergeCartStoreRoutes } from "./concierge/cart/cart.routes";
 import { conciergeRequestsAdminRoutes, conciergeRequestsStoreRoutes } from "./concierge/requests/requests.routes";
 import { conciergeQuotesAdminRoutes, conciergeQuotesStoreRoutes } from "./concierge/quotes/quotes.routes";
 import { conciergeChatAdminRoutes, conciergeChatStoreRoutes } from "./concierge/chat/chat.routes";
@@ -138,6 +140,7 @@ export const moduleRouters: ModuleRouter[] = [
   myCouponsStoreRoutes,
   couponsAdminRoutes,
   checkoutStoreRoutes,
+  giftCardsStoreRoutes,
   myOrderDocumentsStoreRoutes, // before the order routers: /orders/:id/invoice.pdf, /orders/print-slips
   orderDocumentsStoreRoutes,
   orderDocumentsAdminRoutes,
@@ -175,6 +178,7 @@ export const moduleRouters: ModuleRouter[] = [
   payoutsAdminRoutes,
   // concierge (store: /concierge/brands is registered with the catalogue above)
   conciergeRequestsStoreRoutes,
+  conciergeCartStoreRoutes,
   conciergeQuotesStoreRoutes,
   conciergeChatStoreRoutes,
   conciergeRequestsAdminRoutes,

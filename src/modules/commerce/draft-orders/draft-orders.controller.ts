@@ -1,4 +1,7 @@
 import type { Ctx } from "@/core/http/router";
+import { sendCsv } from "@/core/http/response";
+import { ApiError } from "@/core/http/errors";
+import { draftImportTemplateCsv, importDraftOrdersCsv } from "./draft-orders.import";
 import { draftOrdersService as svc } from "./draft-orders.service";
 import type { ConvertDraftBody, CreateDraftBody, DraftListQuery, PayDraftBody, SendDraftBody, UpdateDraftBody } from "./draft-orders.schemas";
 
@@ -39,6 +42,14 @@ export const draftOrdersController = {
     const d = await svc.convert(params.id, body, admin.name);
     res.locals.audit = { entityId: d.id, summary: `Draft ${d.number} paid offline (${body.method} ${body.reference}) → order ${d.orderNumber}` };
     return d;
+  },
+  importTemplate: async ({ res }: Ctx) => sendCsv(res, "draft-orders-import-template", draftImportTemplateCsv()),
+  importCsv: async ({ files, admin, res }: Ctx) => {
+    const file = files[0];
+    if (!file) throw ApiError.badRequest("VALIDATION_FAILED", "Upload a CSV file in the `file` field.");
+    const out = await importDraftOrdersCsv(file.buffer.toString("utf-8"), admin.name);
+    res.locals.audit = { summary: `Imported ${out.created} draft(s) from CSV (${out.errors.length} row error(s))` };
+    return out;
   },
 
   // customer pay link

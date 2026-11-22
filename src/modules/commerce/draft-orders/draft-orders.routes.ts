@@ -5,9 +5,17 @@ import { convertDraftBody, createDraftBody, draftListQuery, payDraftBody, payTok
 const audit = (action: string, category = "orders") => ({ category, action, entity: "draft_order" });
 
 /** asl-admin /drafts */
+const csvFile = { field: "file", maxCount: 1, maxMB: 5, accept: /^(text\/(csv|plain)|application\/(vnd\.ms-excel|octet-stream))$/ };
+
 export const draftOrdersAdminRoutes = new ModuleRouter({ surface: "admin", prefix: "/draft-orders", tag: "Draft orders", defaultAuth: "admin", defaultPermission: "orders.edit" })
   .get("/", { summary: "Drafts table (tabs Draft / Sent to customer / Converted, KPIs)", permission: "orders.view", query: draftListQuery }, c.list)
   .post("/", { summary: "New draft (catalogue products and/or custom lines)", body: createDraftBody, status: 201, audit: audit("draft.created") }, c.create)
+  .get("/import/template", { summary: "CSV import template (one row per line; group with draft_key)", permission: "orders.view" }, c.importTemplate)
+  .post("/import", {
+    summary: "Import drafts from CSV (multipart `file`; returns created count and per-row errors)",
+    upload: csvFile,
+    audit: audit("draft.imported"),
+  }, c.importCsv)
   .get("/:id", { summary: "Draft detail (id or DFT- number)", permission: "orders.view", params: idParam }, c.get)
   .patch("/:id", { summary: "Edit (draft / sent only)", params: idParam, body: updateDraftBody, audit: audit("draft.updated") }, c.update)
   .delete("/:id", { summary: "Delete (not converted)", params: idParam, audit: audit("draft.deleted") }, c.remove)

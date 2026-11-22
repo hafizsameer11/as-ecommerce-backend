@@ -294,6 +294,53 @@ describe("decline, expiry, deposits", () => {
   });
 });
 
+describe("cart line edits", () => {
+  it("patch qty / notes while sourcing (no quote)", async () => {
+    const id = (await submit(alice.token, { itemName: "P6000", qty: "1", notes: "deadstock" })).body.data.id;
+    const r = await api().patch(`${S}/concierge/cart/items/${id}`).set(bearer(alice.token)).send({ qty: 2, notes: "prefer EU 42" });
+    expect(r.status).toBe(200);
+    expect(r.body.data.item.qty).toBe(2);
+    expect(r.body.data.changed).toEqual(expect.arrayContaining(["qty 1 → 2", "notes updated"]));
+    expect(r.body.data.quoteWithdrawn).toBeNull();
+    expect((await prisma.conciergeRequest.findUniqueOrThrow({ where: { id } })).status).toBe("new");
+  });
+
+  it("editing after a quote expires it and returns to sourcing", async () => {
+    const id = (await submit(alice.token, { itemName: "Samba OG", size: "UK 9" })).body.data.id;
+    expect((await api().post(`${A}/concierge/requests/${id}/assign`).set(bearer(agent.token)).send({ adminId: agent.id })).status).toBe(200);
+    const q = (await quote(id)).body.data;
+    const r = await api().patch(`${S}/concierge/cart/items/${id}`).set(bearer(alice.token)).send({ size: "UK 10" });
+    expect(r.status).toBe(200);
+    expect(r.body.data.quoteWithdrawn).toBe(q.number);
+    expect(r.body.data.item.statusKey).toBe("sourcing");
+    expect((await prisma.conciergeQuote.findUniqueOrThrow({ where: { id: q.id } })).status).toBe("expired");
+    expect((await prisma.conciergeRequest.findUniqueOrThrow({ where: { id } })).size).toBe("UK 10");
+  });
+
+  it("delete removes a cart line; paid lines can't be edited", async () => {
+    const id = (await submit(alice.token, { itemName: "Forum Low" })).body.data.id;
+    expect((await api().delete(`${S}/concierge/cart/items/${id}`).set(bearer(alice.token)).send({ reason: "changed mind" })).status).toBe(200);
+    expect((await prisma.conciergeRequest.findUniqueOrThrow({ where: { id } })).status).toBe("cancelled");
+
+    const paid = (await submit(alice.token, { itemName: "Already paid edit" })).body.data.id;
+    expect((await api().post(`${A}/concierge/requests/${paid}/assign`).set(bearer(agent.token)).send({ adminId: agent.id })).status).toBe(200);
+    expect((await quote(paid)).status).toBe(201);
+    const acc = await accept(alice.token, paid);
+    await payMock(acc.body.data.payment.reference);
+    expect((await api().patch(`${S}/concierge/cart/items/${paid}`).set(bearer(alice.token)).send({ qty: 2 })).status).toBe(409);
+  });
+
+  it("clear cart cancels open items", async () => {
+    const a = (await submit(alice.token, { itemName: "Clear A" })).body.data;
+    const b = (await submit(alice.token, { itemName: "Clear B" })).body.data;
+    const c = await api().post(`${S}/concierge/cart/clear`).set(bearer(alice.token)).send({});
+    expect(c.status).toBe(200);
+    expect(c.body.data.cancelled).toEqual(expect.arrayContaining([a.number, b.number]));
+    expect((await prisma.conciergeRequest.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("cancelled");
+    expect((await prisma.conciergeRequest.findUniqueOrThrow({ where: { id: b.id } })).status).toBe("cancelled");
+  });
+});
+
 describe("guests, catalogue items, tracking", () => {
   it("guests must leave contact details; track by number + e-mail", async () => {
     const noContact = await api().post(`${S}/concierge/requests`).send({ itemName: "Cartier Love", category: "Jewellery" });

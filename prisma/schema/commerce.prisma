@@ -97,6 +97,8 @@ model CheckoutSession {
   pickupLocationId String?
   paymentMethod    CheckoutPaymentMethod  @default(card)
   couponCode       String?
+  /// POS-issued gift card code applied at checkout (balance checked server-side)
+  giftCardCode     String?                @db.VarChar(32)
   useWallet        Boolean                @default(false)
   shippingRateId   String?
   giftMessage      String?                @db.VarChar(500)

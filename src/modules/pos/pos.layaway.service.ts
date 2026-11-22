@@ -3,7 +3,7 @@ import { ApiError } from "@/core/http/errors";
 import { events } from "@/core/events/bus";
 import { inventoryService } from "@/modules/inventory/inventory.service";
 import { walletsService } from "@/modules/payments/wallets/wallets.service";
-import type { SettleLayawayBody } from "./pos.schemas";
+import type { CancelLayawayBody, SettleLayawayBody } from "./pos.schemas";
 import { posGiftCardsService } from "./pos.giftcards.service";
 
 type Staff = { id: string; name: string };
@@ -120,23 +120,31 @@ export const posLayawayService = {
     return this.get(order.id);
   },
 
-  async cancel(orderIdOrNumber: string, staff: Staff, forfeitDeposit = true) {
+  async cancel(orderIdOrNumber: string, staff: Staff, opts: CancelLayawayBody = {}) {
     const { order, layaway } = await this.get(orderIdOrNumber);
     if (layaway.status !== "open") throw ApiError.conflict("INVALID_STATE", "This layaway is no longer open.");
 
+    const refundTo = opts.refundTo ?? (opts.forfeitDeposit === false ? "wallet" : "kept");
+    const forfeitDeposit = refundTo === "kept";
+
     await prisma.$transaction(async (tx) => {
       await inventoryService.release(tx, { type: "order", id: order.id });
+      if (!forfeitDeposit && order.customerId && layaway.deposit > 0) {
+        await walletsService.refund(tx, order.customerId, layaway.deposit, `Layaway ${order.number} deposit refund`, {
+          orderNumber: order.number,
+        });
+      }
       await tx.order.update({
         where: { id: order.id },
         data: {
           status: "cancelled",
-          cancelReason: forfeitDeposit ? "Layaway cancelled (deposit forfeited)" : "Layaway cancelled",
+          cancelReason: forfeitDeposit ? "Layaway cancelled (deposit forfeited)" : "Layaway cancelled (deposit refunded)",
           cancelledAt: new Date(),
           events: {
             create: {
               type: "cancelled",
               title: "Layaway cancelled",
-              detail: forfeitDeposit ? "Deposit forfeited" : undefined,
+              detail: forfeitDeposit ? "Deposit forfeited" : `Deposit ${refundTo === "wallet" ? "moved to wallet" : "refunded"}`,
               actor: staff.name,
             },
           },
@@ -159,6 +167,6 @@ export const posLayawayService = {
       }
     });
 
-    return this.get(order.id);
+    return { ...(await this.get(order.id)), deposit: layaway.deposit, refundTo };
   },
 };

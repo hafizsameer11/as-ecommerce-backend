@@ -1,6 +1,6 @@
 import { ModuleRouter } from "@/core/http/router";
 import { checkoutController as c } from "./checkout.controller";
-import { couponBody, placeOrderBody, updateCheckoutBody } from "./checkout.schemas";
+import { couponBody, giftCardBody, placeOrderBody, updateCheckoutBody } from "./checkout.schemas";
 
 /** /checkout (Information → Shipping → Payment → Review) on web and app */
 export const checkoutStoreRoutes = new ModuleRouter({ surface: "store", prefix: "/checkout", tag: "Checkout", defaultAuth: "optionalCustomer" })
@@ -11,6 +11,8 @@ export const checkoutStoreRoutes = new ModuleRouter({ surface: "store", prefix: 
   }, c.update)
   .post("/coupon", { summary: "Apply a coupon code (errors explain why it can't be used)", body: couponBody }, c.applyCoupon)
   .delete("/coupon", { summary: "Remove the coupon" }, c.removeCoupon)
+  .post("/gift-card", { summary: "Apply a gift card code (reduces balance due, like wallet)", body: giftCardBody }, c.applyGiftCard)
+  .delete("/gift-card", { summary: "Remove the gift card" }, c.removeGiftCard)
   .post("/place-order", {
     summary: "Place order → `{ order, payment }`. Open `payment.authorizationUrl` to pay; `payment` is null when the wallet covered it.",
     body: placeOrderBody, status: 201, idempotent: "checkout.place-order",

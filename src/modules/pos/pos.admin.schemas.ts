@@ -44,6 +44,29 @@ export const adminRegisterBody = z.object({
   active: z.boolean().optional(),
 });
 
+export const adminStaffBody = z.object({
+  id: id.optional(),
+  name: z.string().trim().min(1).max(120),
+  email: z.string().trim().toLowerCase().email().max(190),
+  role: z.enum(["store_cashier", "store_supervisor", "store_manager"]),
+  locationIds: z.array(id).default([]),
+  pin: z.string().regex(/^\d{4}$/).optional(),
+  active: z.boolean().default(true),
+});
+
+export const adminLocationPatch = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  address: z.string().trim().max(300).optional(),
+  phone: z.string().trim().max(40).optional(),
+  hours: z.string().trim().max(120).optional(),
+  city: z.string().trim().max(80).optional(),
+  active: z.boolean().optional(),
+});
+
+export const adminCouponChannelsPatch = z.object({
+  channels: z.array(z.enum(["web", "mobile", "concierge", "store"])).min(1),
+});
+
 export const adminPromoBody = z.object({
   name: z.string().trim().min(1).max(120),
   label: z.string().trim().min(1).max(120),
@@ -76,6 +99,9 @@ export type AdminReportsQuery = z.infer<typeof adminReportsQuery>;
 export type AdminSessionsQuery = z.infer<typeof adminSessionsQuery>;
 export type AdminAuditQuery = z.infer<typeof adminAuditQuery>;
 export type AdminRegisterBody = z.infer<typeof adminRegisterBody>;
+export type AdminStaffBody = z.infer<typeof adminStaffBody>;
+export type AdminLocationPatch = z.infer<typeof adminLocationPatch>;
+export type AdminCouponChannelsPatch = z.infer<typeof adminCouponChannelsPatch>;
 export type AdminPromoBody = z.infer<typeof adminPromoBody>;
 export type AdminPromoPatch = z.infer<typeof adminPromoPatch>;
 export type AdminStockMovesQuery = z.infer<typeof adminStockMovesQuery>;

@@ -217,6 +217,8 @@ export const settingsSchemas = {
     /** minimum deposit as percent of basket (50 = half) */
     layawayMinDepositPct: z.number().int().min(1).max(100),
     layawayHoldDays: z.number().int().min(1).max(90),
+    layawayCancelRefund: z.enum(["wallet", "original", "keep"]),
+    alterationsEnabled: z.boolean(),
     freeAlterationsOver: money,
   }),
 } as const;
@@ -378,11 +380,13 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
     layawayEnabled: true,
     layawayMinDepositPct: 50,
     layawayHoldDays: 14,
+    layawayCancelRefund: "wallet",
+    alterationsEnabled: true,
     freeAlterationsOver: N(150_000),
   },
 };
 
 /** Groups readable by anyone (no secrets in here). */
 export const PUBLIC_GROUPS: SettingsGroup[] = [
-  "profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "account", "tax", "maintenance", "app", "drops",
+  "profile", "brand", "checkout", "shipping", "returns", "concierge", "wallet", "account", "tax", "legal", "maintenance", "app", "drops",
 ];

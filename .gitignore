@@ -8,3 +8,4 @@ coverage
 .test-uploads
 uploads-private/
 .test-uploads-private/
+backups/

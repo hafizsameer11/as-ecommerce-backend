@@ -22,6 +22,14 @@ export const checkoutController = {
     const { owner, customerId } = who(ctx);
     return svc.removeCoupon(owner, customerId);
   },
+  applyGiftCard: (ctx: Ctx<{ code: string }>) => {
+    const { owner, customerId } = who(ctx);
+    return svc.applyGiftCard(owner, customerId, ctx.body.code);
+  },
+  removeGiftCard: (ctx: Ctx) => {
+    const { owner, customerId } = who(ctx);
+    return svc.removeGiftCard(owner, customerId);
+  },
   placeOrder: (ctx: Ctx<PlaceOrderBody>) => {
     const { owner, customerId } = who(ctx);
     return svc.placeOrder(owner, customerId, ctx.body);

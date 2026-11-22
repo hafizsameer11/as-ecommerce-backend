@@ -6,6 +6,8 @@ export async function registerSchedules() {
   await scheduleRepeating("orders.expire-unpaid", 5 * 60_000);
   // idle bags → abandoned, recovery reminders (RecoveryRule), lost after 7 days
   await scheduleRepeating("carts.abandon-scan", 15 * 60_000);
+  // queued card refunds → gateway (outbox); also picks up retries after backoff
+  await scheduleRepeating("payments.send-refunds", 60_000);
   // provider settlements → payouts (finance.payoutDelayDays)
   await scheduleRepeating("payouts.sync", 24 * 3_600_000);
   // deleted accounts: personal data removed after `account.deletionGraceDays`

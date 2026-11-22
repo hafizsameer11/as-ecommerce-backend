@@ -75,7 +75,7 @@ The mock catalogue had a few data errors. They were fixed while importing. Check
 
 ### Old storefront copy that contradicted the backend (now replaced)
 Shipping page fees ₦5k/₦15k/₦10k → zone fees · delivery "7–14 days" → per-zone times · return window 14 days / "3–7 days" → 7 · order cancel "within 24 h" / "within 1 h" → until it ships · "shipping refunded if our error" → shipping never refunded · fragrances non-returnable "once opened" → never · store hours Mon–Fri 9–7 → settings · concierge reply "2–6 h" → SLA settings · Apple Pay / Google Pay / Amex listed → only enabled methods.
-Still hard-coded in **asl-web** and wrong until it reads the API: free shipping shown as ₦50,000 (order summary, product page) and ₦1,000,000 (product shipping text).
+Storefront free-shipping copy in **asl-web** / **asl-mobile** now reads `shipping.freeShippingThreshold` from `GET /store/settings/public` (fallback ₦150,000).
 
 ## Open business decisions (defaults in place until decided)
 
@@ -83,7 +83,7 @@ Still hard-coded in **asl-web** and wrong until it reads the API: free shipping 
 |---|---|---|
 | D4 | Drop deposit when the balance is never paid | **Kept (forfeited)** by default; setting `drops.depositRefundable = true` refunds it instead |
 | D10 | Value of 1 point | ₦5 (from the redeem page: 500 pts = ₦2,500). The UIs disagree — confirm |
-| D11 | Drop deposit % | 20 % per drop (admin-editable). The web and admin UIs hard-code **50 %** — pick one; the apps must read it from the API |
+| D11 | Drop deposit % | 20 % per drop (admin-editable). Store UIs use each drop's `depositPct` and `drops.depositPctDefault` from public settings (no live **50 %** marketing copy in asl-web / asl-mobile) |
 | D13 | Return policy text says sale / clearance / limited-edition items can't be returned | The backend does **not** block them yet — confirm the rule, then add those categories/flags |
 | D14 | Gift cards | Mentioned in an FAQ but no feature exists — FAQ seeded as draft |
 | D12 | Concierge refunds after payment | **Built**: admin refund to card or wallet; partial refund = price reduction; full refund needs cancel, anything kept is a cancellation fee. Customers can't cancel a paid request themselves (pointed to support) |

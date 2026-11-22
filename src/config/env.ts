@@ -13,6 +13,8 @@ export const envSchema = z.object({
   MOBILE_APP_SCHEME: z.string().min(1).default("asloriginals"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default(""),
+  /** GET /metrics needs `Authorization: Bearer <token>` when set (always set it in production) */
+  METRICS_TOKEN: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default("15m"),

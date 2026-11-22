@@ -28,6 +28,7 @@ import type {
   CreateAlterationBody,
   CreateConciergeBody,
   CreateCustomerBody,
+  AdjustStockBody,
   CreateGrnBody,
   CreateStockCountBody,
   CreateTransferBody,
@@ -40,8 +41,11 @@ import type {
   PosReturnBody,
   QuoteBody,
   ReceiveGrnBody,
+  SalesListQuery,
+  AdvanceShipBody,
   SendReceiptBody,
   SettleLayawayBody,
+  CancelLayawayBody,
   ShippingQuoteBody,
   SyncSalesBody,
   TransferStepBody,
@@ -137,6 +141,12 @@ export const posController = {
   },
 
   getSale: ({ params }: Ctx<unknown, unknown, { id: string }>) => posSalesService.getSale(params.id),
+  listSales: ({ query }: Ctx<unknown, SalesListQuery>) => posSalesService.listSales(query),
+  advanceShip: async ({ params, body, admin, res }: Ctx<AdvanceShipBody, unknown, { id: string }>) => {
+    const sale = await posSalesService.advanceShip(params.id, body, staff(admin));
+    res.locals.audit = { entityId: sale.id, summary: `POS ship ${body.status} ${sale.number}` };
+    return sale;
+  },
 
   returnable: ({ params }: Ctx<unknown, unknown, { id: string }>) => posReturnsService.returnable(params.id),
   processReturn: async ({ params, body, admin, res }: Ctx<PosReturnBody, unknown, { id: string }>) => {
@@ -150,8 +160,8 @@ export const posController = {
     res.locals.audit = { entityId: out.order.id, summary: `Layaway settled ${out.order.number}` };
     return out;
   },
-  cancelLayaway: async ({ params, admin, res }: Ctx<unknown, unknown, { id: string }>) => {
-    const out = await posLayawayService.cancel(params.id, staff(admin));
+  cancelLayaway: async ({ params, body, admin, res }: Ctx<CancelLayawayBody, unknown, { id: string }>) => {
+    const out = await posLayawayService.cancel(params.id, staff(admin), body);
     res.locals.audit = { entityId: out.order.id, summary: `Layaway cancelled ${out.order.number}` };
     return out;
   },
@@ -199,6 +209,7 @@ export const posController = {
   alterationStatus: ({ params, body, admin }: Ctx<AlterationStatusBody, unknown, { id: string }>) =>
     posAlterationsService.setStatus(params.id, body, staff(admin)),
 
+  adjustStock: ({ body, admin }: Ctx<AdjustStockBody>) => posStockService.adjust(body, staff(admin)),
   listTransfers: ({ query }: Ctx<unknown, { page: number; pageSize: number; warehouseId?: string; status?: string }>) =>
     posStockService.listTransfers(query),
   createTransfer: ({ body, admin }: Ctx<CreateTransferBody>) => posStockService.requestTransfer(body, staff(admin)),

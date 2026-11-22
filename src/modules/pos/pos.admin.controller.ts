@@ -4,11 +4,14 @@ import { posAdminService as svc } from "./pos.admin.service";
 import { posGiftCardsService } from "./pos.giftcards.service";
 import type {
   AdminAuditQuery,
+  AdminCouponChannelsPatch,
+  AdminLocationPatch,
   AdminPromoBody,
   AdminPromoPatch,
   AdminRegisterBody,
   AdminReportsQuery,
   AdminSessionsQuery,
+  AdminStaffBody,
   AdminStockMovesQuery,
   AdminTxQuery,
 } from "./pos.admin.schemas";
@@ -24,6 +27,25 @@ export const posAdminController = {
     res.locals.audit = { entityId: r.id, summary: `POS register ${r.name}` };
     return r;
   },
+  listStaff: () => svc.listStaff(),
+  upsertStaff: async ({ body, res }: Ctx<AdminStaffBody>) => {
+    const s = await svc.upsertStaff(body);
+    res.locals.audit = { entityId: s.id, summary: `POS staff ${s.name}` };
+    return s;
+  },
+  listLocations: () => svc.listLocations(),
+  updateLocation: async ({ params, body, res }: Ctx<AdminLocationPatch, unknown, { id: string }>) => {
+    const loc = await svc.updateLocation(params.id, body);
+    res.locals.audit = { entityId: loc.id, summary: `Updated boutique ${loc.name}` };
+    return loc;
+  },
+  listWarehouses: () => svc.listWarehouses(),
+  listCoupons: () => svc.listCoupons(),
+  patchCouponChannels: async ({ params, body, res }: Ctx<AdminCouponChannelsPatch, unknown, { id: string }>) => {
+    const c = await svc.patchCouponChannels(params.id, body);
+    res.locals.audit = { entityId: c.id, summary: `Coupon ${c.code} channels` };
+    return c;
+  },
   listSessions: ({ query }: Ctx<unknown, AdminSessionsQuery>) => svc.listSessions(query),
   audit: ({ query }: Ctx<unknown, AdminAuditQuery>) => svc.audit(query),
   stockMoves: ({ query }: Ctx<unknown, AdminStockMovesQuery>) => svc.stockMoves(query),
@@ -37,6 +59,11 @@ export const posAdminController = {
     const p = await svc.updatePromotion(params.id, body);
     res.locals.audit = { entityId: p.id, summary: `Updated POS promo ${p.name}` };
     return p;
+  },
+  deletePromotion: async ({ params, res }: Ctx<unknown, unknown, { id: string }>) => {
+    const p = await svc.deletePromotion(params.id);
+    res.locals.audit = { entityId: p.id, summary: `Deleted POS promo ${p.name}` };
+    return { id: p.id };
   },
   listGiftCards: ({ query }: Ctx<unknown, GiftCardsQuery>) => posGiftCardsService.list(query),
   getGiftCard: ({ params }: Ctx<unknown, unknown, { code: string }>) => posGiftCardsService.get(params.code),

@@ -38,6 +38,8 @@ export const updateCheckoutBody = z.object({
 
 export const couponBody = z.object({ code: z.string().trim().min(1).max(40) });
 
+export const giftCardBody = z.object({ code: z.string().trim().min(4).max(32) });
+
 export const placeOrderBody = z.object({
   /** where the payment page sends the customer back (your site or the app scheme) */
   returnUrl: z.string().url().max(500).nullable().optional(),

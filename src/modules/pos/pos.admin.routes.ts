@@ -3,11 +3,14 @@ import { ModuleRouter, idParam } from "@/core/http/router";
 import { posAdminController as c } from "./pos.admin.controller";
 import {
   adminAuditQuery,
+  adminCouponChannelsPatch,
+  adminLocationPatch,
   adminPromoBody,
   adminPromoPatch,
   adminRegisterBody,
   adminReportsQuery,
   adminSessionsQuery,
+  adminStaffBody,
   adminStockMovesQuery,
   adminTxQuery,
 } from "./pos.admin.schemas";
@@ -33,6 +36,30 @@ export const posAdminRoutes = new ModuleRouter({
     permission: "pos.manage",
     audit: audit("pos.register_upsert"),
   }, c.upsertRegister)
+  .get("/staff", { summary: "Till staff (store roles)", permission: "pos.manage" }, c.listStaff)
+  .post("/staff", {
+    summary: "Create or update till staff",
+    body: adminStaffBody,
+    permission: "pos.manage",
+    audit: audit("pos.staff_upsert"),
+  }, c.upsertStaff)
+  .get("/locations", { summary: "Boutique locations for POS", permission: "pos.manage" }, c.listLocations)
+  .patch("/locations/:id", {
+    summary: "Update boutique details",
+    params: idParam,
+    body: adminLocationPatch,
+    permission: "pos.manage",
+    audit: audit("pos.location_update"),
+  }, c.updateLocation)
+  .get("/warehouses", { summary: "Warehouses for register pairing", permission: "pos.manage" }, c.listWarehouses)
+  .get("/coupons", { summary: "Coupons for in-store channel toggles", permission: "pos.manage" }, c.listCoupons)
+  .patch("/coupons/:id", {
+    summary: "Update coupon channels (incl. store)",
+    params: idParam,
+    body: adminCouponChannelsPatch,
+    permission: "pos.manage",
+    audit: audit("pos.coupon_channels"),
+  }, c.patchCouponChannels)
   .get("/sessions", { summary: "Register sessions", query: adminSessionsQuery, permission: "pos.manage" }, c.listSessions)
   .get("/audit", { summary: "Till audit trail", query: adminAuditQuery, permission: "pos.manage" }, c.audit)
   .get("/stock-moves", { summary: "Transfers, counts, GRN snapshot", query: adminStockMovesQuery, permission: "pos.stock_adjust" }, c.stockMoves)
@@ -51,6 +78,12 @@ export const posAdminRoutes = new ModuleRouter({
     permission: "pos.manage",
     audit: audit("pos.promo_update"),
   }, c.updatePromotion)
+  .delete("/promotions/:id", {
+    summary: "Delete promotion",
+    params: idParam,
+    permission: "pos.manage",
+    audit: audit("pos.promo_delete"),
+  }, c.deletePromotion)
   .get("/gift-cards", { summary: "Gift cards", query: giftCardsQuery, permission: "pos.manage" }, c.listGiftCards)
   .get("/gift-cards/:code", { summary: "Gift card detail", params: z.object({ code: z.string().min(4).max(32) }), permission: "pos.manage" }, c.getGiftCard)
   .post("/gift-cards", {

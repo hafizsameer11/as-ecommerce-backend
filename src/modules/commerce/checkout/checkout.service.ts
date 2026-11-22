@@ -21,6 +21,7 @@ import { couponsService, type CouponChannel, type PricedLine } from "@/modules/c
 import { cartsService, type CartOwner } from "@/modules/commerce/carts/carts.service";
 import { toCartView, type CartRow } from "@/modules/commerce/carts/cart.mapper";
 import { ordersService, newAccessToken } from "@/modules/commerce/orders/orders.service";
+import { activeGiftCard, storeGiftCardsService } from "@/modules/commerce/gift-cards/gift-cards.service";
 import type { CheckoutAddress, CheckoutContact, PlaceOrderBody, UpdateCheckoutBody } from "./checkout.schemas";
 
 const couponChannel = (c: string): CouponChannel => (c === "mobile" ? "mobile" : "web");
@@ -111,6 +112,26 @@ async function compute(cart: CartRow, s: CheckoutSession, customerId?: string) {
     if (s.useWallet || s.paymentMethod === "wallet") walletApplied = Math.min(walletBalance, total);
   }
 
+  // gift card (POS-issued; same pool as till)
+  let giftCardBalance = 0;
+  let giftCardApplied = 0;
+  let giftCard: { code: string; balance: number } | null = null;
+  let giftCardError: { code: string; message: string } | null = null;
+  if (s.giftCardCode) {
+    try {
+      const g = await activeGiftCard(s.giftCardCode);
+      giftCardBalance = g.balance;
+      giftCard = { code: g.code, balance: g.balance };
+      const afterWallet = Math.max(0, total - walletApplied);
+      giftCardApplied = Math.min(g.balance, afterWallet);
+    } catch (e) {
+      giftCardError = {
+        code: e instanceof ApiError ? e.code : "VALIDATION_FAILED",
+        message: e instanceof ApiError ? e.message : "That gift card can't be used.",
+      };
+    }
+  }
+
   return {
     view,
     lines,
@@ -128,7 +149,11 @@ async function compute(cart: CartRow, s: CheckoutSession, customerId?: string) {
       total,
       walletBalance,
       walletApplied,
-      due: total - walletApplied,
+      giftCardBalance,
+      giftCardApplied,
+      giftCard,
+      giftCardError,
+      due: total - walletApplied - giftCardApplied,
     },
     applied: coupons.applied,
   };
@@ -145,7 +170,7 @@ async function snapshot(o: CartOwner, customerId?: string) {
     cart: c.view,
     session: {
       contact: s.contact, delivery: s.delivery, address: s.address, pickupLocationId: s.pickupLocationId, shippingRateId: s.shippingRateId,
-      paymentMethod: s.paymentMethod, couponCode: s.couponCode, useWallet: s.useWallet, giftMessage: s.giftMessage,
+      paymentMethod: s.paymentMethod, couponCode: s.couponCode, giftCardCode: s.giftCardCode, useWallet: s.useWallet, giftMessage: s.giftMessage,
     },
     shippingOptions: c.shippingOptions,
     pickupLocations: await pickupsService.storeLocations(),
@@ -206,6 +231,27 @@ export const checkoutService = {
     return snapshot(o, customerId);
   },
 
+  async applyGiftCard(o: CartOwner, customerId: string | undefined, raw: string) {
+    const cart = await requireCart(o);
+    const s = await sessionFor(cart, customerId);
+    const code = raw.trim().toUpperCase();
+    const g = await activeGiftCard(code);
+    await prisma.checkoutSession.update({ where: { id: s.id }, data: { giftCardCode: g.code } });
+    const c = await compute(cart, { ...s, giftCardCode: g.code }, customerId);
+    const applied = c.totals.giftCardApplied;
+    const message =
+      applied > 0
+        ? `${formatNaira(applied)} from gift card ${g.code} will be applied`
+        : `Gift card ${g.code} is on file (${formatNaira(g.balance)} available)`;
+    return { message, giftCard: { code: g.code, balance: g.balance, applied }, checkout: await snapshot(o, customerId) };
+  },
+
+  async removeGiftCard(o: CartOwner, customerId?: string) {
+    const cart = await requireCart(o);
+    await prisma.checkoutSession.updateMany({ where: { cartId: cart.id }, data: { giftCardCode: null } });
+    return snapshot(o, customerId);
+  },
+
   /** Review → Place order. Requires Idempotency-Key. */
   async placeOrder(o: CartOwner, customerId: string | undefined, b: PlaceOrderBody) {
     const settings = await settingsService.get("checkout");
@@ -227,6 +273,9 @@ export const checkoutService = {
     const bad = c.view.items.filter((i) => i.issue && i.issue !== "low_stock");
     if (bad.length) throw ApiError.conflict("OUT_OF_STOCK", "Some items in your bag are no longer available. Remove them to continue.", { items: bad.map((i) => ({ id: i.id, name: i.name, issue: i.issue })) });
     if (s.couponCode && c.totals.couponError) throw ApiError.badRequest(c.totals.couponError.code as "COUPON_INVALID", c.totals.couponError.message, { step: "payment" });
+    if (s.giftCardCode && c.totals.giftCardError) throw ApiError.badRequest(c.totals.giftCardError.code as "VALIDATION_FAILED", c.totals.giftCardError.message, { step: "payment" });
+    if (s.giftCardCode && c.totals.giftCardApplied <= 0)
+      throw ApiError.badRequest("VALIDATION_FAILED", "That gift card has no balance left for this order.", { step: "payment" });
     if (s.delivery === "ship" && (c.totals.shipping === null || !c.totals.shippingOption))
       throw ApiError.badRequest("VALIDATION_FAILED", "We don't deliver to this address yet. Choose pick-up in store or contact support.", { step: "information" });
     if (c.totals.total < settings.minOrderValue) throw ApiError.badRequest("VALIDATION_FAILED", `Minimum order is ${formatNaira(settings.minOrderValue)}.`);
@@ -248,10 +297,10 @@ export const checkoutService = {
           accessToken: newAccessToken(),
           channel: cart.channel,
           deliveryMethod: s.delivery,
-          paymentMethod: t.due === 0 ? "wallet" : s.paymentMethod === "wallet" ? "card" : s.paymentMethod,
+          paymentMethod: t.due === 0 ? (t.giftCardApplied ? "card" : "wallet") : s.paymentMethod === "wallet" ? "card" : s.paymentMethod,
           subtotal: t.subtotal, discount: t.discount, shipping: t.shipping ?? 0, tax: t.tax.added, taxIncluded: t.tax.included, walletApplied: t.walletApplied, total: t.total,
-          amountPaid: t.walletApplied,
-          paymentStatus: t.walletApplied ? (t.due === 0 ? "paid" : "partially_paid") : "unpaid",
+          amountPaid: t.walletApplied + t.giftCardApplied,
+          paymentStatus: t.walletApplied || t.giftCardApplied ? (t.due === 0 ? "paid" : "partially_paid") : "unpaid",
           couponCode: t.coupons.map((x) => x.code).join(",") || null,
           contact: { ...contact, email },
           shippingAddress: s.delivery === "ship" ? (address as object) : undefined,
@@ -282,6 +331,7 @@ export const checkoutService = {
 
       await couponsService.redeem(tx, c.applied, order.id, customerId ?? null);
       if (t.walletApplied && customerId) await walletsService.spend(tx, customerId, t.walletApplied, number);
+      if (t.giftCardApplied && s.giftCardCode) await storeGiftCardsService.redeem(s.giftCardCode, t.giftCardApplied, number);
       if (customerId && address && s.delivery === "ship") await addressesService.rememberFromCheckout(tx, customerId, { ...address, phone: address.phone || contact.phone });
       if (customerId && contact.subscribe) await tx.customer.update({ where: { id: customerId }, data: { marketingOptIn: true } });
       await cartsService.markConverted(tx, cart.id);
@@ -289,9 +339,11 @@ export const checkoutService = {
       let paidOrderId: string | null = null;
       let paymentRef: string | null = null;
       if (t.due === 0) {
-        // wallet covered everything: amountPaid is already the total → mark paid now
-        await tx.order.update({ where: { id: order.id }, data: { amountPaid: 0 } });
-        paidOrderId = await ordersService.applyPayment(tx, order.id, t.total, "ASL Wallet");
+        // wallet / gift card covered everything
+        await tx.order.update({ where: { id: order.id }, data: { amountPaid: t.walletApplied + t.giftCardApplied } });
+        const src =
+          t.walletApplied && t.giftCardApplied ? "Wallet + gift card" : t.giftCardApplied ? "Gift card" : "ASL Wallet";
+        paidOrderId = await ordersService.applyPayment(tx, order.id, t.total, src);
       } else {
         const p = await paymentsService.createRecord(tx, {
           purpose: "order", amount: t.due, email, customerId: customerId ?? null, orderId: order.id,

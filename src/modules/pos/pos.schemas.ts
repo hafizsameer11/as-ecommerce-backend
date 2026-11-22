@@ -190,6 +190,14 @@ export const alterationStatusBody = z.object({
   status: z.enum(["received", "with-tailor", "ready", "collected"]),
 });
 
+export const adjustStockBody = z.object({
+  warehouseId: id,
+  variantId: id,
+  /** signed delta in units */
+  delta: z.number().int().refine((n) => n !== 0, "Change can't be zero"),
+  reason: z.string().trim().min(1).max(200),
+});
+
 export const createTransferBody = z.object({
   fromWarehouseId: id,
   toWarehouseId: id,
@@ -252,6 +260,11 @@ export const settleLayawayBody = z.object({
   registerSessionId: id.optional(),
 });
 
+export const cancelLayawayBody = z.object({
+  forfeitDeposit: z.boolean().optional(),
+  refundTo: z.enum(["kept", "wallet", "original"]).optional(),
+});
+
 export const createConciergeBody = z.object({
   customerId: id.optional(),
   contactName: z.string().trim().max(120).optional(),
@@ -275,6 +288,22 @@ export const shippingQuoteBody = z.object({
   weightKg: z.number().min(0.01).max(100).optional(),
 });
 
+const WEB_CHANNELS = ["web", "mobile", "pwa"] as const;
+
+export const salesListQuery = pageQuery.extend({
+  fulfilment: z.enum(["instore", "ship", "layaway"]).optional(),
+  locationId: id.optional(),
+  q: z.string().trim().max(80).optional(),
+  /** store = till sales only; web = online pickup at locationId; all = both at locationId */
+  channel: z.enum(["store", "web", "all"]).optional(),
+});
+
+export { WEB_CHANNELS };
+
+export const advanceShipBody = z.object({
+  status: z.enum(["shipped", "delivered"]),
+});
+
 export type PinLoginBody = z.infer<typeof pinLoginBody>;
 export type OpenSessionBody = z.infer<typeof openSessionBody>;
 export type CashMoveBody = z.infer<typeof cashMoveBody>;
@@ -294,11 +323,15 @@ export type IssueGiftCardBody = z.infer<typeof issueGiftCardBody>;
 export type AdjustGiftCardBody = z.infer<typeof adjustGiftCardBody>;
 export type CreateAlterationBody = z.infer<typeof createAlterationBody>;
 export type AlterationStatusBody = z.infer<typeof alterationStatusBody>;
+export type AdjustStockBody = z.infer<typeof adjustStockBody>;
 export type CreateTransferBody = z.infer<typeof createTransferBody>;
 export type TransferStepBody = z.infer<typeof transferStepBody>;
 export type CreateStockCountBody = z.infer<typeof createStockCountBody>;
 export type CreateGrnBody = z.infer<typeof createGrnBody>;
 export type ReceiveGrnBody = z.infer<typeof receiveGrnBody>;
 export type SettleLayawayBody = z.infer<typeof settleLayawayBody>;
+export type CancelLayawayBody = z.infer<typeof cancelLayawayBody>;
 export type CreateConciergeBody = z.infer<typeof createConciergeBody>;
 export type ShippingQuoteBody = z.infer<typeof shippingQuoteBody>;
+export type SalesListQuery = z.infer<typeof salesListQuery>;
+export type AdvanceShipBody = z.infer<typeof advanceShipBody>;

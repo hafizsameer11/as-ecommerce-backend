@@ -95,7 +95,7 @@ async function resolveAddress(customerId: string, b: AcceptBody, current: unknow
 }
 
 /** stop waiting for earlier checkout attempts on this quote (a late capture is still settled — and refunded if not needed) */
-async function abandonPending(tx: Tx, quoteId: string) {
+export async function abandonPending(tx: Tx, quoteId: string) {
   await tx.payment.updateMany({ where: { targetType: QUOTE_TARGET, targetId: quoteId, status: "pending" }, data: { status: "abandoned" } });
 }
 
@@ -436,6 +436,7 @@ export const quotesService = {
       return { req, q, amount, amountPaid, cancel, dest };
     });
 
+    if (b.to !== "wallet") await paymentsService.flushRefunds(); // card refunds go to the gateway only after commit (outbox)
     if (b.to === "wallet" && out.req.customerId) events.emit("wallet.changed", { customerId: out.req.customerId });
     if (out.cancel) events.emit("concierge.status_changed", { requestId: out.req.id, to: "cancelled" });
     const customer = out.req.customerId ? await prisma.customer.findUnique({ where: { id: out.req.customerId }, select: { firstName: true } }) : null;

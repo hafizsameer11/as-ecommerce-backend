@@ -6,6 +6,7 @@ import { withMeta } from "@/core/http/router";
 import { nextSequence } from "@/core/utils/sequence";
 import { inventoryService } from "@/modules/inventory/inventory.service";
 import type {
+  AdjustStockBody,
   CreateGrnBody,
   CreateStockCountBody,
   CreateTransferBody,
@@ -20,6 +21,24 @@ type GrnLine = { variantId: string; qty: number; received: number };
 type Step = { status: string; at: string; by: string; note?: string };
 
 export const posStockService = {
+  async adjust(body: AdjustStockBody, staff: Staff) {
+    const v = await prisma.productVariant.findUnique({ where: { id: body.variantId } });
+    if (!v) throw ApiError.notFound("Variant");
+    await inventoryService.adjust(
+      { sku: v.sku, warehouseId: body.warehouseId, delta: body.delta, note: body.reason, type: "adjust" },
+      staff.name,
+    );
+    await prisma.posAuditEvent.create({
+      data: {
+        staffId: staff.id,
+        action: "stock",
+        text: `${staff.name} adjusted ${v.sku} by ${body.delta > 0 ? "+" : ""}${body.delta} (${body.reason})`,
+        ref: v.sku,
+      },
+    });
+    return { variantId: body.variantId, warehouseId: body.warehouseId, delta: body.delta };
+  },
+
   async listTransfers(q: { page: number; pageSize: number; warehouseId?: string; status?: string }) {
     const where = {
       ...(q.status ? { status: q.status } : {}),

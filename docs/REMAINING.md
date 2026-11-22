@@ -11,25 +11,20 @@ Live module status: [`PROGRESS.md`](PROGRESS.md) · business rules + open questi
 
 Each item is self-contained. Order = suggested priority.
 
-### 1.1 Gateway refunds outside DB transactions (important before going live with Paystack)
-- **Problem:** `paymentsService.refund(tx, …)` (`src/modules/payments/payments/payments.service.ts`) calls the gateway inside the caller's DB transaction. If a later step fails, Paystack has refunded but our rows roll back.
-- **Fix (outbox):** inside the transaction only create the `Refund` row as queued (`sentAt = null`) and update amounts; after commit a job `payments.send-refunds` (plus a 1-minute sweep in `src/jobs/schedules.ts`) calls `paymentProvider.refund`, stores `providerRef`/status, retries with backoff, and after N failures marks it failed + `notifyStaff('finance_failed')`.
-- **Callers to keep working:** order cancel/refund, returns, concierge refunds, late/duplicate payment auto-refunds, drop deposits, card-verification refund, draft orders.
-- Run the full suite afterwards.
+### 1.1 Gateway refunds outside DB transactions — **DONE**
+Outbox implemented (`queued` → job `payments.send-refunds`). Apply migration `20261123100000_refund_outbox`.
 
 ### 1.2 Ops / production readiness
-- Redis-backed rate limits (`src/core/middleware/rate-limit.ts` uses memory; add `rate-limit-redis` when `REDIS_URL` is set).
-- S3/R2 storage driver behind `STORAGE_DRIVER=s3` (needed if more than one API server). Report files must stay private (`src/modules/platform/reports/reports.storage.ts`).
-- `/ready` endpoint (DB + Redis + storage) and graceful shutdown in `src/server.ts` (close sockets, queue, `prisma.$disconnect`).
-- `/metrics` (Prometheus, `prom-client`) protected by a token.
-- Database backup script + restore notes; monitoring/alerting; load test.
+- Redis-backed rate limits — **DONE** (falls back to memory).
+- `/ready`, graceful shutdown, `/metrics` (Bearer `METRICS_TOKEN`) — **DONE**.
+- **S3/R2 storage — deferred** (local/server uploads for now).
+- Database backup script + restore notes — **DONE** (`npm run db:backup`, [`BACKUP.md`](BACKUP.md)); monitoring/alerting; load test — still open.
 
 ### 1.3 Smaller features
-- **Concierge cart edits** (`src/modules/concierge`): remove item, edit qty/size/colour/notes while new/sourcing (editing after a quote → quote expires, back to sourcing).
-- **Shipping labels PDF** (4x6, barcode) `POST /admin/shipments/labels`, `GET /admin/shipments/:id/label.pdf`; carrier webhook `POST /api/v1/webhooks/carriers/:carrier`; shipments CSV export.
-- **Draft orders CSV import** `POST /admin/draft-orders/import` + template download.
-- Concierge/points/drop journals use generic ledger sources (`order`, `adjustment`) — optionally add `concierge`, `loyalty`, `deposit` to the `JournalSource` enum for cleaner filtering.
-- Customer "cookie window" for referrals is only reported, not enforced.
+- **Concierge cart edits** — **DONE** (`PATCH`/`DELETE` `/store/concierge/cart/items/:id`, `POST .../clear`).
+- **Shipping labels PDF** / carrier webhooks — deferred (packing slips exist).
+- **Draft orders CSV import** — still open.
+- JournalSource enum polish; referral cookie window — nice-to-have.
 
 ## 2. Business decisions needed (defaults are in place — see DECISIONS.md)
 
@@ -40,21 +35,16 @@ Each item is self-contained. Order = suggested priority.
 | D4 | Drop balance never paid | Deposit kept |
 | D7 | FREESHIP also makes international delivery free | Yes (as admin mock defined) |
 | D13 | Sale / clearance / limited items non-returnable? | Not blocked yet |
-| D14 | Gift cards | Not built (FAQ seeded as draft) |
+| D14 | Gift cards | POS + store balance / checkout apply (purchase online still POS-only; FAQ category live) |
 | — | Referral reward | ₦15,000 advocate credit / 10 % friend (customer page said ₦5,000) |
 | — | Damaged fragrances returnable? | No (never returnable) |
 | — | `tr3` brand | Set to ASL ORIGINALS — confirm |
 | D5 | Guest checkout | Off |
 | D2 | Payment provider | Paystack adapter ready; needs live keys |
 
-## 3. Frontend work (not started — separate from the backend)
+## 3. Frontend work
 
-None of the three apps calls the API yet; they still use zustand mock stores.
-- **asl-web / asl-mobile:** replace each `src/lib/*-store.ts` with API calls (React Query recommended). Start with auth → catalogue → cart/checkout → account. Read `GET /api/v1/store/settings/public` for every business number (delivery fees, return window, tiers, labels) instead of hard-coding.
-  - Known hard-coded values to remove: free-shipping ₦50,000 / ₦1,000,000, drop deposit 50 %, APP10 on web, coupon list in checkout.
-  - Missing screens the API already supports: return request form, drop reservation page, `/pay/:token` (draft pay link), `/order/:token` (guest order).
-- **asl-admin:** same per screen, against `/api/v1/admin/*` (permissions per route in Swagger).
-- API reference: run `npm run dev` → http://localhost:4000/docs (or `docs/openapi.json` for client generation).
+Web, admin, mobile, and POS are largely wired to the API (see `integration-audit/STATUS.md`). Remaining frontend items are polish/deferred (mobile GitHub remote, EAS push build, App Store URLs).
 
 ## 4. How to pick up
 

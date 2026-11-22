@@ -1,18 +1,21 @@
-import type { Prisma } from "@/generated/prisma/client";
+import type { OrderStatus, Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/core/db/prisma";
 import { ApiError } from "@/core/http/errors";
+import { pageMeta, paging } from "@/core/http/pagination";
+import { withMeta } from "@/core/http/router";
 import { events } from "@/core/events/bus";
 import { formatters, nextSequence } from "@/core/utils/sequence";
 import { settingsService } from "@/modules/platform/settings/settings.service";
 import { inventoryService } from "@/modules/inventory/inventory.service";
 import { walletsService } from "@/modules/payments/wallets/wallets.service";
 import { pointsService } from "@/modules/loyalty/club/points.service";
-import { newAccessToken } from "@/modules/commerce/orders/orders.service";
+import { newAccessToken, ordersService } from "@/modules/commerce/orders/orders.service";
 import { shippingZonesService, countryCode } from "@/modules/fulfilment/shipping-zones/shipping-zones.service";
 import { quotePos, type PosDisc } from "./pos.pricing";
 import { posGiftCardsService } from "./pos.giftcards.service";
 import { posPromotionsService } from "./pos.promotions.service";
-import type { CompleteSaleBody, QuoteBody, ShippingQuoteBody } from "./pos.schemas";
+import type { AdvanceShipBody, CompleteSaleBody, QuoteBody, SalesListQuery, ShippingQuoteBody } from "./pos.schemas";
+import { WEB_CHANNELS } from "./pos.schemas";
 
 type Staff = { id: string; name: string; role: string };
 
@@ -446,6 +449,9 @@ export const posSalesService = {
       couponCode: o.couponCode,
       deliveryMethod: o.deliveryMethod,
       shippingAddress: o.shippingAddress,
+      shippingRateName: o.shippingRateName,
+      locationId: o.pickupLocationId,
+      expectedDeliveryAt: o.expectedDeliveryAt,
       placedAt: o.placedAt,
       layaway,
       customer: o.customer
@@ -455,6 +461,100 @@ export const posSalesService = {
       payments: o.payments.map((p) => ({ method: p.method, amount: p.amount, reference: (p.providerData as { reference?: string } | null)?.reference, status: p.status })),
       receiptFooter: (await settingsService.get("pos")).receiptFooter,
     };
+  },
+
+  async listSales(q: SalesListQuery) {
+    const channelFilter = q.channel ?? "store";
+    const location = q.locationId ? { pickupLocationId: q.locationId } : {};
+    const channelWhere: Prisma.OrderWhereInput =
+      channelFilter === "web"
+        ? { channel: { in: [...WEB_CHANNELS] }, ...location }
+        : channelFilter === "all" && q.locationId
+          ? {
+              OR: [
+                { channel: "store", pickupLocationId: q.locationId },
+                { channel: { in: [...WEB_CHANNELS] }, pickupLocationId: q.locationId },
+              ],
+            }
+          : { channel: "store", ...location };
+
+    const where: Prisma.OrderWhereInput = {
+      ...channelWhere,
+      ...(q.fulfilment === "ship"
+        ? { deliveryMethod: "ship" }
+        : q.fulfilment === "instore"
+          ? { deliveryMethod: "instore" }
+          : {}),
+      ...(q.q
+        ? {
+            OR: [
+              { number: { contains: q.q } },
+              { customer: { OR: [{ firstName: { contains: q.q } }, { lastName: { contains: q.q } }, { phone: { contains: q.q } }] } },
+            ],
+          }
+        : {}),
+    };
+
+    let [rows, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        include: {
+          items: true,
+          payments: true,
+          customer: { select: { id: true, firstName: true, lastName: true, email: true, phone: true } },
+        },
+        orderBy: { placedAt: "desc" },
+        ...paging(q),
+      }),
+      prisma.order.count({ where }),
+    ]);
+
+    const layaways = await prisma.posLayaway.findMany({ where: { orderId: { in: rows.map((r) => r.id) } } });
+    const layByOrder = new Map(layaways.map((l) => [l.orderId, l]));
+    if (q.fulfilment === "layaway") {
+      rows = rows.filter((r) => layByOrder.has(r.id));
+      total = rows.length;
+    }
+
+    return withMeta(
+      rows.map((o) => ({
+        id: o.id,
+        number: o.number,
+        channel: o.channel,
+        status: o.status,
+        paymentStatus: o.paymentStatus,
+        total: o.total,
+        subtotal: o.subtotal,
+        discount: o.discount,
+        shipping: o.shipping,
+        taxIncluded: o.taxIncluded,
+        changeGiven: o.changeGiven,
+        amountPaid: o.amountPaid,
+        deliveryMethod: o.deliveryMethod,
+        registerId: o.registerId,
+        cashierId: o.cashierId,
+        locationId: o.pickupLocationId,
+        shippingAddress: o.shippingAddress,
+        shippingRateName: o.shippingRateName,
+        expectedDeliveryAt: o.expectedDeliveryAt,
+        placedAt: o.placedAt,
+        customer: o.customer
+          ? { id: o.customer.id, name: `${o.customer.firstName} ${o.customer.lastName}`.trim(), email: o.customer.email, phone: o.customer.phone }
+          : null,
+        payments: o.payments.map((p) => ({ method: p.method, amount: p.amount, reference: (p.providerData as { reference?: string } | null)?.reference })),
+        items: o.items,
+        layaway: layByOrder.get(o.id) ?? null,
+      })),
+      pageMeta(q, total),
+    );
+  },
+
+  async advanceShip(id: string, body: AdvanceShipBody, staff: Staff) {
+    const o = await prisma.order.findFirst({ where: { OR: [{ id }, { number: id }], channel: "store", deliveryMethod: "ship" } });
+    if (!o) throw ApiError.notFound("Sale");
+    const to = body.status as OrderStatus;
+    await ordersService.setStatus(o.id, to, staff.name);
+    return this.getSale(o.id);
   },
 };
 

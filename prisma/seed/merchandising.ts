@@ -112,7 +112,7 @@ const slots = (): SeedSlot[] => {
     ...heroes("home", 1),
     promo({
       id: "slot_home_coming_soon", name: "Coming Soon · Reserve", position: 4, image: "hero-sneakers", eyebrow: "Coming Soon", headline: "RESERVE\nBEFORE IT DROPS.",
-      subhead: "Secure upcoming drops with a 50% deposit. Balance payable on release day.", cta: "View Drops", linkTo: "/coming-soon",
+      subhead: "Secure upcoming drops with a 20% deposit. Balance payable on release day.", cta: "View Drops", linkTo: "/coming-soon",
       notes: "The web may swap the subhead / secondary button for the next drop (GET /store/drops).",
     }),
     promo({

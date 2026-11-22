@@ -34,7 +34,7 @@ Legend: ✅ done + tested · 🟡 in progress · ⬜ not started
 | Content | content/pages (CMS), faqs, blog, seo (robots, sitemap, redirects), media library API | ✅ | storefront policy pages seeded; business numbers filled from settings |
 | Platform | platform/activity feed, app-config (+ consent, app-download offer), global-search | ✅ | |
 | Insights | analytics events + rollups, dashboard, analytics screens, reports (CSV/XLSX/PDF, scheduled email) | ✅ | report files stored privately, streamed with auth |
-| Hardening | Paystack + async webhooks ✅, websockets ✅, preferences ✅ · outbox for gateway calls, S3, backups, monitoring ⬜ | 🟡 | see list below |
+| Hardening | Paystack + async webhooks ✅, websockets ✅, preferences ✅, refund outbox ✅, Redis rate limits ✅, `/ready` + `/metrics` ✅ · S3, backups, monitoring ⬜ | 🟡 | see list below |
 
 ## Phase order from here
 
@@ -54,12 +54,15 @@ Done:
 - ✅ Websockets (socket.io at `/socket.io`): chat, tickets, inbox, staff bell, live activity, order status — rooms/events listed at the top of `src/core/realtime/realtime.ts`
 - ✅ Push/SMS follow customer preferences everywhere (transactional email always sends)
 - ✅ Missing events (`payout.pending`, `catalog.updated`, `club.tier_upgraded`) and the 5 missing staff rules; `ADMIN_URL` for staff-email links
+- ✅ **Refund outbox** — gateway refunds queued in the transaction, sent after commit (`payments.send-refunds` job; migration `20261123100000_refund_outbox`)
+- ✅ **Redis-backed rate limits** (memory fallback without Redis)
+- ✅ **`GET /ready`**, **`GET /metrics`**, graceful shutdown hooks
+- ✅ **Concierge cart** store PATCH/DELETE endpoints; **admin shipping label PDFs** (`POST /admin/shipments/print-labels`)
 
 Still to do:
-1. **Gateway calls inside DB transactions** — `paymentsService.refund` calls the gateway inside the caller's transaction; if a later step fails, the gateway has refunded but our rows roll back. Fix: write the Refund row as `pending` in the transaction and send it to the gateway from a job after commit (outbox pattern).
-2. **Concierge cart edit endpoints**, **shipping label PDFs / carrier webhooks**, **CSV import of draft orders**.
-3. **Ops**: S3/R2 storage driver if more than one server, Redis-backed rate limits, backups, monitoring, load test.
-4. Decisions waiting on the business: see "Open business decisions" in `DECISIONS.md` (point value, drop deposit %, gift cards, sale-item returns …).
+1. **Carrier live webhooks**, **CSV import of draft orders** (nice-to-have).
+2. **Ops**: S3/R2 storage driver if more than one server, backups, monitoring, load test.
+3. Decisions waiting on the business: see "Open business decisions" in `DECISIONS.md` (point value, drop deposit %, gift cards, sale-item returns …).
 
 ## How to continue a module by hand
 

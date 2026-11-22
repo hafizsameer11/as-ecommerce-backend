@@ -9,6 +9,7 @@ import {
   closeSessionBody,
   collectPickupBody,
   completeSaleBody,
+  adjustStockBody,
   createAlterationBody,
   createConciergeBody,
   createCustomerBody,
@@ -24,8 +25,11 @@ import {
   posReturnBody,
   quoteBody,
   receiveGrnBody,
+  salesListQuery,
+  advanceShipBody,
   sendReceiptBody,
   settleLayawayBody,
+  cancelLayawayBody,
   shippingQuoteBody,
   syncSalesBody,
   transferStepBody,
@@ -93,6 +97,7 @@ export const posRoutes = new ModuleRouter({
     body: syncSalesBody,
     audit: audit("pos.sync"),
   }, c.syncSales)
+  .get("/sales", { summary: "List store sales (layaway / ship / instore)", query: salesListQuery }, c.listSales)
   .get("/sales/:id", { summary: "Sale / receipt payload", params: idParam }, c.getSale)
   .post("/sales/:id/send-receipt", {
     summary: "Send receipt by email (SMS/WhatsApp still queue as pending)",
@@ -100,6 +105,12 @@ export const posRoutes = new ModuleRouter({
     body: sendReceiptBody,
     audit: audit("pos.receipt_queued"),
   }, c.sendReceipt)
+  .post("/sales/:id/advance-ship", {
+    summary: "Mark a ship-from-till sale shipped or delivered",
+    params: idParam,
+    body: advanceShipBody,
+    audit: audit("pos.ship_advance"),
+  }, c.advanceShip)
   .get("/sales/:id/returnable", { summary: "What can be returned on this sale", params: idParam }, c.returnable)
   .post("/sales/:id/returns", {
     summary: "Process an in-store return + refund",
@@ -118,6 +129,7 @@ export const posRoutes = new ModuleRouter({
   .post("/sales/:id/layaway/cancel", {
     summary: "Cancel an open layaway (releases hold)",
     params: idParam,
+    body: cancelLayawayBody,
     audit: audit("pos.layaway_cancel"),
   }, c.cancelLayaway)
   .get("/pickups", { summary: "Pickup queue for this boutique", query: pickupsQuery }, c.pickups)
@@ -165,6 +177,12 @@ export const posRoutes = new ModuleRouter({
     body: alterationStatusBody,
     audit: audit("pos.alteration_status"),
   }, c.alterationStatus)
+  .post("/stock/adjust", {
+    summary: "Adjust on-hand at a boutique warehouse",
+    body: adjustStockBody,
+    permission: "pos.stock_adjust",
+    audit: audit("pos.stock_adjust"),
+  }, c.adjustStock)
   .get("/transfers", {
     summary: "Stock transfers",
     query: pageQuery.extend({ warehouseId: id.optional(), status: z.string().max(16).optional() }),

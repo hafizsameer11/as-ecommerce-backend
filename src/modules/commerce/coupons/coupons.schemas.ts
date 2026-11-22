@@ -24,7 +24,7 @@ const couponBase = z.object({
     stackable: z.boolean().default(false),
     autoApply: z.boolean().default(false),
     oncePerCustomer: z.boolean().default(false),
-    channels: z.array(z.enum(["web", "mobile", "concierge"])).min(1).default(["web", "mobile"]),
+    channels: z.array(z.enum(["web", "mobile", "concierge", "store"])).min(1).default(["web", "mobile"]),
     notes: z.string().max(2000).nullable().optional(),
   });
 

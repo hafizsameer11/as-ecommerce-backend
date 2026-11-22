@@ -1,11 +1,18 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/core/db/prisma";
+import { hashPassword } from "@/core/auth/password";
+import { POS_DISCOUNT_LIMITS, ROLE_PERMISSIONS } from "@/core/auth/permissions";
 import { ApiError } from "@/core/http/errors";
 import { pageMeta, paging } from "@/core/http/pagination";
 import { withMeta } from "@/core/http/router";
 import { settingsService } from "@/modules/platform/settings/settings.service";
+import { pickupsService } from "@/modules/fulfilment/pickups/pickups.service";
+import { warehousesService } from "@/modules/inventory/inventory.service";
 import { posPromotionsService } from "./pos.promotions.service";
 import type { PosPromo } from "./pos.pricing";
+import type { AdminCouponChannelsPatch, AdminLocationPatch, AdminStaffBody } from "./pos.admin.schemas";
+
+const STORE_ROLES = ["store_cashier", "store_supervisor", "store_manager"] as const;
 
 function startOfDay(d = new Date()) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -181,16 +188,25 @@ export const posAdminService = {
         status: o.status,
         paymentStatus: o.paymentStatus,
         total: o.total,
+        subtotal: o.subtotal,
+        discount: o.discount,
+        shipping: o.shipping,
+        taxIncluded: o.taxIncluded,
+        changeGiven: o.changeGiven,
         amountPaid: o.amountPaid,
         deliveryMethod: o.deliveryMethod,
         registerId: o.registerId,
         cashierId: o.cashierId,
         locationId: o.pickupLocationId,
+        shippingAddress: o.shippingAddress,
+        shippingRateName: o.shippingRateName,
+        expectedDeliveryAt: o.expectedDeliveryAt,
         placedAt: o.placedAt,
         customer: o.customer
           ? { id: o.customer.id, name: `${o.customer.firstName} ${o.customer.lastName}`.trim(), email: o.customer.email, phone: o.customer.phone }
           : null,
         payments: o.payments.map((p) => ({ method: p.method, amount: p.amount })),
+        items: o.items,
         itemCount: o.items.reduce((a, i) => a + i.qty, 0),
         layaway: layByOrder.get(o.id) ?? null,
       })),
@@ -236,17 +252,99 @@ export const posAdminService = {
       : [];
     const nameOf = new Map(staff.map((s) => [s.id, s.name]));
 
+    type RowAgg = { label: string; sub?: string; imageUrl?: string; net: number; units: number; orderIds: Set<string> };
+    const bump = (m: Map<string, RowAgg>, key: string, meta: { label: string; sub?: string; imageUrl?: string }, orderId: string, net: number, units: number) => {
+      const cur = m.get(key) ?? { ...meta, net: 0, units: 0, orderIds: new Set<string>() };
+      cur.net += net;
+      cur.units += units;
+      cur.orderIds.add(orderId);
+      if (!cur.sub && meta.sub) cur.sub = meta.sub;
+      if (!cur.imageUrl && meta.imageUrl) cur.imageUrl = meta.imageUrl;
+      m.set(key, cur);
+    };
+
+    const productIds = [...new Set(orders.flatMap((o) => o.items.map((i) => i.productId).filter((id): id is string => !!id)))];
+    const productRows = productIds.length
+      ? await prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, category: { select: { name: true } } } })
+      : [];
+    const categoryOf = new Map(productRows.map((p) => [p.id, p.category.name]));
+
+    const byProduct = new Map<string, RowAgg>();
+    const byCategory = new Map<string, RowAgg>();
+    const byBrand = new Map<string, RowAgg>();
+    const bySize = new Map<string, RowAgg>();
+    const discountRows = new Map<string, { label: string; kind: string; amount: number; uses: number }>();
+
+    const addDiscount = (key: string, label: string, kind: string, amount: number) => {
+      if (amount <= 0) return;
+      const cur = discountRows.get(key) ?? { label, kind, amount: 0, uses: 0 };
+      discountRows.set(key, { label, kind, amount: cur.amount + amount, uses: cur.uses + 1 });
+    };
+
+    for (const o of orders) {
+      if (o.couponCode && o.discount > 0) addDiscount(`coupon-${o.couponCode}`, o.couponCode, "Promo code", o.discount);
+      let lineDiscSum = 0;
+      for (const i of o.items) {
+        const net = i.lineTotal;
+        const units = i.qty;
+        const pKey = i.productId ?? i.name;
+        bump(byProduct, pKey, { label: i.name, sub: i.brand, imageUrl: i.imageUrl ?? undefined }, o.id, net, units);
+        bump(byBrand, i.brand || "Unknown", { label: i.brand || "Unknown" }, o.id, net, units);
+        const cat = (i.productId && categoryOf.get(i.productId)) || "Other";
+        bump(byCategory, cat, { label: cat }, o.id, net, units);
+        const size = i.size?.trim() || "One size";
+        bump(bySize, size, { label: size }, o.id, net, units);
+        lineDiscSum += i.lineDiscount;
+      }
+      if (lineDiscSum > 0) addDiscount("item", "Item discounts", "Staff discount", lineDiscSum);
+      const orderDisc = Math.max(0, o.discount - lineDiscSum);
+      if (orderDisc > 0) addDiscount("basket", "Basket / promotion", "Automatic promotion", orderDisc);
+    }
+
+    const toRank = (m: Map<string, RowAgg>) =>
+      [...m.entries()]
+        .map(([key, v]) => ({ key, label: v.label, sub: v.sub, imageUrl: v.imageUrl, net: v.net, units: v.units, orders: v.orderIds.size }))
+        .sort((a, b) => b.net - a.net);
+
+    const orderIds = orders.map((o) => o.id);
+    const returnRows = orderIds.length
+      ? await prisma.returnRequest.findMany({
+          where: {
+            orderId: { in: orderIds },
+            refundAmount: { gt: 0 },
+            refundedAt: { gte: from, lte: to },
+          },
+          include: { order: { select: { number: true } } },
+          orderBy: { refundedAt: "desc" },
+        })
+      : [];
+
     return {
       from,
       to,
       salesTotal: orders.reduce((a, o) => a + o.total, 0),
       orderCount: orders.length,
+      discountTotal: orders.reduce((a, o) => a + o.discount, 0),
+      refundTotal: returnRows.reduce((a, r) => a + r.refundAmount, 0),
       byMethod,
       byDay: [...byDayMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => ({ date, ...v })),
       salesCredit: [...commission.entries()].map(([staffId, v]) => ({
         staffId,
         name: nameOf.get(staffId) ?? staffId,
         ...v,
+      })),
+      byProduct: toRank(byProduct),
+      byCategory: toRank(byCategory),
+      byBrand: toRank(byBrand),
+      bySize: toRank(bySize).map(({ key, label, net, units }) => ({ size: label, sold: units, net })),
+      discounts: [...discountRows.values()].sort((a, b) => b.amount - a.amount),
+      returns: returnRows.map((r) => ({
+        id: r.id,
+        number: r.number,
+        orderNumber: r.order.number,
+        reason: r.reason,
+        amount: r.refundAmount,
+        createdAt: (r.refundedAt ?? r.createdAt).toISOString(),
       })),
     };
   },
@@ -400,6 +498,13 @@ export const posAdminService = {
     });
   },
 
+  async deletePromotion(id: string) {
+    const row = await prisma.posPromotion.findUnique({ where: { id } });
+    if (!row) throw ApiError.notFound("Promotion");
+    await prisma.posPromotion.delete({ where: { id } });
+    return row;
+  },
+
   async stockMoves(q: { page: number; pageSize: number; warehouseId?: string }) {
     const [transfers, counts, grn] = await Promise.all([
       prisma.posStockTransfer.findMany({
@@ -431,5 +536,115 @@ export const posAdminService = {
 
   async updateSettings(patch: Record<string, unknown>, by: string) {
     return settingsService.update("pos", patch as never, by);
+  },
+
+  async listStaff() {
+    const rows = await prisma.adminUser.findMany({
+      where: { role: { in: [...STORE_ROLES] } },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        locationIds: true,
+        pinHash: true,
+        createdAt: true,
+      },
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      role: r.role,
+      status: r.status,
+      locationIds: Array.isArray(r.locationIds) ? (r.locationIds as string[]) : [],
+      hasPin: !!r.pinHash,
+      discountLimitPct: POS_DISCOUNT_LIMITS[r.role as keyof typeof POS_DISCOUNT_LIMITS] ?? 0,
+      permissions: ROLE_PERMISSIONS[r.role] ?? [],
+      createdAt: r.createdAt,
+    }));
+  },
+
+  async upsertStaff(body: AdminStaffBody) {
+    const pinHash = body.pin ? await hashPassword(body.pin) : undefined;
+    if (body.id) {
+      const before = await prisma.adminUser.findUnique({ where: { id: body.id } });
+      if (!before) throw ApiError.notFound("Staff");
+      if (!STORE_ROLES.includes(before.role as (typeof STORE_ROLES)[number]) && !STORE_ROLES.includes(body.role)) {
+        throw ApiError.badRequest("VALIDATION_FAILED", "Only store roles can be managed here.");
+      }
+      return prisma.adminUser.update({
+        where: { id: body.id },
+        data: {
+          name: body.name,
+          email: body.email,
+          role: body.role,
+          locationIds: body.locationIds as Prisma.InputJsonValue,
+          status: body.active ? "active" : "suspended",
+          ...(pinHash ? { pinHash } : {}),
+        },
+        select: { id: true, name: true, email: true, role: true, status: true, locationIds: true },
+      });
+    }
+    const existing = await prisma.adminUser.findUnique({ where: { email: body.email } });
+    if (existing) throw ApiError.conflict("EMAIL_TAKEN", "That email is already on the team.");
+    if (!pinHash) throw ApiError.badRequest("VALIDATION_FAILED", "Set a 4-digit till PIN.");
+    return prisma.adminUser.create({
+      data: {
+        name: body.name,
+        email: body.email,
+        role: body.role,
+        locationIds: body.locationIds as Prisma.InputJsonValue,
+        status: body.active ? "active" : "suspended",
+        pinHash,
+        passwordHash: await hashPassword(`pos-${body.email}-${Date.now()}`),
+      },
+      select: { id: true, name: true, email: true, role: true, status: true, locationIds: true },
+    });
+  },
+
+  listLocations() {
+    return pickupsService.listLocations();
+  },
+
+  async updateLocation(id: string, body: AdminLocationPatch) {
+    const out = await pickupsService.updateLocation(id, body);
+    return out.after;
+  },
+
+  listWarehouses() {
+    return warehousesService.list();
+  },
+
+  async listCoupons() {
+    const rows = await prisma.coupon.findMany({
+      where: { status: { in: ["active", "scheduled", "paused"] } },
+      orderBy: { code: "asc" },
+      take: 200,
+    });
+    return rows.map((c) => ({
+      id: c.id,
+      code: c.code,
+      title: c.title,
+      type: c.type,
+      value: c.value,
+      status: c.status,
+      minSubtotal: c.minSubtotal,
+      maxDiscount: c.maxDiscount,
+      channels: Array.isArray(c.channels) ? (c.channels as string[]) : [],
+      endsAt: c.endsAt,
+    }));
+  },
+
+  async patchCouponChannels(id: string, body: AdminCouponChannelsPatch) {
+    const c = await prisma.coupon.findUnique({ where: { id } });
+    if (!c) throw ApiError.notFound("Coupon");
+    return prisma.coupon.update({
+      where: { id },
+      data: { channels: body.channels as Prisma.InputJsonValue },
+      select: { id: true, code: true, channels: true, status: true },
+    });
   },
 };
