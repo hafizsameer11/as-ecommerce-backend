@@ -21,7 +21,7 @@ async function sendInvite(adminId: string, inviter: string) {
   const token = randomToken();
   await prisma.adminInvite.create({ data: { adminId, tokenHash: sha256(token), expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000) } });
   await messaging.email(m.email, "admin.invite", {
-    name: m.name, inviter, role: ROLE_LABELS[m.role], inviteUrl: `${env.APP_URL}/admin/invite?token=${token}`,
+    name: m.name, inviter, role: ROLE_LABELS[m.role],     inviteUrl: `${env.ADMIN_URL}/invite?token=${token}`,
   });
   return token;
 }
@@ -46,15 +46,16 @@ export const teamService = {
       data: { ...input, status: "invited", avatarColor: COLORS[Math.floor(Math.random() * COLORS.length)] },
     });
     const token = await sendInvite(m.id, inviter);
-    return { member: dto(m), inviteToken: env.NODE_ENV === "production" ? undefined : token };
+    // Always return the token once so the inviter can copy a link (email may be delayed).
+    return { member: dto(m), inviteToken: token, inviteUrl: `${env.ADMIN_URL}/invite?token=${token}` };
   },
 
   async resendInvite(id: string, inviter: string) {
     const m = await prisma.adminUser.findUniqueOrThrow({ where: { id } });
     if (m.status !== "invited") throw ApiError.badRequest("INVALID_STATE", "This member has already joined.");
     await prisma.adminInvite.updateMany({ where: { adminId: id, acceptedAt: null }, data: { expiresAt: new Date() } });
-    await sendInvite(id, inviter);
-    return { resent: true };
+    const token = await sendInvite(id, inviter);
+    return { resent: true, inviteToken: token, inviteUrl: `${env.ADMIN_URL}/invite?token=${token}` };
   },
 
   async update(id: string, patch: { name?: string; role?: AdminRole; status?: "active" | "suspended" }, actorId: string, actorName?: string) {

@@ -162,7 +162,7 @@ export const authService = {
       await messaging.email(c.email, "auth.password_reset", {
         firstName: c.firstName,
         // the web/app route that shows the "new password" form
-        resetUrl: `${env.APP_URL.replace(/:\d+$/, "")}/auth?mode=reset&token=${token}`,
+        resetUrl: `${env.WEB_URL}/reset-password?token=${token}`,
         token,
       });
     }
