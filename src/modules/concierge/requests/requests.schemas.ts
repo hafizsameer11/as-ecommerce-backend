@@ -64,8 +64,50 @@ export const priorityBody = z.object({ priority: conciergePriority });
 export const supplierLinkBody = z.object({ supplierId: z.string().min(1).max(64).nullable() });
 export const noteBody = z.object({ text: z.string().trim().min(1).max(4000), internal: z.boolean().default(true) });
 
+/** Staff-logged intake (phone / WhatsApp / walk-in) — asl-admin Concierge inbox */
+export const adminCreateRequestBody = z
+  .object({
+    customerId: z.string().trim().min(1).max(64).optional(),
+    contactName: text(120),
+    contactEmail: z.string().trim().toLowerCase().email().max(190).optional(),
+    contactPhone: text(30),
+    itemName: z.string().trim().min(1).max(190),
+    category: z.string().trim().min(1).max(60),
+    brand: text(120),
+    reference: text(1024),
+    description: text(4000),
+    size: text(40),
+    color: text(60),
+    condition: text(40),
+    /** kobo */
+    budget: z.coerce.number().int().min(0).max(100_000_000_000).optional(),
+    preferredSource: text(80),
+    notes: text(4000),
+    qty: z.coerce.number().int().min(1).max(20).default(1),
+    priority: conciergePriority.optional(),
+    /** assign immediately; omit to leave unassigned */
+    assigneeId: z.string().min(1).max(64).nullable().optional(),
+  })
+  .superRefine((b, ctx) => {
+    if (!b.customerId) {
+      if (!b.contactName) ctx.addIssue({ code: "custom", path: ["contactName"], message: "Name is required when no customer is linked." });
+      if (!b.contactEmail) ctx.addIssue({ code: "custom", path: ["contactEmail"], message: "E-mail is required when no customer is linked." });
+    }
+  });
+
+export const slaRulesBody = z.object({
+  responseSlaHours: z.object({
+    standard: z.coerce.number().int().min(1).max(720),
+    priority: z.coerce.number().int().min(1).max(720),
+    vip: z.coerce.number().int().min(1).max(720),
+  }),
+  quoteValidityHours: z.coerce.number().int().min(1).max(720).optional(),
+});
+
 export type CreateRequestBody = z.infer<typeof createRequestBody>;
+export type AdminCreateRequestBody = z.infer<typeof adminCreateRequestBody>;
 export type MyRequestsQuery = z.infer<typeof myRequestsQuery>;
 export type AdminRequestsQuery = z.infer<typeof adminRequestsQuery>;
 export type StatusBody = z.infer<typeof statusBody>;
 export type NoteBody = z.infer<typeof noteBody>;
+export type SlaRulesBody = z.infer<typeof slaRulesBody>;

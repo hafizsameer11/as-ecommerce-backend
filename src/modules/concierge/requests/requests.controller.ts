@@ -1,7 +1,7 @@
 import type { Ctx } from "@/core/http/router";
 import type { ConciergePriority } from "@/generated/prisma/client";
 import { requestsService as svc } from "./requests.service";
-import type { AdminRequestsQuery, CreateRequestBody, MyRequestsQuery, NoteBody, StatusBody } from "./requests.schemas";
+import type { AdminCreateRequestBody, AdminRequestsQuery, CreateRequestBody, MyRequestsQuery, NoteBody, SlaRulesBody, StatusBody } from "./requests.schemas";
 
 type Id = { id: string };
 
@@ -26,6 +26,17 @@ export const requestsController = {
   board: ({ query, admin }: Ctx<unknown, AdminRequestsQuery>) => svc.board(query, admin.id),
   kpis: () => svc.kpis(),
   get: ({ params }: Ctx<unknown, unknown, Id>) => svc.adminGet(params.id),
+  adminCreate: async ({ body, admin, res }: Ctx<AdminCreateRequestBody>) => {
+    const r = await svc.adminCreate(body, admin);
+    res.locals.audit = { entityId: r.id, summary: `Logged manual concierge request ${r.number}`, after: { status: r.status } };
+    return r;
+  },
+  getSla: () => svc.getSla(),
+  updateSla: async ({ body, admin, res }: Ctx<SlaRulesBody>) => {
+    const r = await svc.updateSla(body, admin.email);
+    res.locals.audit = { entityId: "concierge", summary: "Updated concierge SLA rules", after: r };
+    return r;
+  },
   setStatus: ({ params, body, admin, res }: Ctx<StatusBody, unknown, Id>) => audited(res, svc.setStatus(params.id, body, admin.name), `Status → ${body.status} on`),
   assign: ({ params, body, admin, res }: Ctx<{ adminId: string | null }, unknown, Id>) =>
     audited(res, svc.assign(params.id, body.adminId, admin), body.adminId ? "Assigned" : "Unassigned"),

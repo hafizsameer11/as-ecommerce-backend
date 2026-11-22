@@ -1,7 +1,7 @@
 import { ModuleRouter, idParam } from "@/core/http/router";
 import { requestsController as c } from "./requests.controller";
 import {
-  adminRequestsQuery, assignBody, cancelBody, createRequestBody, myRequestsQuery, noteBody, numberParam, priorityBody, statusBody, supplierLinkBody, trackQuery,
+  adminCreateRequestBody, adminRequestsQuery, assignBody, cancelBody, createRequestBody, myRequestsQuery, noteBody, numberParam, priorityBody, slaRulesBody, statusBody, supplierLinkBody, trackQuery,
 } from "./requests.schemas";
 
 /** /start-request, concierge shop, /account/requests, concierge cart, /track-request */
@@ -32,8 +32,22 @@ const audit = (action: string) => ({ category: "concierge", action, entity: "con
 /** asl-admin /concierge/inbox + /concierge/board */
 export const conciergeRequestsAdminRoutes = new ModuleRouter({ surface: "admin", prefix: "/concierge", tag: "Concierge", defaultAuth: "admin", defaultPermission: "concierge.view" })
   .get("/kpis", { summary: "Concierge KPIs: open, SLA at risk / breached, quoted value, conversion" }, c.kpis)
+  .get("/sla", { summary: "Response SLA hours by priority + quote validity" }, c.getSla)
+  .put("/sla", {
+    summary: "Update response SLA hours (and optional quote validity)",
+    permission: "concierge.assign",
+    body: slaRulesBody,
+    audit: { category: "concierge", action: "concierge.sla_updated", entity: "setting" },
+  }, c.updateSla)
   .get("/requests", { summary: "Inbox (tabs by status + open / unassigned / SLA / VIP, priority, assignee, search, KPIs)", query: adminRequestsQuery }, c.list)
   .get("/requests/board", { summary: "Sourcing board: columns by status", query: adminRequestsQuery }, c.board)
+  .post("/requests", {
+    summary: "Log a manual request (phone / WhatsApp / walk-in)",
+    permission: "concierge.assign",
+    body: adminCreateRequestBody,
+    status: 201,
+    audit: audit("concierge.manual_created"),
+  }, c.adminCreate)
   .get("/requests/:id", { summary: "Request (id or ASL number) with full timeline, quotes, thread", params: idParam }, c.get)
   .patch("/requests/:id/status", { summary: "Move status (validated transitions)", permission: "concierge.assign", params: idParam, body: statusBody, audit: audit("concierge.status_changed") }, c.setStatus)
   .post("/requests/:id/assign", { summary: "Assign to a team member (null = unassign)", permission: "concierge.assign", params: idParam, body: assignBody, audit: audit("concierge.assigned") }, c.assign)

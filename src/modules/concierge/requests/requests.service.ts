@@ -24,7 +24,7 @@ import {
 import { effectiveStatus } from "../quotes/quotes.mapper";
 import { quotesService } from "../quotes/quotes.service";
 import { currentQuote, requestInclude, toAdminRequest, toAdminRow, toCustomerCard, toCustomerRequest, toTracking } from "./requests.mapper";
-import type { AdminRequestsQuery, CreateRequestBody, MyRequestsQuery, NoteBody, StatusBody } from "./requests.schemas";
+import type { AdminCreateRequestBody, AdminRequestsQuery, CreateRequestBody, MyRequestsQuery, NoteBody, SlaRulesBody, StatusBody } from "./requests.schemas";
 
 const MAX_IMAGES = 6;
 const TIER_PRIORITY: Record<CustomerTier, ConciergePriority> = { Standard: "standard", Silver: "standard", Gold: "priority", Signature: "vip" };
@@ -311,6 +311,130 @@ export const requestsService = {
     const cfg = await settingsService.get("concierge");
     const r = await findRequest(requestKey(id));
     return toAdminRequest(r, await adminNames([r.assigneeId]), cfg);
+  },
+
+  /**
+   * Staff intake: phone / WhatsApp / walk-in logged from the admin inbox.
+   * Links an existing customer when `customerId` is given; otherwise uses contact fields.
+   */
+  async adminCreate(b: AdminCreateRequestBody, actor: { id: string; name: string }) {
+    const cfg = await settingsService.get("concierge");
+    const customer = b.customerId
+      ? await prisma.customer.findUnique({ where: { id: b.customerId } })
+      : null;
+    if (b.customerId && !customer) throw ApiError.notFound("Customer");
+
+    let assigneeId: string | null = b.assigneeId === undefined ? null : b.assigneeId;
+    let assigneeName: string | null = null;
+    if (assigneeId) {
+      const a = await prisma.adminUser.findUnique({ where: { id: assigneeId } });
+      if (!a || a.status !== "active") throw ApiError.badRequest("VALIDATION_FAILED", "Choose an active team member.");
+      if (!(await effectivePermissions(a.role)).has("concierge.view"))
+        throw ApiError.badRequest("VALIDATION_FAILED", `${a.name} can't work on concierge requests (role ${a.role}).`);
+      assigneeName = a.name;
+    }
+
+    const priority: ConciergePriority = b.priority ?? (customer ? TIER_PRIORITY[customer.tier] : "standard");
+    const now = new Date();
+    const contactName = customer ? fullName(customer) : b.contactName!;
+    const contactEmail = customer?.email ?? b.contactEmail!;
+    const contactPhone = b.contactPhone ?? customer?.phone ?? null;
+
+    const r = await prisma.$transaction(async (tx) => {
+      const number = formatters.concierge(await nextSequence(tx, "concierge", 123457));
+      const created = await tx.conciergeRequest.create({
+        data: {
+          number,
+          customerId: customer?.id ?? null,
+          contactName,
+          contactEmail,
+          contactPhone,
+          source: "form",
+          category: b.category,
+          brand: b.brand ?? null,
+          itemName: b.itemName,
+          reference: b.reference ?? null,
+          description: b.description ?? null,
+          size: b.size ?? null,
+          color: b.color ?? null,
+          condition: b.condition ?? null,
+          budget: b.budget ?? null,
+          preferredSource: b.preferredSource ?? null,
+          notes: b.notes ?? null,
+          qty: b.qty,
+          priority,
+          assigneeId,
+          createdAt: now,
+          slaDueAt: slaDue(now, priority, cfg),
+          timeline: {
+            create: [
+              { kind: "status", text: `Request logged manually by ${actor.name}.`, by: "System" },
+              ...(assigneeName ? [{ kind: "note" as const, text: `Assigned to ${assigneeName}.`, by: actor.name, internal: true }] : []),
+            ],
+          },
+          thread: { create: {} },
+        },
+      });
+      await systemMessage(
+        tx,
+        created.id,
+        `Request ${number} opened for ${[b.brand, b.itemName].filter(Boolean).join(" - ")}. A client advisor will be in touch shortly.`,
+      );
+      if (customer)
+        await tx.customerStats.upsert({
+          where: { customerId: customer.id },
+          create: { customerId: customer.id, conciergeCount: 1 },
+          update: { conciergeCount: { increment: 1 } },
+        });
+      if (assigneeId) {
+        await applyStatus(
+          tx,
+          { id: created.id, supplierId: created.supplierId, quotes: [] },
+          "sourcing",
+          assigneeName!,
+          `${assigneeName} is sourcing your item`,
+        );
+      }
+      return created;
+    });
+
+    events.emit("concierge.requested", { requestId: r.id });
+    if (assigneeId) events.emit("concierge.status_changed", { requestId: r.id, to: "sourcing" });
+    if (assigneeId && assigneeId !== actor.id) {
+      await prisma.adminNotification
+        .create({
+          data: {
+            adminId: assigneeId,
+            title: `Request ${r.number} assigned to you`,
+            body: `${actor.name} logged and assigned ${[b.brand, b.itemName].filter(Boolean).join(" ")} to you.`,
+            link: `/concierge/inbox?id=${r.id}`,
+            priority: priority === "vip" ? "high" : "normal",
+          },
+        })
+        .then((n) => realtime.bell(n))
+        .catch((err) => logger.error({ err }, "assignment notification failed"));
+    }
+    return this.adminGet(r.id);
+  },
+
+  async getSla() {
+    const cfg = await settingsService.get("concierge");
+    return {
+      responseSlaHours: cfg.responseSlaHours,
+      quoteValidityHours: cfg.quoteValidityHours,
+    };
+  },
+
+  async updateSla(b: SlaRulesBody, by: string) {
+    const patch: Partial<SlaRulesBody> & { quoteValidityHours?: number } = {
+      responseSlaHours: b.responseSlaHours,
+    };
+    if (b.quoteValidityHours != null) patch.quoteValidityHours = b.quoteValidityHours;
+    const { after } = await settingsService.update("concierge", patch, by);
+    return {
+      responseSlaHours: after.responseSlaHours,
+      quoteValidityHours: after.quoteValidityHours,
+    };
   },
 
   async setStatus(id: string, b: StatusBody, actor: string) {
