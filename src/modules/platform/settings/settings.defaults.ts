@@ -211,6 +211,13 @@ export const settingsSchemas = {
     refundApprovalOver: money,
     finalSaleCategories: z.array(z.string()),
     receiptFooter: z.string().max(2000),
+    giftCardsEnabled: z.boolean(),
+    autoPromosEnabled: z.boolean(),
+    layawayEnabled: z.boolean(),
+    /** minimum deposit as percent of basket (50 = half) */
+    layawayMinDepositPct: z.number().int().min(1).max(100),
+    layawayHoldDays: z.number().int().min(1).max(90),
+    freeAlterationsOver: money,
   }),
 } as const;
 
@@ -366,6 +373,12 @@ export const settingsDefaults: { [G in SettingsGroup]: SettingsOf<G> } = {
     refundApprovalOver: N(100_000),
     finalSaleCategories: ["fragrances", "underwear", "swimwear"],
     receiptFooter: "Thank you for shopping at ASL ORIGINALS.",
+    giftCardsEnabled: true,
+    autoPromosEnabled: true,
+    layawayEnabled: true,
+    layawayMinDepositPct: 50,
+    layawayHoldDays: 14,
+    freeAlterationsOver: N(150_000),
   },
 };
 

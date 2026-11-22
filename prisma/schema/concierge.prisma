@@ -20,6 +20,8 @@ enum ConciergePriority {
 enum ConciergeSource {
   form
   catalog
+  /// logged from a boutique till
+  store
 }
 
 model ConciergeRequest {
@@ -31,6 +33,10 @@ model ConciergeRequest {
   contactEmail String
   contactPhone String?
   source      ConciergeSource   @default(form)
+  /// boutique PickupLocation id when source = store
+  originLocationId String?
+  /// AdminUser who logged it at the till
+  createdByStaffId String?
   productId   String?
   category    String
   brand       String?

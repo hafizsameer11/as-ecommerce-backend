@@ -100,3 +100,153 @@ model PosAuditEvent {
   @@index([registerId, at])
   @@index([staffId, at])
 }
+
+model GiftCard {
+  id         String   @id @default(cuid())
+  code       String   @unique @db.VarChar(32)
+  /// kobo
+  initial    Int
+  balance    Int
+  issuedAt   DateTime @default(now())
+  expiresAt  DateTime
+  status     String   @db.VarChar(16) @default("active") // active | used | cancelled
+  locationId String?
+  customerId String?
+  orderId    String?
+  events     GiftCardEvent[]
+
+  @@index([status])
+  @@index([customerId])
+}
+
+model GiftCardEvent {
+  id         String   @id @default(cuid())
+  giftCardId String
+  giftCard   GiftCard @relation(fields: [giftCardId], references: [id], onDelete: Cascade)
+  at         DateTime @default(now())
+  /// issued | redeemed | refunded | adjusted | cancelled
+  kind       String   @db.VarChar(16)
+  amount     Int
+  ref        String?  @db.VarChar(64)
+  staffId    String?
+
+  @@index([giftCardId, at])
+}
+
+model PosPromotion {
+  id        String   @id @default(cuid())
+  name      String
+  label     String
+  /// bxgy | percent | spend | birthday
+  kind      String   @db.VarChar(16)
+  buy       Int?
+  get       Int?
+  /// percent points, or kobo for spend
+  value     Int
+  minSpend  Int?
+  /// { type: all|category|brand, value?: string }
+  scope     Json
+  /// ["pos","web","app"]
+  channels  Json
+  /// pickup location ids; empty = all
+  stores    Json
+  startsAt  DateTime
+  endsAt    DateTime
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, startsAt, endsAt])
+}
+
+model PosAlteration {
+  id           String    @id @default(cuid())
+  number       String    @unique
+  customerId   String?
+  customerName String
+  phone        String    @db.VarChar(30)
+  orderNumber  String?
+  item         String
+  work         Json
+  notes        String?   @db.Text
+  fee          Int       @default(0)
+  locationId   String
+  staffId      String
+  tailor       String
+  createdAt    DateTime  @default(now())
+  readyBy      DateTime
+  /// received | with-tailor | ready | collected
+  status       String    @db.VarChar(16) @default("received")
+  collectedAt  DateTime?
+
+  @@index([locationId, status])
+  @@index([status, readyBy])
+}
+
+model PosStockTransfer {
+  id           String   @id @default(cuid())
+  number       String   @unique
+  createdAt    DateTime @default(now())
+  fromWarehouseId String
+  toWarehouseId   String
+  variantId    String
+  qty          Int
+  /// requested | approved | in-transit | received | rejected
+  status       String   @db.VarChar(16) @default("requested")
+  requestedById String
+  reason       String?  @db.VarChar(300)
+  /// [{ status, at, by }]
+  steps        Json
+
+  @@index([status, createdAt])
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+}
+
+model PosStockCount {
+  id          String   @id @default(cuid())
+  number      String   @unique
+  warehouseId String
+  at          DateTime @default(now())
+  staffId     String
+  approvedById String?
+  scope       String   @db.VarChar(120)
+  /// [{ variantId, expected, counted }]
+  lines       Json
+  /// open | posted
+  status      String   @db.VarChar(16) @default("open")
+
+  @@index([warehouseId, at])
+}
+
+model PosGoodsReceipt {
+  id          String    @id @default(cuid())
+  number      String    @unique
+  supplier    String
+  warehouseId String
+  expectedAt  DateTime
+  /// [{ variantId, qty, received }]
+  lines       Json
+  /// expected | partial | received
+  status      String    @db.VarChar(16) @default("expected")
+  receivedAt  DateTime?
+  receivedById String?
+
+  @@index([warehouseId, status])
+}
+
+/// Layaway / reserve-with-deposit linked to a store Order
+model PosLayaway {
+  id        String    @id @default(cuid())
+  orderId   String    @unique
+  deposit   Int
+  balance   Int
+  until     DateTime
+  /// open | paid | cancelled
+  status    String    @db.VarChar(16) @default("open")
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([status, until])
+}

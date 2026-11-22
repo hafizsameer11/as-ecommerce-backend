@@ -10,7 +10,59 @@ export type PosLineIn = {
   qty: number;
   unitPrice: number;
   discount?: PosDisc;
+  category?: string;
+  brand?: string;
+  noPromo?: boolean;
 };
+
+export type PosPromo = {
+  id: string;
+  label: string;
+  kind: "bxgy" | "percent" | "spend" | "birthday";
+  buy?: number | null;
+  get?: number | null;
+  value: number;
+  minSpend?: number | null;
+  scope: { type: "all" | "category" | "brand"; value?: string };
+};
+
+export function applyPromos(
+  lines: PosLineIn[],
+  bases: number[],
+  promos: PosPromo[],
+  opts: { birthdayMonth?: boolean } = {},
+) {
+  const off = lines.map(() => 0);
+  const applied: { id: string; label: string; amount: number }[] = [];
+  const inScope = (p: PosPromo, l: PosLineIn) =>
+    p.scope.type === "all" || (p.scope.type === "category" ? l.category === p.scope.value : l.brand === p.scope.value);
+
+  for (const p of promos) {
+    const idx = lines.map((_, i) => i).filter((i) => !lines[i].noPromo && inScope(p, lines[i]) && bases[i] - off[i] > 0);
+    if (!idx.length) continue;
+    const take = lines.map(() => 0);
+    if (p.kind === "bxgy" && p.buy && p.get) {
+      const units = idx
+        .flatMap((i) => Array.from({ length: lines[i].qty }, () => ({ i, price: (bases[i] - off[i]) / lines[i].qty })))
+        .sort((a, b) => b.price - a.price);
+      const free = Math.floor(units.length / (p.buy + p.get)) * p.get;
+      for (const u of free ? units.slice(-free) : []) take[u.i] += Math.round(u.price);
+    } else if (p.kind === "percent" || (p.kind === "birthday" && opts.birthdayMonth)) {
+      for (const i of idx) take[i] = Math.round(((bases[i] - off[i]) * p.value) / 100);
+    } else if (p.kind === "spend") {
+      const scoped = idx.reduce((a, i) => a + bases[i] - off[i], 0);
+      if (scoped >= (p.minSpend ?? 0)) {
+        const shares = allocate(Math.min(p.value, scoped), idx.map((i) => bases[i] - off[i]));
+        idx.forEach((i, k) => (take[i] = shares[k]));
+      }
+    }
+    const amount = take.reduce((a, b) => a + b, 0);
+    if (amount <= 0) continue;
+    take.forEach((t, i) => (off[i] += Math.min(t, bases[i] - off[i])));
+    applied.push({ id: p.id, label: p.label, amount });
+  }
+  return { off, applied };
+}
 
 export function discountOf(base: number, d?: PosDisc) {
   if (!d || base <= 0) return 0;
@@ -79,13 +131,20 @@ export function quotePos(args: {
   customerPoints: number;
   vatRatePct: number;
   redeemLoyalty: boolean;
-}): PosQuote {
-  const priced = args.lines.map((l) => {
+  promos?: PosPromo[];
+  birthdayMonth?: boolean;
+  extras?: number;
+}): PosQuote & { promos: { id: string; label: string; amount: number }[]; promoTotal: number; extras: number } {
+  const manualLine = args.lines.map((l) => discountOf(l.qty * l.unitPrice, l.discount));
+  const bases = args.lines.map((l, i) => l.qty * l.unitPrice - manualLine[i]);
+  const promo = applyPromos(args.lines, bases, args.promos ?? [], { birthdayMonth: args.birthdayMonth });
+  const priced = args.lines.map((l, i) => {
     const gross = l.qty * l.unitPrice;
-    const lineDiscount = discountOf(gross, l.discount);
-    return { gross, lineDiscount, after: gross - lineDiscount };
+    const lineDiscount = manualLine[i] + promo.off[i];
+    return { gross, lineDiscount, promo: promo.off[i], after: gross - lineDiscount };
   });
   const afterLines = priced.reduce((a, l) => a + l.after, 0);
+  const extras = args.extras ?? 0;
 
   let coupon = 0;
   let couponError: string | null = null;
@@ -107,7 +166,8 @@ export function quotePos(args: {
     : 0;
   const pointsUsed = Math.max(0, Math.min(args.pointsToUse, maxPoints));
   const points = pointsUsed * args.pointValueKobo;
-  const total = beforePoints - points;
+  const goods = beforePoints - points;
+  const total = goods + extras;
   const shares = allocate(coupon + manual + points, priced.map((l) => l.after));
 
   return {
@@ -117,7 +177,10 @@ export function quotePos(args: {
       net: l.after - shares[i],
     })),
     subtotal: priced.reduce((a, l) => a + l.gross, 0),
-    lineDiscounts: priced.reduce((a, l) => a + l.lineDiscount, 0),
+    lineDiscounts: priced.reduce((a, l) => a + l.lineDiscount - l.promo, 0),
+    promos: promo.applied,
+    promoTotal: promo.applied.reduce((a, p) => a + p.amount, 0),
+    extras,
     coupon,
     couponError,
     manual,
@@ -125,7 +188,7 @@ export function quotePos(args: {
     pointsUsed,
     discountTotal: priced.reduce((a, l) => a + l.lineDiscount, 0) + coupon + manual + points,
     total,
-    vat: vatIncluded(total, args.vatRatePct),
+    vat: vatIncluded(Math.max(0, goods), args.vatRatePct),
     due: total,
   };
 }

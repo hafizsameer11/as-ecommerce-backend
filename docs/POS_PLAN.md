@@ -38,17 +38,17 @@ Money remains **kobo** on the API (same as the rest of the backend).
 
 ---
 
-## Phase 3 — Services & inventory depth
+## Phase 3 — Services & inventory depth ✅
 
-- Gift cards (issue, balance, redeem as tender) + ledger 2200
-- Automatic promotions (bxgy / % / spend / birthday)
-- Reservations (layaway deposit ≥50%, settle / cancel)
-- Alterations tickets
-- Ship-to-customer from till (uses shipping zones)
-- Transfers: request → approve → in-transit → receive
-- Stock counts + supplier GRN by scan
-- Concierge request from till (`source` / location / staff)
-- Sales credit / commission fields
+- Gift cards (issue, balance, redeem as tender) — `GiftCard` + events; payment method `giftcard`
+- Automatic promotions (`PosPromotion`: bxgy / % / spend / birthday) applied in quote
+- Layaway (`PosLayaway`, deposit ≥ settings %, settle / cancel; stock held via `reserveAt`)
+- Alterations tickets (`PosAlteration`)
+- Ship-to-customer from till (shipping zones quote + `fulfilment: ship`)
+- Transfers: request → approve → in-transit → receive (`PosStockTransfer`)
+- Stock counts + supplier GRN (`PosStockCount`, `PosGoodsReceipt`)
+- Concierge from till (`ConciergeSource.store` + location / staff)
+- Sales credit via existing `OrderItem.soldById`
 
 ---
 

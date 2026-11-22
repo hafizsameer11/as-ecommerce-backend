@@ -73,6 +73,34 @@ export const inventoryService = {
     }
   },
 
+  /** Hold units at a boutique warehouse (layaway / ship-from-till). */
+  async reserveAt(tx: Tx, warehouseId: string, lines: Line[], ref: { type: string; id: string }, actor?: string) {
+    const short: { variantId: string; requested: number; available: number }[] = [];
+    for (const line of lines) {
+      const level = await tx.stockLevel.findUnique({ where: { variantId_warehouseId: { variantId: line.variantId, warehouseId } } });
+      const available = level ? level.onHand - level.reserved : 0;
+      if (!level || available < line.qty) {
+        short.push({ variantId: line.variantId, requested: line.qty, available: Math.max(0, available) });
+        continue;
+      }
+      await tx.stockLevel.update({
+        where: { variantId_warehouseId: { variantId: line.variantId, warehouseId } },
+        data: { reserved: { increment: line.qty } },
+      });
+      await move(tx, {
+        variantId: line.variantId,
+        warehouseId,
+        type: "reserve",
+        qty: 0,
+        note: `Reserved ${line.qty}`,
+        refType: ref.type,
+        refId: ref.id,
+        actor,
+      });
+    }
+    if (short.length) throw ApiError.conflict("OUT_OF_STOCK", "Not enough free stock at this boutique to hold.", short);
+  },
+
   /**
    * POS / direct sale: decrement onHand at a specific warehouse (no prior reserve).
    * Used when stock is handed over at the till from that boutique's stock room.

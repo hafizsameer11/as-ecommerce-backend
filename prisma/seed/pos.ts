@@ -53,5 +53,54 @@ export async function seedPos(prisma: PrismaClient) {
       update: { pinHash, locationIds, status: "active", role: s.role },
     });
   }
-  console.log("pos ✓  tills + PIN staff (Temi 1234 / Chidi 2468 / Halima 1111)");
+  const promoCount = await prisma.posPromotion.count();
+  if (!promoCount) {
+    const now = new Date();
+    const ends = new Date(now.getTime() + 365 * 86_400_000);
+    await prisma.posPromotion.createMany({
+      data: [
+        {
+          name: "Buy 2 get 1",
+          label: "Buy 2 get 1 free",
+          kind: "bxgy",
+          buy: 2,
+          get: 1,
+          value: 0,
+          scope: { type: "all" },
+          channels: ["pos", "store"],
+          stores: [],
+          startsAt: now,
+          endsAt: ends,
+          active: true,
+        },
+        {
+          name: "Spend 100k save 10k",
+          label: "₦10k off over ₦100k",
+          kind: "spend",
+          value: 1_000_000,
+          minSpend: 10_000_000,
+          scope: { type: "all" },
+          channels: ["pos", "store"],
+          stores: [],
+          startsAt: now,
+          endsAt: ends,
+          active: true,
+        },
+        {
+          name: "Birthday 10%",
+          label: "Birthday 10% off",
+          kind: "birthday",
+          value: 10,
+          scope: { type: "all" },
+          channels: ["pos", "store"],
+          stores: [],
+          startsAt: now,
+          endsAt: ends,
+          active: true,
+        },
+      ],
+    });
+  }
+
+  console.log("pos ✓  tills + PIN staff (Temi 1234 / Chidi 2468 / Halima 1111) + sample promos");
 }
