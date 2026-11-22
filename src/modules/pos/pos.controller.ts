@@ -6,18 +6,25 @@ import { settingsService } from "@/modules/platform/settings/settings.service";
 import type { SessionMeta } from "@/modules/identity/auth/session.service";
 import { posAuthService } from "./pos.auth.service";
 import { posCatalogService } from "./pos.catalog.service";
+import { posOutboundService } from "./pos.outbound.service";
+import { posPickupsService } from "./pos.pickups.service";
+import { posReturnsService } from "./pos.returns.service";
 import { posSalesService } from "./pos.sales.service";
 import { posSessionService } from "./pos.session.service";
 import type {
   CashMoveBody,
   CatalogQuery,
   CloseSessionBody,
+  CollectPickupBody,
   CompleteSaleBody,
   CreateCustomerBody,
   CustomersQuery,
   OpenSessionBody,
+  PickupsQuery,
   PinLoginBody,
+  PosReturnBody,
   QuoteBody,
+  SendReceiptBody,
   SyncSalesBody,
 } from "./pos.schemas";
 
@@ -110,4 +117,27 @@ export const posController = {
   },
 
   getSale: ({ params }: Ctx<unknown, unknown, { id: string }>) => posSalesService.getSale(params.id),
+
+  returnable: ({ params }: Ctx<unknown, unknown, { id: string }>) => posReturnsService.returnable(params.id),
+  processReturn: async ({ params, body, admin, res }: Ctx<PosReturnBody, unknown, { id: string }>) => {
+    const r = await posReturnsService.process(params.id, body, staff(admin));
+    res.locals.audit = { entityId: r.id, summary: `POS return ${r.number}`, after: { amount: r.amount } };
+    return r;
+  },
+
+  pickups: async ({ query, admin }: Ctx<unknown, PickupsQuery>) =>
+    posPickupsService.list(query, await locationIdsFor(admin.id)),
+  pickupReady: async ({ params, admin, res }: Ctx<unknown, unknown, { id: string }>) => {
+    const b = await posPickupsService.markReady(params.id, staff(admin));
+    res.locals.audit = { entityId: b.id, summary: `Pickup ${b.number} ready` };
+    return b;
+  },
+  pickupCollect: async ({ params, body, admin, res }: Ctx<CollectPickupBody, unknown, { id: string }>) => {
+    const b = await posPickupsService.collect(params.id, body, staff(admin));
+    res.locals.audit = { entityId: b.id, summary: `Pickup ${b.number} collected` };
+    return b;
+  },
+
+  sendReceipt: ({ params, body, admin }: Ctx<SendReceiptBody, unknown, { id: string }>) =>
+    posOutboundService.sendReceipt(params.id, body, admin.id),
 };

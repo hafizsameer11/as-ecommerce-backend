@@ -35,6 +35,13 @@ export function vatIncluded(total: number, ratePct: number) {
   return Math.round((total * ratePct) / (100 + ratePct));
 }
 
+/** Refund for `qty` more units of a line. Last unit takes whatever is left. */
+export function refundFor(net: number, bought: number, alreadyQty: number, alreadyAmount: number, qty: number) {
+  if (qty <= 0 || alreadyQty + qty > bought) return 0;
+  if (alreadyQty + qty === bought) return net - alreadyAmount;
+  return Math.round((net * qty) / bought);
+}
+
 export function couponProblem(coupon: Coupon | null | undefined, afterLines: number, channels: unknown): string | null {
   if (!coupon) return "That code doesn't exist";
   if (coupon.status !== "active") return "That code has ended";

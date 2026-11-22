@@ -132,6 +132,8 @@ model PickupBooking {
   location    PickupLocation @relation(fields: [locationId], references: [id])
   scheduledAt DateTime
   status      PickupStatus   @default(scheduled)
+  /// 6-digit collection code shown on the order confirmation / till
+  pickupCode  String?        @db.VarChar(8)
   notes       String?        @db.Text
   collectedAt DateTime?
   collectedBy String?
@@ -139,6 +141,8 @@ model PickupBooking {
   updatedAt   DateTime       @updatedAt
 
   @@index([locationId, scheduledAt])
+  @@index([locationId, status])
+  @@index([pickupCode])
 }
 
 enum TaxScope {

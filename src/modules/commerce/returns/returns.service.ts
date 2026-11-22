@@ -120,7 +120,7 @@ const byIdOrNumber = (id: string): Prisma.ReturnRequestWhereInput => ({ OR: [{ i
 async function insertReturn(
   tx: Tx,
   o: OrderForReturn,
-  input: { lines: Line[]; reason: string; details?: string; refundTo: "original" | "wallet"; photos: string[]; refundAmount?: number; override: boolean; actor: string; note?: string },
+  input: { lines: Line[]; reason: string; details?: string; refundTo: "original" | "wallet" | "cash"; photos: string[]; refundAmount?: number; override: boolean; actor: string; note?: string },
   cfg: ReturnsSettings,
 ) {
   await tx.$queryRaw`SELECT id FROM \`Order\` WHERE id = ${o.id} FOR UPDATE`;

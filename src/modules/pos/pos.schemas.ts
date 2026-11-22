@@ -87,6 +87,46 @@ export const syncSalesBody = z.object({
   sales: z.array(completeSaleBody).min(1).max(50),
 });
 
+export const posReturnLine = z.object({
+  orderItemId: id,
+  qty: z.number().int().min(1).max(50),
+});
+
+export const posReturnBody = z.object({
+  lines: z.array(posReturnLine).min(1).max(50),
+  reason: z.string().trim().min(1).max(120),
+  note: z.string().trim().max(1000).optional(),
+  refundTo: z.enum(["original", "wallet", "cash"]).default("original"),
+  amount: money.optional(),
+  restock: z.boolean().default(true),
+  override: z.boolean().default(false),
+  approvedById: id.optional(),
+  registerSessionId: id.optional(),
+  registerId: id.optional(),
+  locationId: id.optional(),
+  warehouseId: id.optional(),
+});
+
+export const pickupsQuery = pageQuery.extend({
+  locationId: id.optional(),
+  status: z.enum(["scheduled", "ready", "collected", "no_show", "cancelled"]).optional(),
+  q: z.string().trim().max(80).optional(),
+});
+
+export const collectPickupBody = z.object({
+  code: z.string().trim().min(4).max(8).optional(),
+  idChecked: z.boolean().default(false),
+  collectedBy: z.string().trim().max(120).optional(),
+  note: z.string().trim().max(500).optional(),
+  offline: z.boolean().default(false),
+});
+
+export const sendReceiptBody = z.object({
+  channel: z.enum(["email", "sms", "whatsapp"]),
+  gift: z.boolean().default(false),
+  to: z.string().trim().max(190).optional(),
+});
+
 export type PinLoginBody = z.infer<typeof pinLoginBody>;
 export type OpenSessionBody = z.infer<typeof openSessionBody>;
 export type CashMoveBody = z.infer<typeof cashMoveBody>;
@@ -97,3 +137,7 @@ export type CreateCustomerBody = z.infer<typeof createCustomerBody>;
 export type QuoteBody = z.infer<typeof quoteBody>;
 export type CompleteSaleBody = z.infer<typeof completeSaleBody>;
 export type SyncSalesBody = z.infer<typeof syncSalesBody>;
+export type PosReturnBody = z.infer<typeof posReturnBody>;
+export type PickupsQuery = z.infer<typeof pickupsQuery>;
+export type CollectPickupBody = z.infer<typeof collectPickupBody>;
+export type SendReceiptBody = z.infer<typeof sendReceiptBody>;

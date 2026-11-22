@@ -4,12 +4,16 @@ import {
   cashMoveBody,
   catalogQuery,
   closeSessionBody,
+  collectPickupBody,
   completeSaleBody,
   createCustomerBody,
   customersQuery,
   openSessionBody,
+  pickupsQuery,
   pinLoginBody,
+  posReturnBody,
   quoteBody,
+  sendReceiptBody,
   syncSalesBody,
 } from "./pos.schemas";
 
@@ -72,4 +76,31 @@ export const posRoutes = new ModuleRouter({
     body: syncSalesBody,
     audit: audit("pos.sync"),
   }, c.syncSales)
-  .get("/sales/:id", { summary: "Sale / receipt payload", params: idParam }, c.getSale);
+  .get("/sales/:id", { summary: "Sale / receipt payload", params: idParam }, c.getSale)
+  .post("/sales/:id/send-receipt", {
+    summary: "Queue receipt by email / SMS / WhatsApp (pending until providers are wired)",
+    params: idParam,
+    body: sendReceiptBody,
+    audit: audit("pos.receipt_queued"),
+  }, c.sendReceipt)
+  .get("/sales/:id/returnable", { summary: "What can be returned on this sale", params: idParam }, c.returnable)
+  .post("/sales/:id/returns", {
+    summary: "Process an in-store return + refund",
+    permission: "pos.refund",
+    params: idParam,
+    body: posReturnBody,
+    status: 201,
+    audit: audit("pos.return"),
+  }, c.processReturn)
+  .get("/pickups", { summary: "Pickup queue for this boutique", query: pickupsQuery }, c.pickups)
+  .post("/pickups/:id/ready", {
+    summary: "Mark pickup ready (queues customer notify as pending)",
+    params: idParam,
+    audit: audit("pos.pickup_ready"),
+  }, c.pickupReady)
+  .post("/pickups/:id/collect", {
+    summary: "Hand over pickup (code or ID check)",
+    params: idParam,
+    body: collectPickupBody,
+    audit: audit("pos.pickup_collected"),
+  }, c.pickupCollect);

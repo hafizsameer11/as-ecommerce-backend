@@ -286,6 +286,8 @@ enum ReturnStatus {
 enum RefundDestination {
   original
   wallet
+  /// cash handed back at the till
+  cash
 }
 
 model ReturnRequest {

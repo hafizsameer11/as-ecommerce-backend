@@ -161,7 +161,8 @@ export const pickupsService = {
     try {
       return await prisma.$transaction(async (tx) => {
         const number = formatters.pickup(await nextSequence(tx, "pickup", 2006));
-        const b = await tx.pickupBooking.create({ data: { number, orderId: o.id, locationId: loc.id, scheduledAt } });
+        const pickupCode = String(Math.floor(100000 + Math.random() * 900000));
+        const b = await tx.pickupBooking.create({ data: { number, orderId: o.id, locationId: loc.id, scheduledAt, pickupCode } });
         await ordersService.addEvent(tx, o.id, "pickup_scheduled", "Pick-up booked", { detail: `${loc.name} · from ${lagosLabel(scheduledAt)}`, actor: "system" });
         return b;
       });

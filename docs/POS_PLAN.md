@@ -29,12 +29,12 @@ Money remains **kobo** on the API (same as the rest of the backend).
 
 ---
 
-## Phase 2 — Register ops + returns + pickups
+## Phase 2 — Returns + pickups + receipt queue ✅
 
-- Full returns / exchanges at till (final-sale rules, approval limits)
-- Website/app pickup queue: ready → collect (pickup code / ID check)
-- Blind close, denomination count, cash variance alerts (in-app / audit only)
-- Receipt payload endpoint (print/email/SMS/WhatsApp buttons enqueue `pending` messages only)
+- In-store returns / refunds (`GET/POST …/sales/:id/returnable|returns`) — cash / wallet / original; restock to boutique warehouse; approval over limit
+- Pickup queue (`GET /pickups`, `POST …/ready`, `POST …/collect`) with 6-digit `pickupCode`
+- Receipt send queues `PosOutboundMessage` as **pending** (no provider calls yet)
+- `orders.refund` supports `to: "cash"` for till drawer refunds
 
 ---
 

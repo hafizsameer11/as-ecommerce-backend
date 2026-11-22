@@ -32,7 +32,7 @@ export const createReturnBody = z.object({
   items: returnLines,
   reason: z.enum(RETURN_REASONS),
   details: z.string().trim().max(2000).optional(),
-  refundTo: z.enum(["original", "wallet"]).default("original"),
+  refundTo: z.enum(["original", "wallet", "cash"]).default("original"),
 });
 
 export const myReturnsQuery = pageQuery.extend({ status: z.enum(["In Progress", "Approved", "Completed", "Rejected"]).optional() });
@@ -51,7 +51,7 @@ export const adminCreateBody = z.object({
   items: returnLines.optional(),
   reason: z.string().trim().min(2).max(120),
   details: z.string().trim().max(2000).optional(),
-  refundTo: z.enum(["original", "wallet"]).default("original"),
+  refundTo: z.enum(["original", "wallet", "cash"]).default("original"),
   /** kobo; default = suggested refund */
   refundAmount: z.number().int().min(0).optional(),
   /** skip the return window / non-returnable category rules (goodwill) */
@@ -65,7 +65,7 @@ export const receivedBody = z.object({ restock: z.boolean().default(true), note:
 export const refundBody = z.object({
   /** kobo; default = suggested refund (capped at what is still refundable on the order) */
   amount: z.number().int().positive().optional(),
-  to: z.enum(["original", "wallet"]).default("original"),
+  to: z.enum(["original", "wallet", "cash"]).default("original"),
   note: z.string().trim().max(500).optional(),
 });
 

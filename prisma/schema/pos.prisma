@@ -57,6 +57,30 @@ model PosCashMove {
   @@index([sessionId, createdAt])
 }
 
+/// Outbound customer messages from the till. Providers (SMS/WhatsApp/email) are wired in Phase 5.
+model PosOutboundMessage {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  /// email | sms | whatsapp | push
+  channel    String   @db.VarChar(16)
+  /// pos.receipt | pos.gift_receipt | pos.return_slip | pickup.ready | …
+  template   String   @db.VarChar(64)
+  to         String   @db.VarChar(190)
+  /// pending | sent | failed (providers flip pending → sent later)
+  status     String   @db.VarChar(16) @default("pending")
+  orderId    String?
+  returnId   String?
+  bookingId  String?
+  staffId    String?
+  payload    Json
+  error      String?  @db.Text
+  sentAt     DateTime?
+
+  @@index([status, createdAt])
+  @@index([orderId])
+  @@index([template, createdAt])
+}
+
 /// Till actions that need a supervisor/manager trail (also mirrored to platform AuditLog where useful).
 model PosAuditEvent {
   id           String   @id @default(cuid())

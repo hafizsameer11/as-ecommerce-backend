@@ -385,6 +385,8 @@ export const ordersService = {
       if (b.to === "wallet") {
         if (!o.customerId) throw ApiError.badRequest("VALIDATION_FAILED", "Guest orders can only be refunded to the original payment.");
         await walletsService.refund(tx, o.customerId, amount, `Refund for order ${o.number}`, { orderNumber: o.number });
+      } else if (b.to === "cash") {
+        // cash leaves the till — no PSP call; POS session audits the drawer separately
       } else {
         // wallet-paid part goes back to the wallet, the rest to the card/bank
         const cardPart = Math.max(0, Math.min(amount, o.amountPaid - o.walletApplied - o.amountRefunded));
@@ -401,7 +403,8 @@ export const ordersService = {
         data: { amountRefunded: totalRefunded, paymentStatus: full ? "refunded" : "partially_refunded", status: full ? "refunded" : o.status === "delivered" ? "partially_refunded" : o.status },
       });
       if (o.customerId) await tx.customerStats.updateMany({ where: { customerId: o.customerId }, data: { totalSpend: { decrement: BigInt(amount) } } });
-      await addEvent(tx, id, "refunded", "Refund issued", { detail: `${formatNaira(amount)} to ${b.to === "wallet" ? "ASL Wallet" : "original payment"} — ${b.reason}`, actor });
+      const dest = b.to === "wallet" ? "ASL Wallet" : b.to === "cash" ? "cash" : "original payment";
+      await addEvent(tx, id, "refunded", "Refund issued", { detail: `${formatNaira(amount)} to ${dest} — ${b.reason}`, actor });
       if (opts.inTx) await opts.inTx(tx);
     });
     events.emit("order.refunded", { orderId: id, amount });

@@ -29,7 +29,7 @@ export const refundBody = z.object({
   /** kobo; omit for everything still refundable */
   amount: z.number().int().positive().optional(),
   reason: z.string().trim().min(3).max(300),
-  to: z.enum(["original", "wallet"]).default("original"),
+  to: z.enum(["original", "wallet", "cash"]).default("original"),
   /** put the items back on sale (only before shipping) */
   restock: z.boolean().default(false),
 });
