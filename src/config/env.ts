@@ -9,6 +9,8 @@ export const envSchema = z.object({
   WEB_URL: z.string().url().default("http://localhost:3000"),
   /** admin app (absolute links in staff alert e-mails) */
   ADMIN_URL: z.string().url().default("http://localhost:3001"),
+  /** Expo / native deep-link scheme (password reset, payment return) */
+  MOBILE_APP_SCHEME: z.string().min(1).default("asloriginals"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().default(""),
   JWT_ACCESS_SECRET: z.string().min(32),

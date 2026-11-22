@@ -30,7 +30,7 @@ import { wishlistStoreRoutes } from "./commerce/wishlist/wishlist.routes";
 import { couponsAdminRoutes, myCouponsStoreRoutes } from "./commerce/coupons/coupons.routes";
 import { checkoutStoreRoutes } from "./commerce/checkout/checkout.routes";
 import { myOrdersStoreRoutes, ordersAdminRoutes, ordersStoreRoutes } from "./commerce/orders/orders.routes";
-import { myOrderDocumentsStoreRoutes, orderDocumentsAdminRoutes, orderDocumentsStoreRoutes } from "./commerce/documents/documents.routes";
+import { myOrderDocumentsStoreRoutes, orderDocumentsAdminRoutes, orderDocumentsStoreRoutes, shipmentDocumentsAdminRoutes } from "./commerce/documents/documents.routes";
 import { draftOrdersAdminRoutes, draftPayStoreRoutes } from "./commerce/draft-orders/draft-orders.routes";
 import { myReturnsStoreRoutes, returnableStoreRoutes, returnsAdminRoutes } from "./commerce/returns/returns.routes";
 import { registerReturnListeners } from "./commerce/returns/returns.listeners";
@@ -135,6 +135,7 @@ export const moduleRouters: ModuleRouter[] = [
   myOrderDocumentsStoreRoutes, // before the order routers: /orders/:id/invoice.pdf, /orders/print-slips
   orderDocumentsStoreRoutes,
   orderDocumentsAdminRoutes,
+  shipmentDocumentsAdminRoutes, // POST /shipments/print-labels before /shipments/:id
   myOrdersStoreRoutes,
   ordersStoreRoutes,
   ordersAdminRoutes,

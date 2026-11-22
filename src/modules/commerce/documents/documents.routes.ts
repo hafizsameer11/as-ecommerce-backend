@@ -1,6 +1,6 @@
 import { ModuleRouter } from "@/core/http/router";
 import { documentsController as c } from "./documents.controller";
-import { emailInvoiceBody, orderRef, orderToken, printSlipsBody } from "./documents.schemas";
+import { emailInvoiceBody, orderRef, orderToken, printLabelsBody, printSlipsBody } from "./documents.schemas";
 
 const pdf = "Returns `application/pdf`.";
 
@@ -18,3 +18,11 @@ export const orderDocumentsAdminRoutes = new ModuleRouter({ surface: "admin", pr
   .get("/:id/invoice.pdf", { summary: "Invoice PDF", description: pdf, params: orderRef }, c.invoice)
   .get("/:id/packing-slip.pdf", { summary: "Packing slip PDF (no prices)", description: pdf, params: orderRef }, c.packingSlip)
   .post("/:id/email-invoice", { summary: "Email the invoice PDF to the customer", params: orderRef, body: emailInvoiceBody, permission: "orders.edit", audit: { category: "orders", action: "order.invoice_emailed", entity: "order" } }, c.emailInvoice);
+
+/** asl-admin /shipments → Print shipping labels */
+export const shipmentDocumentsAdminRoutes = new ModuleRouter({ surface: "admin", prefix: "/shipments", tag: "Shipments", defaultAuth: "admin", defaultPermission: "orders.view" })
+  .post("/print-labels", {
+    summary: "Shipping label PDFs for several shipments (one page per shipment)",
+    description: pdf,
+    body: printLabelsBody,
+  }, c.printLabels);

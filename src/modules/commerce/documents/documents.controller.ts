@@ -1,7 +1,7 @@
 import type { Response } from "express";
 import type { Ctx } from "@/core/http/router";
 import { documentsService as svc } from "./documents.service";
-import type { EmailInvoiceBody, PrintSlipsBody } from "./documents.schemas";
+import type { EmailInvoiceBody, PrintLabelsBody, PrintSlipsBody } from "./documents.schemas";
 
 type Id = { id: string };
 
@@ -23,6 +23,7 @@ export const documentsController = {
   invoice: async ({ params, res }: Ctx<unknown, unknown, Id>) => sendPdf(res, await svc.adminInvoice(params.id)),
   packingSlip: async ({ params, res }: Ctx<unknown, unknown, Id>) => sendPdf(res, await svc.packingSlip(params.id)),
   printSlips: async ({ body, res }: Ctx<PrintSlipsBody>) => sendPdf(res, await svc.packingSlips(body.ids), "attachment"),
+  printLabels: async ({ body, res }: Ctx<PrintLabelsBody>) => sendPdf(res, await svc.shippingLabels(body.ids), "attachment"),
   emailInvoice: async ({ params, body, res }: Ctx<EmailInvoiceBody, unknown, Id>) => {
     const r = await svc.emailInvoice(params.id, body.to);
     res.locals.audit = { entityId: r.orderId, summary: `Invoice for ${r.number} emailed to ${r.sentTo}` };

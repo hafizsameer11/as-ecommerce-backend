@@ -12,7 +12,7 @@ export const DEFAULT_TEMPLATES: DefaultTemplate[] = [
   { code: "auth.welcome", name: "Welcome", channel: "email", category: "lifecycle", trigger: "customer.registered",
     subject: "Welcome to ASL ORIGINALS, {{firstName}}", body: "Hi {{firstName}},\n\nYour account is ready. Discover authentic luxury, curated for you.", ctaLabel: "Start shopping", linkTo: "/shop" },
   { code: "auth.password_reset", name: "Password reset", channel: "email", category: "system", trigger: "password.forgot",
-    subject: "Reset your ASL ORIGINALS password", body: "Hi {{firstName}},\n\nUse the link below to set a new password. It expires in 30 minutes.\n\n{{resetUrl}}\n\nIf you didn't ask for this, you can ignore this email." },
+    subject: "Reset your ASL ORIGINALS password", body: "Hi {{firstName}},\n\nUse the link below to set a new password. It expires in 30 minutes.\n\nWeb: {{resetUrl}}\n\nOpen in the ASL ORIGINALS app: {{appResetUrl}}\n\nIf you didn't ask for this, you can ignore this email." },
   { code: "auth.otp", name: "One-time code", channel: "email", category: "system", trigger: "otp.requested",
     subject: "Your ASL ORIGINALS code: {{code}}", body: "Your one-time code is {{code}}. It expires in 10 minutes." },
   { code: "auth.otp", name: "One-time code (SMS)", channel: "sms", category: "system", trigger: "otp.requested",

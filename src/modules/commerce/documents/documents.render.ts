@@ -96,6 +96,21 @@ export type SlipData = {
   giftMessage: string | null;
 };
 
+/** Carrier shipping label (thermal-style layout on A6 / half A4). */
+export type ShippingLabelData = {
+  store: StoreHeader;
+  shipmentNumber: string;
+  orderNumber: string;
+  carrier: string;
+  service: string;
+  trackingNumber: string;
+  shipFrom: Party;
+  shipTo: Party;
+  weightKg: number;
+  itemsCount: number;
+  createdAt: Date;
+};
+
 const PAGE_W = 595.28;
 const L = 40;
 const R = PAGE_W - 40;
@@ -250,6 +265,66 @@ export async function renderPackingSlips(slips: SlipData[]): Promise<Buffer> {
     }
     y = ensureSpace(doc, y, 40);
     doc.font("body").fontSize(8).fillColor(GREY).text("Packed by: ____________________     Checked by: ____________________", L, y + 10, { width: W });
+  });
+  return toBuffer(doc);
+}
+
+/** One A6-ish label per page (portrait A4 with a framed label region). */
+export async function renderShippingLabels(labels: ShippingLabelData[]): Promise<Buffer> {
+  const doc = newDoc(labels.length === 1 ? `Label ${labels[0].trackingNumber}` : `Shipping labels (${labels.length})`);
+  labels.forEach((lab, i) => {
+    if (i > 0) doc.addPage();
+    const x = 40;
+    const y0 = 40;
+    const lw = PAGE_W - 80;
+    const lh = 360;
+    doc.rect(x, y0, lw, lh).strokeColor("#000").lineWidth(1.2).stroke();
+
+    let y = y0 + 14;
+    doc.font("bold").fontSize(14).fillColor("#000").text(lab.store.name, x + 12, y, { width: lw - 24, characterSpacing: 1 });
+    y = doc.y + 4;
+    doc.font("body").fontSize(8).fillColor(GREY).text("SHIPPING LABEL", x + 12, y);
+    y = doc.y + 10;
+    doc.moveTo(x + 12, y).lineTo(x + lw - 12, y).strokeColor(RULE).stroke();
+    y += 12;
+
+    doc.font("bold").fontSize(8).fillColor(GREY).text("FROM", x + 12, y);
+    doc.font("body").fontSize(9).fillColor("#000").text(lab.shipFrom.name, x + 12, doc.y + 2, { width: lw / 2 - 20 });
+    for (const line of lab.shipFrom.lines.filter(Boolean)) {
+      doc.font("body").fontSize(8).fillColor(GREY).text(line, x + 12, doc.y, { width: lw / 2 - 20 });
+    }
+    const fromEnd = doc.y;
+
+    doc.font("bold").fontSize(8).fillColor(GREY).text("TO", x + lw / 2, y);
+    doc.font("bold").fontSize(10).fillColor("#000").text(lab.shipTo.name, x + lw / 2, y + 12, { width: lw / 2 - 20 });
+    for (const line of lab.shipTo.lines.filter(Boolean)) {
+      doc.font("body").fontSize(9).fillColor("#000").text(line, x + lw / 2, doc.y, { width: lw / 2 - 20 });
+    }
+    y = Math.max(fromEnd, doc.y) + 14;
+    doc.moveTo(x + 12, y).lineTo(x + lw - 12, y).strokeColor(RULE).stroke();
+    y += 12;
+
+    doc.font("body").fontSize(9).fillColor(GREY).text(`${lab.carrier} · ${lab.service}`, x + 12, y);
+    doc.text(`Order ${lab.orderNumber} · ${lab.shipmentNumber}`, x + 12, doc.y + 2);
+    doc.text(`${lab.itemsCount} item(s) · ${lab.weightKg.toFixed(2)} kg · ${fmtDate(lab.createdAt)}`, x + 12, doc.y + 2);
+    y = doc.y + 16;
+
+    doc.font("bold").fontSize(8).fillColor(GREY).text("TRACKING", x + 12, y);
+    y = doc.y + 6;
+    doc.font("bold").fontSize(18).fillColor("#000").text(lab.trackingNumber || "NO TRACKING", x + 12, y, {
+      width: lw - 24,
+      align: "center",
+      characterSpacing: 1.5,
+    });
+    y = doc.y + 14;
+    // Decorative barcode-style strip (human-readable tracking is above — carriers overlay real barcodes in prod)
+    const barY = y;
+    const barH = 28;
+    const code = lab.trackingNumber || lab.shipmentNumber;
+    for (let i = 0; i < 48; i++) {
+      const on = (code.charCodeAt(i % code.length) + i) % 3 !== 0;
+      if (on) doc.rect(x + 24 + i * ((lw - 48) / 48), barY, Math.max(1.2, (lw - 48) / 48 - 0.6), barH).fill("#000");
+    }
   });
   return toBuffer(doc);
 }

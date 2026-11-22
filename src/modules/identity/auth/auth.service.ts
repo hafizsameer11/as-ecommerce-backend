@@ -159,10 +159,12 @@ export const authService = {
     if (c && !c.deletedAt) {
       const token = randomToken();
       await prisma.passwordResetToken.create({ data: { customerId: c.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MS) } });
+      const resetPath = `/reset-password?token=${token}`;
       await messaging.email(c.email, "auth.password_reset", {
         firstName: c.firstName,
-        // the web/app route that shows the "new password" form
-        resetUrl: `${env.WEB_URL}/reset-password?token=${token}`,
+        // Web works in every mail client; app deep link opens the Expo app when installed.
+        resetUrl: `${env.WEB_URL}${resetPath}`,
+        appResetUrl: `${env.MOBILE_APP_SCHEME}:/${resetPath}`,
         token,
       });
     }

@@ -9,7 +9,8 @@ import { settingsService } from "@/modules/platform/settings/settings.service";
 import { messaging } from "@/modules/marketing/messaging/messaging.service";
 import { fullName } from "@/modules/identity/auth/customer.mapper";
 import { formatNaira } from "@/core/utils/money";
-import { renderInvoice, renderPackingSlips, type DocLine, type Party, type StoreHeader } from "./documents.render";
+import { renderInvoice, renderPackingSlips, renderShippingLabels, type DocLine, type Party, type StoreHeader } from "./documents.render";
+import { CARRIER_LABEL } from "@/modules/fulfilment/shipments/shipments.mapper";
 
 const docInclude = {
   items: true,
@@ -150,6 +151,51 @@ export const documentsService = {
   async packingSlip(idOrNumber: string) {
     const o = await find(byRef(idOrNumber));
     return this.packingSlips([o.id]);
+  },
+
+  /** Carrier shipping labels for one or more shipments (admin /shipments print). */
+  async shippingLabels(ids: string[]) {
+    const unique = [...new Set(ids)];
+    const rows = await prisma.shipment.findMany({
+      where: { OR: [{ id: { in: unique } }, { number: { in: unique } }] },
+      include: {
+        order: {
+          include: {
+            items: true,
+            pickupLocation: true,
+            customer: { select: { firstName: true, lastName: true, email: true, phone: true } },
+          },
+        },
+      },
+    });
+    const ordered = unique.map((id) => rows.find((s) => s.id === id || s.number === id)).filter((s): s is (typeof rows)[number] => !!s);
+    if (!ordered.length) throw ApiError.notFound("Shipment");
+    const store = await storeHeader();
+    const buffer = await renderShippingLabels(
+      ordered.map((s) => {
+        const o = {
+          ...s.order,
+          couponRedemptions: [] as { code: string; discount: number }[],
+        } as DocOrder;
+        const dest = destination(o);
+        return {
+          store,
+          shipmentNumber: s.number,
+          orderNumber: s.order.number,
+          carrier: CARRIER_LABEL[s.carrier] ?? String(s.carrier),
+          service: s.service,
+          trackingNumber: s.trackingNumber ?? "",
+          shipFrom: { name: store.name, lines: [store.address, store.phone, store.email].filter(Boolean) },
+          shipTo: { name: dest.name, lines: dest.lines },
+          weightKg: s.weightKg,
+          itemsCount: s.itemsCount,
+          createdAt: s.createdAt,
+        };
+      }),
+    );
+    const filename =
+      ordered.length === 1 ? `shipping-label-${ordered[0].number}.pdf` : `shipping-labels-${new Date().toISOString().slice(0, 10)}.pdf`;
+    return { buffer, filename, count: ordered.length, missing: unique.length - ordered.length };
   },
 
   /** admin "Email invoice": PDF attached to the `order.invoice` template */
